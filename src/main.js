@@ -1,4 +1,6 @@
 import "./style.css";
+import "./print-a4.css";
+import QRCode from "qrcode";
 import { isAdminLoggedIn, loginAdmin, logoutAdmin, requireAdmin } from "./admin.js";
 import {
   FOLLOW_TOKEN,
@@ -12,9 +14,11 @@ import {
   getCertificateForEdit,
   getCertificateSummary,
   listSavedTokens,
+  printPath,
   readFormValues,
   saveCertificate,
 } from "./certificates.js";
+import { renderA4PrintPage } from "./print-a4.js";
 
 const FORM_SECTIONS = [
   {
@@ -39,6 +43,20 @@ const FORM_SECTIONS = [
       "Issue Date",
       "Expiry Date",
       "Application Status",
+    ],
+  },
+  {
+    title: "A4 print certificate",
+    fields: [
+      "Certificate Type",
+      "Renewal From",
+      "Renewal To",
+      "Vehicle Model",
+      "Registered Laden Weight",
+      "Seating Capacity",
+      "Vehicle Fuel Type",
+      "Amount",
+      "Amount In Words",
     ],
   },
 ];
@@ -284,6 +302,7 @@ function renderCertEditor(token, data, isCreate) {
           <div class="admin-head-actions">
             <button class="btn btn-outline" type="button" data-action="copy">Copy link</button>
             <a class="btn btn-outline" id="open-cert-link" href="${followPath(token)}" target="_blank" rel="noreferrer">Preview</a>
+            <a class="btn btn-outline" href="${printPath(token)}" target="_blank" rel="noreferrer">Print A4</a>
           </div>
         </div>
 
@@ -367,7 +386,20 @@ function certificatePage(token) {
       </div>
     </div>
     <a class="btn btn-primary" href="/">Back to Home</a>
+    <a class="btn btn-outline" href="${printPath(token)}" target="_blank" rel="noreferrer" style="margin-left:8px">Print A4 certificate</a>
   `);
+}
+
+async function mountPrintQr() {
+  const img = document.getElementById("cert-qr");
+  if (!img) return;
+  const url = img.getAttribute("data-url");
+  if (!url) return;
+  try {
+    img.src = await QRCode.toDataURL(url, { width: 180, margin: 0, errorCorrectionLevel: "M" });
+  } catch {
+    /* QR render failed */
+  }
 }
 
 function showToast(message) {
@@ -456,6 +488,7 @@ function bindActions() {
         logoutAdmin();
         navigate("/admin");
       }
+      if (action === "print-a4") window.print();
       if (action === "feedback") showToast("Feedback is not enabled in this app.");
       if (action === "help") showToast("Use /admin to manage certificate data.");
     });
@@ -504,6 +537,26 @@ function render() {
 
   if (path === "/edit") {
     navigate(isAdminLoggedIn() ? "/admin/dashboard" : "/admin");
+    return;
+  }
+
+  const printMatch = path.match(/^\/vehiclefitness\/([^/]+)\/print$/);
+  if (printMatch) {
+    const printToken = printMatch[1];
+    if (!getCertificate(printToken)) {
+      app.innerHTML = layout(`
+        <h1 class="page-title">Print certificate</h1>
+        <div class="not-found">
+          <p class="alert">Certificate Status: <strong>Not Found</strong></p>
+          <a class="btn btn-primary" href="/">Back to Home</a>
+        </div>
+      `);
+      bindActions();
+      return;
+    }
+    app.innerHTML = renderA4PrintPage(printToken);
+    bindActions();
+    mountPrintQr();
     return;
   }
 

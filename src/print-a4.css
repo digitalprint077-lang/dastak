@@ -1,0 +1,189 @@
+.print-shell {
+  min-height: 100vh;
+  background: #525659;
+  padding: 16px;
+}
+
+.print-toolbar {
+  max-width: 210mm;
+  margin: 0 auto 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.a4-cert {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  background: #fff;
+  color: #000;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 11pt;
+  line-height: 1.35;
+  padding: 14mm 16mm 16mm;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  box-sizing: border-box;
+}
+
+.a4-header {
+  text-align: center;
+  margin-bottom: 8mm;
+}
+
+.a4-header h1 {
+  margin: 0;
+  font-size: 14pt;
+  font-weight: 700;
+}
+
+.a4-header h2 {
+  margin: 2px 0 0;
+  font-size: 12pt;
+  font-weight: 700;
+}
+
+.a4-header p {
+  margin: 2px 0 0;
+  font-size: 11pt;
+}
+
+.a4-header .office {
+  font-weight: 700;
+}
+
+.a4-header .city {
+  text-decoration: underline;
+  font-weight: 700;
+}
+
+.a4-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6mm;
+  font-size: 10.5pt;
+}
+
+.a4-title-block {
+  text-align: center;
+  margin-bottom: 6mm;
+}
+
+.a4-title-block h3 {
+  margin: 0;
+  font-size: 11pt;
+  font-weight: 700;
+}
+
+.a4-title-block p {
+  margin: 2px 0;
+  font-size: 10.5pt;
+}
+
+.a4-title-main {
+  margin: 4px 0 !important;
+  font-size: 12pt !important;
+  font-weight: 700 !important;
+  text-decoration: underline;
+}
+
+.a4-statement {
+  margin: 0 0 4mm;
+  text-align: justify;
+  font-size: 10.5pt;
+}
+
+.a4-statement u {
+  font-weight: 700;
+}
+
+.a4-body {
+  display: grid;
+  grid-template-columns: 1fr 34mm;
+  gap: 8mm;
+  align-items: start;
+  margin-top: 4mm;
+}
+
+.a4-specs {
+  margin: 0;
+}
+
+.a4-spec-row {
+  display: grid;
+  grid-template-columns: 42mm 1fr;
+  gap: 4mm;
+  margin-bottom: 2.5mm;
+  font-size: 10.5pt;
+}
+
+.a4-spec-row dt {
+  margin: 0;
+  font-weight: 400;
+}
+
+.a4-spec-row dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.a4-qr-wrap {
+  text-align: center;
+  padding-top: 2mm;
+}
+
+.a4-qr-wrap img {
+  width: 30mm;
+  height: 30mm;
+  display: block;
+  margin: 0 auto;
+}
+
+.a4-qr-caption {
+  margin: 2mm 0 0;
+  font-size: 9pt;
+}
+
+.a4-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 14mm;
+  font-size: 10.5pt;
+}
+
+.a4-sign {
+  text-align: right;
+}
+
+.a4-sign p {
+  margin: 0;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-shell {
+    background: #fff;
+    padding: 0;
+  }
+
+  .a4-cert {
+    box-shadow: none;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0;
+  }
+}

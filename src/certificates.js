@@ -16,6 +16,20 @@ export const FIELD_LABELS = [
   "Application Status",
 ];
 
+export const PRINT_FIELD_LABELS = [
+  "Certificate Type",
+  "Vehicle Model",
+  "Registered Laden Weight",
+  "Seating Capacity",
+  "Vehicle Fuel Type",
+  "Amount",
+  "Amount In Words",
+  "Renewal From",
+  "Renewal To",
+];
+
+export const ALL_FIELD_LABELS = [...FIELD_LABELS, ...PRINT_FIELD_LABELS];
+
 const DEFAULT_VALUES = {
   "Certificate Number": "PES001VF00000236",
   "Tracking ID": "VF260921-0000885",
@@ -30,12 +44,21 @@ const DEFAULT_VALUES = {
   Service: "Renewal",
   District: "Peshawar",
   "Application Status": "Certificate Ready - Available for Download",
+  "Certificate Type": "RENEWAL",
+  "Vehicle Model": "2012",
+  "Registered Laden Weight": "0.00",
+  "Seating Capacity": "16",
+  "Vehicle Fuel Type": "PETROL",
+  Amount: "1500",
+  "Amount In Words": "ONE THOUSAND FIVE HUNDRED ONLY",
+  "Renewal From": "",
+  "Renewal To": "",
 };
 
 export const certificates = {
   [FOLLOW_TOKEN]: {
     status: "Issued",
-    fields: FIELD_LABELS.map((label) => [label, DEFAULT_VALUES[label]]),
+    fields: ALL_FIELD_LABELS.map((label) => [label, DEFAULT_VALUES[label]]),
   },
 };
 
@@ -49,9 +72,10 @@ export function defaultCertificate() {
 }
 
 export function certificateFromStored(stored) {
+  const merged = { ...DEFAULT_VALUES, ...(stored.values || {}) };
   return {
     status: stored.status || "Issued",
-    fields: FIELD_LABELS.map((label) => [label, stored.values?.[label] ?? ""]),
+    fields: ALL_FIELD_LABELS.map((label) => [label, merged[label] ?? ""]),
   };
 }
 
@@ -124,7 +148,7 @@ export function getCertificateForEdit(token) {
 export function readFormValues(form) {
   const status = form.querySelector('[name="status"]')?.value?.trim() || "Issued";
   const values = {};
-  FIELD_LABELS.forEach((label) => {
+  ALL_FIELD_LABELS.forEach((label) => {
     const input = form.querySelector(`[name="${cssEscape(label)}"]`);
     values[label] = input?.value?.trim() ?? "";
   });
@@ -134,10 +158,69 @@ export function readFormValues(form) {
 export function fillForm(form, { status, values }) {
   const statusEl = form.querySelector('[name="status"]');
   if (statusEl) statusEl.value = status ?? "Issued";
-  FIELD_LABELS.forEach((label) => {
+  ALL_FIELD_LABELS.forEach((label) => {
     const input = form.querySelector(`[name="${cssEscape(label)}"]`);
     if (input) input.value = values?.[label] ?? "";
   });
+}
+
+const PRINT_MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+export function formatPrintDate(value) {
+  if (!value) return "—";
+  if (/^\d{2}-[A-Z]{3}-\d{2}$/.test(value)) return value;
+  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) {
+    const day = iso[3];
+    const month = PRINT_MONTHS[Number(iso[2]) - 1] || "JAN";
+    const year = iso[1].slice(-2);
+    return `${day}-${month}-${year}`;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const month = PRINT_MONTHS[parsed.getMonth()];
+  const year = String(parsed.getFullYear()).slice(-2);
+  return `${day}-${month}-${year}`;
+}
+
+export function printPath(token) {
+  return `/vehiclefitness/${token}/print`;
+}
+
+export function getPrintData(token, origin = window.location.origin) {
+  const { values } = getCertificateForEdit(token);
+  const v = (key) => values[key] || "";
+  const district = v("District") || "Peshawar";
+  const renewalFrom = v("Renewal From") || formatPrintDate(v("Issue Date"));
+  const renewalTo = v("Renewal To") || formatPrintDate(v("Expiry Date"));
+  const amount = v("Amount");
+  const amountWords = v("Amount In Words");
+  const amountLine =
+    amount && amountWords ? `${amount} (${amountWords})` : amount || amountWords || "—";
+
+  return {
+    applicationId: v("Tracking ID") || "—",
+    certificateNo: v("Certificate Number") || "—",
+    vehicleNo: v("Registration Number") || "—",
+    expiry: formatPrintDate(v("Expiry Date")),
+    renewalFrom,
+    renewalTo,
+    engine: v("Engine Number") || "—",
+    chassis: v("Chassis Number") || "—",
+    certType: (v("Certificate Type") || v("Service") || "RENEWAL").toUpperCase(),
+    vehicleType: v("Vehicle Kind") || "—",
+    model: v("Vehicle Model") || "—",
+    ladenWeight: v("Registered Laden Weight") || "0.00",
+    seating: v("Seating Capacity") || "—",
+    fuel: (v("Vehicle Fuel Type") || "—").toUpperCase(),
+    amountWords: amountLine,
+    district,
+    districtOffice: district,
+    printedDate: formatPrintDate(new Date().toISOString().slice(0, 10)),
+    previewUrl: followLink(origin, token),
+    previewPath: followPath(token),
+  };
 }
 
 export function cssEscape(value) {
