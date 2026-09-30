@@ -30,6 +30,8 @@ export const PRINT_FIELD_LABELS = [
 
 export const ALL_FIELD_LABELS = [...FIELD_LABELS, ...PRINT_FIELD_LABELS];
 
+export const DATE_FIELD_LABELS = ["Issue Date", "Expiry Date", "Renewal From", "Renewal To"];
+
 const DEFAULT_VALUES = {
   "Certificate Number": "PES001VF00000236",
   "Tracking ID": "VF260921-0000885",
@@ -68,6 +70,53 @@ export function defaultCertificate() {
   return {
     status: "Issued",
     values: { ...DEFAULT_VALUES },
+  };
+}
+
+export function generateCertificateNumber() {
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const seq = String(Math.floor(10_000_000 + Math.random() * 90_000_000));
+    const number = `PES001VF${seq}`;
+    if (!findTokenByField("Certificate Number", number)) return number;
+  }
+  return `PES001VF${String(Date.now()).slice(-8)}`;
+}
+
+export function generateTrackingId() {
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const seq = String(Math.floor(1_000_000 + Math.random() * 9_000_000));
+    const id = `VF${yy}${mm}${dd}-${seq}`;
+    if (!findTokenByField("Tracking ID", id)) return id;
+  }
+  return `VF${Date.now()}`;
+}
+
+const NEW_CERT_EMPTY_FIELDS = [
+  "Applicant Name",
+  "Father Name",
+  "District",
+  "Registration Number",
+  "Chassis Number",
+  "Engine Number",
+];
+
+/** Fresh template for admin “New certificate” (unique cert # and tracking ID). */
+export function newCertificateTemplate() {
+  const values = {
+    ...DEFAULT_VALUES,
+    "Certificate Number": generateCertificateNumber(),
+    "Tracking ID": generateTrackingId(),
+  };
+  NEW_CERT_EMPTY_FIELDS.forEach((label) => {
+    values[label] = "";
+  });
+  return {
+    status: "Issued",
+    values,
   };
 }
 
@@ -112,6 +161,16 @@ export function listSavedTokens() {
     }
   }
   return [...tokens];
+}
+
+export function findTokenByField(label, value) {
+  const needle = String(value ?? "").trim();
+  if (!needle) return null;
+  for (const token of listSavedTokens()) {
+    const { values } = getCertificateForEdit(token);
+    if (String(values[label] ?? "").trim() === needle) return token;
+  }
+  return null;
 }
 
 export function isCertificateSaved(token) {
@@ -160,11 +219,34 @@ export function fillForm(form, { status, values }) {
   if (statusEl) statusEl.value = status ?? "Issued";
   ALL_FIELD_LABELS.forEach((label) => {
     const input = form.querySelector(`[name="${cssEscape(label)}"]`);
-    if (input) input.value = values?.[label] ?? "";
+    if (!input) return;
+    const raw = values?.[label] ?? "";
+    input.value = DATE_FIELD_LABELS.includes(label) ? toDateInputValue(raw) : raw;
   });
 }
 
 const PRINT_MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+/** Normalize stored date strings for HTML date inputs (YYYY-MM-DD). */
+export function toDateInputValue(value) {
+  if (!value) return "";
+  const trimmed = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const dmy = trimmed.match(/^(\d{2})-([A-Z]{3})-(\d{2})$/);
+  if (dmy) {
+    const monthIdx = PRINT_MONTHS.indexOf(dmy[2]);
+    if (monthIdx >= 0) {
+      const year = 2000 + Number(dmy[3]);
+      return `${year}-${String(monthIdx + 1).padStart(2, "0")}-${dmy[1]}`;
+    }
+  }
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const y = parsed.getFullYear();
+  const m = String(parsed.getMonth() + 1).padStart(2, "0");
+  const d = String(parsed.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
 export function formatPrintDate(value) {
   if (!value) return "—";
