@@ -1,8 +1,8 @@
 import "./style.css";
 import "./print-a4.css";
-import QRCode from "qrcode";
 import { isAdminLoggedIn, loginAdmin, logoutAdmin, requireAdmin } from "./admin.js";
 import {
+  FIELD_LABELS,
   FOLLOW_TOKEN,
   defaultCertificate,
   deleteCertificate,
@@ -19,6 +19,7 @@ import {
   saveCertificate,
 } from "./certificates.js";
 import { renderA4PrintPage } from "./print-a4.js";
+import { qrDataUrlWithLogo } from "./qr-with-logo.js";
 
 const FORM_SECTIONS = [
   {
@@ -366,16 +367,15 @@ function certificatePage(token) {
     `);
   }
 
-  const fields = cert.fields
-    .map(
-      ([label, value]) => `
+  const values = Object.fromEntries(cert.fields);
+  const fields = FIELD_LABELS.map(
+    (label) => `
         <div class="field">
           <dt>${label}</dt>
-          <dd>${escapeHtml(value)}</dd>
+          <dd>${escapeHtml(values[label] ?? "")}</dd>
         </div>
       `
-    )
-    .join("");
+  ).join("");
 
   return layout(`
     <h1 class="page-title">Vehicle Fitness Certificate</h1>
@@ -386,7 +386,6 @@ function certificatePage(token) {
       </div>
     </div>
     <a class="btn btn-primary" href="/">Back to Home</a>
-    <a class="btn btn-outline" href="${printPath(token)}" target="_blank" rel="noreferrer" style="margin-left:8px">Print A4 certificate</a>
   `);
 }
 
@@ -396,7 +395,7 @@ async function mountPrintQr() {
   const url = img.getAttribute("data-url");
   if (!url) return;
   try {
-    img.src = await QRCode.toDataURL(url, { width: 180, margin: 0, errorCorrectionLevel: "M" });
+    img.src = await qrDataUrlWithLogo(url, { size: 240 });
   } catch {
     /* QR render failed */
   }

@@ -138,6 +138,8 @@
   height: 30mm;
   display: block;
   margin: 0 auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 .a4-qr-caption {
