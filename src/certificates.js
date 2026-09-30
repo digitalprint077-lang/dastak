@@ -90,6 +90,26 @@ export function listSavedTokens() {
   return [...tokens];
 }
 
+export function isCertificateSaved(token) {
+  return localStorage.getItem(`${STORAGE_PREFIX}${token}`) != null;
+}
+
+export function generateLinkId() {
+  const part = Math.random().toString(36).slice(2, 10);
+  return `VF${Date.now().toString(36).slice(-4)}${part}`.slice(0, 16);
+}
+
+export function getCertificateSummary(token) {
+  const data = getCertificateForEdit(token);
+  return {
+    token,
+    status: data.status,
+    applicant: data.values["Applicant Name"] || "—",
+    certificateNumber: data.values["Certificate Number"] || "—",
+    saved: isCertificateSaved(token),
+  };
+}
+
 export function getCertificateForEdit(token) {
   const cert = getCertificate(token);
   if (cert) {

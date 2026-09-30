@@ -1,19 +1,47 @@
 import "./style.css";
 import { isAdminLoggedIn, loginAdmin, logoutAdmin, requireAdmin } from "./admin.js";
 import {
-  FIELD_LABELS,
   FOLLOW_TOKEN,
   defaultCertificate,
   deleteCertificate,
   fillForm,
   followLink,
   followPath,
+  generateLinkId,
   getCertificate,
   getCertificateForEdit,
+  getCertificateSummary,
   listSavedTokens,
   readFormValues,
   saveCertificate,
 } from "./certificates.js";
+
+const FORM_SECTIONS = [
+  {
+    title: "Applicant",
+    fields: ["Applicant Name", "Father Name", "District"],
+  },
+  {
+    title: "Vehicle",
+    fields: [
+      "Registration Number",
+      "Chassis Number",
+      "Engine Number",
+      "Vehicle Kind",
+      "Service",
+    ],
+  },
+  {
+    title: "Certificate",
+    fields: [
+      "Certificate Number",
+      "Tracking ID",
+      "Issue Date",
+      "Expiry Date",
+      "Application Status",
+    ],
+  },
+];
 
 const app = document.querySelector("#app");
 
@@ -94,23 +122,26 @@ function layout(mainHtml, options = {}) {
   `;
 }
 
-function adminShell(mainHtml) {
+function adminDashboardShell(mainHtml) {
   return `
     <div class="app-shell admin-shell">
       <header class="admin-topbar">
         <div class="admin-topbar-inner">
-          <div>
-            <p class="admin-kicker">Dastak Admin</p>
-            <h1 class="admin-title">Certificate dashboard</h1>
+          <div class="admin-brand-block">
+            <img class="admin-brand-logo" src="/images/logo-dastak.png" alt="" height="36" />
+            <div>
+              <p class="admin-kicker">Dastak Admin</p>
+              <h1 class="admin-title">Certificate management</h1>
+            </div>
           </div>
           <div class="admin-topbar-actions">
-            <a class="btn btn-outline" href="/">View public site</a>
+            <a class="btn btn-outline" href="/" target="_blank" rel="noreferrer">Public site</a>
             <button class="btn btn-outline" type="button" data-action="admin-logout">Log out</button>
           </div>
         </div>
       </header>
-      <main class="page admin-page">
-        <div class="container admin-container">
+      <main class="admin-page">
+        <div class="admin-container-wide">
           ${mainHtml}
         </div>
       </main>
@@ -167,97 +198,141 @@ function homePage() {
 }
 
 function adminLoginPage() {
-  return adminShell(`
-    <div class="admin-login card">
-      <div class="card-body">
-        <h2 class="page-title">Admin sign in</h2>
-        <p class="editor-intro">Sign in to edit vehicle fitness certificate data shown on follow links.</p>
-        <form id="admin-login-form" class="admin-login-form" autocomplete="off">
-          <label class="form-field" for="admin-password">
-            <span class="form-label">Password</span>
-            <input id="admin-password" name="password" type="password" required />
-          </label>
-          <button class="btn btn-primary" type="submit">Sign in</button>
-        </form>
-        <p class="admin-note">Default local password: <code>dastak-admin</code> (override with <code>VITE_ADMIN_PASSWORD</code>).</p>
+  return `
+    <div class="login-shell">
+      <div class="login-panel card">
+        <div class="login-panel-body">
+          <img class="login-logo" src="/images/logo-dastak.png" alt="Dastak" height="44" />
+          <h2 class="login-title">Admin sign in</h2>
+          <p class="login-subtitle">Manage vehicle fitness certificates and follow links.</p>
+          <form id="admin-login-form" class="admin-login-form" autocomplete="off">
+            <label class="form-field" for="admin-password">
+              <span class="form-label">Password</span>
+              <input id="admin-password" name="password" type="password" placeholder="Enter admin password" required />
+            </label>
+            <button class="btn btn-primary btn-block" type="submit">Sign in to dashboard</button>
+          </form>
+        </div>
       </div>
+      <div class="toast" id="toast"></div>
     </div>
-  `);
+  `;
 }
 
-function renderCertEditor(token, data) {
-  const inputs = FIELD_LABELS.map((label) => fieldInput(label, data.values[label] ?? "")).join("");
-  const localLink = followLink(window.location.origin, token);
-  const tokens = listSavedTokens();
+function renderCertSidebar(activeToken) {
+  const summaries = listSavedTokens()
+    .map(getCertificateSummary)
+    .sort((a, b) => a.applicant.localeCompare(b.applicant));
 
-  const tokenOptions = tokens
+  const items = summaries
     .map(
-      (t) =>
-        `<option value="${escapeHtml(t)}"${t === token ? " selected" : ""}>${escapeHtml(t)}</option>`
+      (item) => `
+        <a
+          class="cert-list-item${item.token === activeToken ? " active" : ""}"
+          href="/admin/dashboard?token=${encodeURIComponent(item.token)}"
+        >
+          <div class="cert-list-top">
+            <strong class="cert-list-name">${escapeHtml(item.applicant)}</strong>
+            <span class="cert-badge ${item.saved ? "cert-badge-saved" : "cert-badge-default"}">
+              ${item.saved ? "Saved" : "Default"}
+            </span>
+          </div>
+          <p class="cert-list-number">${escapeHtml(item.certificateNumber)}</p>
+          <p class="cert-list-id">${escapeHtml(item.token)}</p>
+        </a>
+      `
     )
     .join("");
 
   return `
-    <div class="admin-stats card">
-      <div class="card-body admin-stats-body">
+    <aside class="admin-sidebar card">
+      <div class="admin-sidebar-head">
         <div>
-          <p class="admin-stat-label">Saved certificates</p>
-          <p class="admin-stat-value">${tokens.length}</p>
+          <h2 class="admin-sidebar-title">Certificates</h2>
+          <p class="admin-sidebar-count">${summaries.length} total</p>
         </div>
-        <div>
-          <p class="admin-stat-label">Active link ID</p>
-          <p class="admin-stat-value admin-stat-mono">${escapeHtml(token)}</p>
-        </div>
+        <button class="btn btn-primary btn-sm" type="button" data-action="admin-create-new">+ New</button>
       </div>
-    </div>
+      <div class="cert-list">${items}</div>
+    </aside>
+  `;
+}
 
-    <div class="card editor-card">
-      <div class="card-body">
-        <div class="admin-toolbar">
-          <label class="form-field admin-token-picker" for="admin-token-select">
-            <span class="form-label">Load certificate</span>
-            <select id="admin-token-select" name="adminToken">${tokenOptions}</select>
-          </label>
-          <button class="btn btn-outline" type="button" data-action="admin-new-token">New link ID</button>
+function renderFormSections(data) {
+  return FORM_SECTIONS.map(
+    (section) => `
+      <section class="form-section">
+        <h3 class="form-section-title">${section.title}</h3>
+        <div class="form-grid">${section.fields.map((label) => fieldInput(label, data.values[label] ?? "")).join("")}</div>
+      </section>
+    `
+  ).join("");
+}
+
+function renderCertEditor(token, data, isCreate) {
+  const localLink = followLink(window.location.origin, token);
+
+  return `
+    <div class="admin-layout">
+      ${renderCertSidebar(token)}
+      <div class="admin-main">
+        <div class="admin-main-head">
+          <div>
+            <p class="admin-breadcrumb">Dashboard / ${isCreate ? "New certificate" : "Edit certificate"}</p>
+            <h2 class="admin-main-title">${isCreate ? "Create certificate" : escapeHtml(data.values["Applicant Name"] || "Certificate")}</h2>
+          </div>
+          <div class="admin-head-actions">
+            <button class="btn btn-outline" type="button" data-action="copy">Copy link</button>
+            <a class="btn btn-outline" id="open-cert-link" href="${followPath(token)}" target="_blank" rel="noreferrer">Preview</a>
+          </div>
         </div>
 
-        <form id="cert-editor" autocomplete="off">
-          <div class="form-row form-row-token">
-            <label class="form-field" for="link-token">
-              <span class="form-label">Follow link ID</span>
-              <input id="link-token" name="linkToken" type="text" value="${escapeHtml(token)}" />
-            </label>
-            <label class="form-field" for="cert-status">
-              <span class="form-label">Certificate Status</span>
-              <input id="cert-status" name="status" type="text" value="${escapeHtml(data.status)}" />
-            </label>
-          </div>
-          <div class="form-grid">${inputs}</div>
-          <div class="editor-actions">
-            <button class="btn btn-primary" type="submit">Save changes</button>
-            <button class="btn btn-primary" type="button" data-action="save-preview">Save &amp; preview</button>
-            <button class="btn btn-outline" type="button" data-action="reset-form">Reset form</button>
-            <button class="btn btn-outline" type="button" data-action="delete-cert">Delete saved data</button>
+        ${isCreate ? `<div class="admin-banner">New certificate — complete the form and save to publish the follow link.</div>` : ""}
+
+        <form id="cert-editor" class="card editor-card" autocomplete="off">
+          <div class="card-body">
+            <section class="form-section">
+              <h3 class="form-section-title">Follow link</h3>
+              <div class="form-row form-row-token">
+                <label class="form-field" for="link-token">
+                  <span class="form-label">Link ID (URL slug)</span>
+                  <input id="link-token" name="linkToken" type="text" value="${escapeHtml(token)}" ${isCreate ? "" : ""} />
+                </label>
+                <label class="form-field" for="cert-status">
+                  <span class="form-label">Certificate status</span>
+                  <input id="cert-status" name="status" type="text" value="${escapeHtml(data.status)}" />
+                </label>
+              </div>
+              <div class="link-preview-box">
+                <span class="form-label">Public URL</span>
+                <code class="link-preview-url" id="follow-url">${localLink}</code>
+              </div>
+            </section>
+
+            ${renderFormSections(data)}
+
+            <div class="editor-actions editor-actions-sticky">
+              <button class="btn btn-primary" type="submit">${isCreate ? "Create & save" : "Save changes"}</button>
+              <button class="btn btn-primary" type="button" data-action="save-preview">Save &amp; preview</button>
+              <button class="btn btn-outline" type="button" data-action="reset-form">Reset fields</button>
+              <button class="btn btn-danger" type="button" data-action="delete-cert">Delete</button>
+            </div>
           </div>
         </form>
-      </div>
-    </div>
-
-    <div class="follow-box">
-      <div class="follow-label">Public follow link</div>
-      <div class="follow-row">
-        <div class="follow-url" id="follow-url">${localLink}</div>
-        <button class="btn btn-primary" type="button" data-action="copy">Copy link</button>
-        <a class="btn btn-primary" id="open-cert-link" href="${followPath(token)}" target="_blank" rel="noreferrer">Open certificate</a>
       </div>
     </div>
   `;
 }
 
+function isCreateMode() {
+  return new URLSearchParams(window.location.search).get("create") === "1";
+}
+
 function adminDashboardPage() {
-  const token = getEditorToken();
-  const data = getCertificateForEdit(token);
-  return adminShell(renderCertEditor(token, data));
+  const isCreate = isCreateMode();
+  const token = isCreate ? generateLinkId() : getEditorToken();
+  const data = isCreate ? defaultCertificate() : getCertificateForEdit(token);
+  return adminDashboardShell(renderCertEditor(token, data, isCreate));
 }
 
 function certificatePage(token) {
@@ -315,7 +390,7 @@ function saveFromEditor(previewAfter) {
   const payload = readFormValues(form);
   saveCertificate(token, payload);
   sessionStorage.setItem("dastak:editor-token", token);
-  showToast("Certificate saved");
+  showToast(isCreateMode() ? "Certificate created" : "Certificate saved");
   if (previewAfter) {
     window.open(followPath(token), "_blank", "noopener,noreferrer");
   }
@@ -365,20 +440,17 @@ function bindActions() {
       if (action === "delete-cert") {
         const token = document.querySelector('[name="linkToken"]')?.value?.trim();
         if (!token) return;
-        if (token === FOLLOW_TOKEN) {
-          deleteCertificate(token);
-          showToast("Default link storage cleared; built-in defaults remain");
-        } else {
-          deleteCertificate(token);
-          showToast("Deleted saved certificate");
-        }
+        if (!window.confirm(`Delete saved data for link ID "${token}"?`)) return;
+        deleteCertificate(token);
+        showToast(
+          token === FOLLOW_TOKEN
+            ? "Default link reset to built-in values"
+            : "Certificate deleted"
+        );
         navigate(`/admin/dashboard?token=${encodeURIComponent(FOLLOW_TOKEN)}`);
       }
-      if (action === "admin-new-token") {
-        const id = window.prompt("New follow link ID (letters, numbers, dashes):");
-        if (!id?.trim()) return;
-        sessionStorage.setItem("dastak:editor-token", id.trim());
-        navigate(`/admin/dashboard?token=${encodeURIComponent(id.trim())}`);
+      if (action === "admin-create-new") {
+        navigate("/admin/dashboard?create=1");
       }
       if (action === "admin-logout") {
         logoutAdmin();
@@ -411,14 +483,14 @@ function bindActions() {
     form.addEventListener("input", () => updateFollowLinkPreview());
   }
 
-  const tokenSelect = document.getElementById("admin-token-select");
-  if (tokenSelect) {
-    tokenSelect.addEventListener("change", () => {
-      const token = tokenSelect.value;
-      sessionStorage.setItem("dastak:editor-token", token);
-      navigate(`/admin/dashboard?token=${encodeURIComponent(token)}`);
+  document.querySelectorAll(".cert-list-item").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      const url = new URL(link.href);
+      sessionStorage.setItem("dastak:editor-token", url.searchParams.get("token") || FOLLOW_TOKEN);
+      navigate(`${url.pathname}${url.search}`);
     });
-  }
+  });
 }
 
 function render() {
