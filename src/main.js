@@ -230,7 +230,7 @@ function layout(mainHtml, options = {}) {
                 <img class="dastak-logo" src="/images/logo-dastak.png" alt="logo" />
               </a>
             </div>
-            <div class="navbar-right">${themeToggleButton()}</div>
+            <div class="navbar-right" aria-hidden="true"></div>
           </div>
         </div>
       </header>
@@ -445,7 +445,6 @@ function handleVerifyLicense(form) {
 function adminLoginPage() {
   return `
     <div class="login-shell">
-      <div class="login-theme-wrap">${themeToggleButton()}</div>
       <div class="login-panel card">
         <div class="login-panel-body">
           <img class="login-logo" src="/images/logo-dastak.png" alt="Dastak" height="44" />
