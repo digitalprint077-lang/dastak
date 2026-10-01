@@ -61,7 +61,11 @@ export function renderA4PrintPage(token) {
             <div class="a4-spec-row"><dt>Registered Laden Weight:</dt><dd>${escapeHtml(d.ladenWeight)}</dd></div>
             <div class="a4-spec-row"><dt>Seating Capacity :</dt><dd>${escapeHtml(d.seating)}</dd></div>
             <div class="a4-spec-row"><dt>Vehicle Fuel Type:</dt><dd>${escapeHtml(d.fuel)}</dd></div>
-            <div class="a4-spec-row"><dt>Amount In Words:</dt><dd>${escapeHtml(d.amountWords)}</dd></div>
+            <div class="a4-spec-row a4-spec-row-amount"><dt>Amount In Words:</dt><dd class="a4-amount-value">${
+              d.amountPrintLine2
+                ? `${escapeHtml(d.amountPrintLine1)}<br />${escapeHtml(d.amountPrintLine2)})`
+                : escapeHtml(d.amountPrintLine1)
+            }</dd></div>
           </dl>
 
           <div class="a4-qr-wrap">
@@ -73,8 +77,8 @@ export function renderA4PrintPage(token) {
         <footer class="a4-footer">
           <div>Printed Date : ${escapeHtml(d.printedDate)}</div>
           <div class="a4-sign">
-            <p>Motor Vehicle Examiner</p>
-            <p>District ${escapeHtml(d.district)}</p>
+            <p class="a4-sign-title">Motor Vehicle Examiner</p>
+            <p class="a4-sign-district">District ${escapeHtml(d.district)}</p>
           </div>
         </footer>
       </article>

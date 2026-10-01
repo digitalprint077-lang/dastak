@@ -270,6 +270,21 @@ export function printPath(token) {
   return `/vehiclefitness/${token}/print`;
 }
 
+/** Split amount words before HUNDRED ONLY for A4 print (FIVE stays on line 1). */
+export function formatAmountPrintLines(amount, amountWords) {
+  const num = String(amount ?? "").trim();
+  const words = String(amountWords ?? "").trim();
+  if (num && words) {
+    const split = words.match(/^(.+?\bFIVE)\s+(HUNDRED\s+ONLY)\s*$/i);
+    if (split) {
+      return { line1: `${num} (${split[1]}`, line2: split[2] };
+    }
+    return { line1: `${num} (${words})`, line2: null };
+  }
+  const fallback = num || words || "—";
+  return { line1: fallback, line2: null };
+}
+
 export function getPrintData(token, origin = window.location.origin) {
   const { values } = getCertificateForEdit(token);
   const v = (key) => values[key] || "";
@@ -278,8 +293,11 @@ export function getPrintData(token, origin = window.location.origin) {
   const renewalTo = v("Renewal To") || formatPrintDate(v("Expiry Date"));
   const amount = v("Amount");
   const amountWords = v("Amount In Words");
+  const amountPrint = formatAmountPrintLines(amount, amountWords);
   const amountLine =
-    amount && amountWords ? `${amount} (${amountWords})` : amount || amountWords || "—";
+    amountPrint.line2 != null
+      ? `${amountPrint.line1} ${amountPrint.line2})`
+      : amountPrint.line1;
 
   return {
     applicationId: v("Tracking ID") || "—",
@@ -297,6 +315,8 @@ export function getPrintData(token, origin = window.location.origin) {
     seating: v("Seating Capacity") || "—",
     fuel: (v("Vehicle Fuel Type") || "—").toUpperCase(),
     amountWords: amountLine,
+    amountPrintLine1: amountPrint.line1,
+    amountPrintLine2: amountPrint.line2,
     district,
     districtOffice: district,
     printedDate: formatPrintDate(new Date().toISOString().slice(0, 10)),
