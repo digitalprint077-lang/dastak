@@ -17,14 +17,52 @@ import {
   getCertificateSummary,
   findTokenByField,
   listSavedTokens,
+  isCertificateSaved,
   printPath,
   readFormValues,
   saveCertificate,
   DATE_FIELD_LABELS,
   toDateInputValue,
+  CERTIFICATE_STATUS_OPTIONS,
+  APPLICATION_STATUS_OPTIONS,
+  expiryFromIssueDate,
+  cssEscape,
 } from "./certificates.js";
 import { renderA4PrintPage } from "./print-a4.js";
 import { qrDataUrlWithLogo } from "./qr-with-logo.js";
+import {
+  EVENT_TYPES,
+  buildFitnessTrackingRows,
+  clearAnalyticsEvents,
+  computeOverviewMetrics,
+  dailyActivityBuckets,
+  eventsSince,
+  formatEventLabel,
+  formatRelativeTime,
+  getAnalyticsEvents,
+  recordAnalyticsEvent,
+  daysUntilExpiry,
+} from "./analytics.js";
+import { getLang, setLang, t, applyDocumentLang } from "./i18n.js";
+import {
+  checkLookupRateLimit,
+  recordLookupAttempt,
+  createCaptchaChallenge,
+  verifyCaptchaAnswer,
+  isCaptchaPassed,
+} from "./rate-limit.js";
+import {
+  diffCertificateValues,
+  recordCertificateAudit,
+  renderAuditPanelHtml,
+} from "./audit.js";
+import {
+  downloadTextFile,
+  exportCertificatesCsv,
+  exportCertificatesJson,
+  importCertificatesCsv,
+  importCertificatesJson,
+} from "./bulk-data.js";
 
 const ECITIZEN_HOME = "https://ecitizen.kp.gov.pk/";
 
@@ -138,8 +176,32 @@ function iconPrint() {
   );
 }
 
+function iconDownload() {
+  return iconSvg(
+    `<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>`
+  );
+}
+
 function iconLogout() {
   return iconSvg(`<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>`);
+}
+
+function iconLock() {
+  return iconSvg(
+    `<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>`
+  );
+}
+
+function iconArrowRight() {
+  return iconSvg(`<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>`);
+}
+
+function iconChart() {
+  return iconSvg(`<path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-9"/>`);
+}
+
+function iconActivity() {
+  return iconSvg(`<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`);
 }
 
 const FIELD_ICONS = {
@@ -195,7 +257,110 @@ function normalizeCnic(value) {
 }
 
 function homeCardHint() {
-  return `Track your application by entering the <strong class="home-hint-em">Tracking / Application ID</strong> and your <strong class="home-hint-em">CNIC #</strong>.`;
+  return t("homeHint");
+}
+
+function langToggleMarkup() {
+  return `<button class="btn btn-outline lang-toggle" type="button" data-action="toggle-lang" aria-label="Switch language">${t("langToggle")}</button>`;
+}
+
+function renderCaptchaFields(formId) {
+  if (isCaptchaPassed()) return "";
+  const ch = createCaptchaChallenge();
+  return `
+    <div class="captcha-block" data-captcha-id="${escapeHtml(ch.id)}" data-form-id="${escapeHtml(formId)}">
+      <label class="form-label" for="${formId}-captcha">${t("captchaLabel")}</label>
+      <p class="captcha-prompt">${t("captchaPrompt")} ${ch.a} + ${ch.b}?</p>
+      <input class="home-input" id="${formId}-captcha" name="captchaAnswer" type="number" inputmode="numeric" autocomplete="off" required />
+    </div>
+  `;
+}
+
+function validateCaptchaForForm(form) {
+  const block = form.querySelector(".captcha-block");
+  if (!block) return true;
+  const id = block.getAttribute("data-captcha-id");
+  const answer = form.querySelector('[name="captchaAnswer"]')?.value ?? "";
+  if (!verifyCaptchaAnswer(id, answer)) {
+    showToast("Incorrect security check — try again");
+    return false;
+  }
+  return true;
+}
+
+function guardPublicLookup(form) {
+  const limit = checkLookupRateLimit();
+  if (!limit.needCaptcha) return true;
+  if (!form.querySelector(".captcha-block")) {
+    showToast("Too many lookups — complete the security check below");
+    const extra = form.querySelector(".home-form-extra");
+    if (extra) extra.innerHTML = renderCaptchaFields(form.id || "lookup");
+    return false;
+  }
+  return validateCaptchaForForm(form);
+}
+
+function countExpiringWithin(days) {
+  return listSavedTokens().filter((token) => {
+    const { values } = getCertificateForEdit(token);
+    const left = daysUntilExpiry(values["Expiry Date"]);
+    return left != null && left >= 0 && left <= days;
+  }).length;
+}
+
+function expiryReminderHtml(expiryValue) {
+  const left = daysUntilExpiry(expiryValue);
+  if (left == null) return "";
+  if (left < 0) {
+    return `<div class="cert-banner cert-banner-danger" role="alert">${escapeHtml(t("expiryExpired"))}</div>`;
+  }
+  if (left <= 30) {
+    return `<div class="cert-banner cert-banner-warn" role="alert">${escapeHtml(t("expirySoon30"))} <strong>(${left} days)</strong></div>`;
+  }
+  if (left <= 60) {
+    return `<div class="cert-banner cert-banner-info" role="alert">${escapeHtml(t("expirySoon60"))} <strong>(${left} days)</strong></div>`;
+  }
+  return "";
+}
+
+function maybeShowAdminExpiryReminder() {
+  if (!isAdminLoggedIn()) return;
+  const expiring = countExpiringWithin(30);
+  const expired = listSavedTokens().filter((token) => {
+    const { values } = getCertificateForEdit(token);
+    const left = daysUntilExpiry(values["Expiry Date"]);
+    return left != null && left < 0;
+  }).length;
+  if (expiring === 0 && expired === 0) return;
+  const key = "dastak:expiry-admin-reminder";
+  if (sessionStorage.getItem(key)) return;
+  sessionStorage.setItem(key, "1");
+  const parts = [];
+  if (expiring > 0) parts.push(`${expiring} expiring within 30 days`);
+  if (expired > 0) parts.push(`${expired} expired`);
+  showToast(`Reminder: ${parts.join(", ")}`);
+}
+
+function maybeShowPublicExpiryReminder(token, expiryValue) {
+  const left = daysUntilExpiry(expiryValue);
+  if (left == null || left > 60) return;
+  const key = `dastak:expiry-public-${token}`;
+  if (sessionStorage.getItem(key)) return;
+  sessionStorage.setItem(key, "1");
+  if (left < 0) showToast(t("expiryExpired"));
+  else if (left <= 30) showToast(`${t("expirySoon30")} (${left} days)`);
+  else showToast(`${t("expirySoon60")} (${left} days)`);
+}
+
+function certSidebarExpiryBadge(daysLeft) {
+  if (daysLeft == null || daysLeft > 60) return "";
+  if (daysLeft < 0) {
+    return `<span class="cert-expiry-pill cert-expiry-pill-danger">Expired</span>`;
+  }
+  if (daysLeft <= 30) {
+    return `<span class="cert-expiry-pill cert-expiry-pill-warn">${daysLeft}d left</span>`;
+  }
+  return `<span class="cert-expiry-pill cert-expiry-pill-info">${daysLeft}d left</span>`;
 }
 
 function layout(mainHtml, options = {}) {
@@ -204,8 +369,8 @@ function layout(mainHtml, options = {}) {
     ? `
         <div class="welcome-row">
           <div class="welcome-text">
-            <h3>Welcome! We're delighted to have you here!</h3>
-            <h5>You are one step close to digital platform.</h5>
+            <h3>${t("welcomeTitle")}</h3>
+            <h5>${t("welcomeSub")}</h5>
           </div>
           <div class="welcome-actions">
             <button class="btn btn-outline" type="button" data-action="feedback">Feedback ${iconMessage()}</button>
@@ -230,7 +395,9 @@ function layout(mainHtml, options = {}) {
                 <img class="dastak-logo" src="/images/logo-dastak.png" alt="logo" />
               </a>
             </div>
-            <div class="navbar-right" aria-hidden="true"></div>
+            <div class="navbar-right">
+              ${langToggleMarkup()}
+            </div>
           </div>
         </div>
       </header>
@@ -260,7 +427,29 @@ function layout(mainHtml, options = {}) {
   `;
 }
 
-function adminDashboardShell(mainHtml) {
+function getAdminView() {
+  const view = new URLSearchParams(window.location.search).get("view")?.trim();
+  return view === "analytics" ? "analytics" : "certificates";
+}
+
+function adminSubnav(activeView) {
+  const certHref = "/admin/dashboard";
+  const analyticsHref = "/admin/dashboard?view=analytics";
+  return `
+    <nav class="admin-subnav" aria-label="Admin sections">
+      <a class="admin-subnav-link${activeView === "certificates" ? " active" : ""}" href="${certHref}">
+        ${iconSave()} Certificates
+      </a>
+      <a class="admin-subnav-link${activeView === "analytics" ? " active" : ""}" href="${analyticsHref}">
+        ${iconChart()} Analytics &amp; tracking
+      </a>
+    </nav>
+  `;
+}
+
+function adminDashboardShell(mainHtml, activeView = "certificates") {
+  const subtitle =
+    activeView === "analytics" ? "Fitness tracking &amp; usage analytics" : "Certificate management";
   return `
     <div class="app-shell admin-shell">
       <header class="admin-topbar">
@@ -269,7 +458,7 @@ function adminDashboardShell(mainHtml) {
             <img class="admin-brand-logo" src="/images/logo-dastak.png" alt="" height="36" />
             <div>
               <p class="admin-kicker">Dastak Admin</p>
-              <h1 class="admin-title">Certificate management</h1>
+              <h1 class="admin-title">${subtitle}</h1>
             </div>
           </div>
           <div class="admin-topbar-actions">
@@ -277,6 +466,7 @@ function adminDashboardShell(mainHtml) {
             <button class="btn btn-ghost admin-pill-btn" type="button" data-action="admin-logout">${iconLogout()} Log out</button>
           </div>
         </div>
+        ${adminSubnav(activeView)}
       </header>
       <main class="admin-page">
         <div class="admin-container-wide">
@@ -288,19 +478,50 @@ function adminDashboardShell(mainHtml) {
   `;
 }
 
-function fieldControl({ id, name, value, multiline = false, inputType = "text" }) {
+function fieldControl({ id, name, value, multiline = false, inputType = "text", readonly = false }) {
+  const ro = readonly ? " readonly disabled" : "";
   if (multiline) {
-    return `<textarea id="${id}" class="form-control" name="${name}" rows="2">${escapeHtml(value)}</textarea>`;
+    return `<textarea id="${id}" class="form-control" name="${name}" rows="2"${ro}>${escapeHtml(value)}</textarea>`;
   }
-  return `<input id="${id}" class="form-control${inputType === "date" ? " form-control-date" : ""}" type="${inputType}" name="${name}" value="${escapeHtml(value)}" />`;
+  return `<input id="${id}" class="form-control${inputType === "date" ? " form-control-date" : ""}" type="${inputType}" name="${name}" value="${escapeHtml(value)}"${ro} />`;
 }
 
-function fieldInput(label, value, iconKey = label) {
+function fieldSelect({ id, name, value, options, readonly = false }) {
+  const opts = options
+    .map((opt) => {
+      const sel = opt === value ? " selected" : "";
+      return `<option value="${escapeHtml(opt)}"${sel}>${escapeHtml(opt)}</option>`;
+    })
+    .join("");
+  const custom = value && !options.includes(value);
+  const customOpt = custom
+    ? `<option value="${escapeHtml(value)}" selected>${escapeHtml(value)} (custom)</option>`
+    : "";
+  return `<select id="${id}" class="form-control" name="${name}" ${readonly ? "disabled" : ""} required>${customOpt}${opts}</select>`;
+}
+
+function fieldInput(label, value, iconKey = label, readonly = false) {
   const name = label.replace(/"/g, "&quot;");
   const id = `field-${label.replace(/\s+/g, "-").toLowerCase()}`;
-  const isLong = label === "Application Status";
   const isDate = DATE_FIELD_LABELS.includes(label);
   const displayValue = isDate ? toDateInputValue(value) : value;
+  if (label === "Application Status") {
+    return `
+      <label class="form-field" for="${id}">
+        <span class="form-label">${label}</span>
+        <div class="form-input-wrap">
+          <span class="form-field-icon">${fieldIcon(iconKey)}</span>
+          ${fieldSelect({
+            id,
+            name,
+            value: displayValue || APPLICATION_STATUS_OPTIONS[0],
+            options: APPLICATION_STATUS_OPTIONS,
+            readonly,
+          })}
+        </div>
+      </label>
+    `;
+  }
   return `
     <label class="form-field" for="${id}">
       <span class="form-label">${label}</span>
@@ -310,8 +531,9 @@ function fieldInput(label, value, iconKey = label) {
           id,
           name,
           value: displayValue,
-          multiline: isLong,
+          multiline: false,
           inputType: isDate ? "date" : "text",
+          readonly,
         })}
       </div>
     </label>
@@ -339,51 +561,78 @@ function homePage() {
 
   return layout(`
     <div class="home-grid">
-      <section class="home-card">
-        <h2 class="home-card-title">Verify Your License</h2>
+      <section class="home-card" id="home-verify">
+        <h2 class="home-card-title">${t("verifyTitle")}</h2>
         <form id="verify-license-form" class="home-form">
-          <select class="home-input" name="licenseType" required aria-label="License type">
-            ${licenseOptions}
-          </select>
-          <input class="home-input" name="documentNumber" type="text" placeholder="Enter Document Number" required />
-          <input
-            class="home-input"
-            name="cnic"
-            type="text"
-            inputmode="numeric"
-            maxlength="13"
-            placeholder="Enter CNIC# without dashes (e.g. 3520212345678)"
-            required
-          />
-          <button class="home-btn home-btn-verify" type="submit">${iconUserCheck()} Verify License</button>
+          <label class="home-field" for="verify-license-type">
+            <span class="home-label">${t("licenseType")}</span>
+            <select class="home-input" id="verify-license-type" name="licenseType" required>
+              ${licenseOptions}
+            </select>
+          </label>
+          <label class="home-field" for="verify-document">
+            <span class="home-label">${t("documentNumber")}</span>
+            <input class="home-input" id="verify-document" name="documentNumber" type="text" placeholder="${escapeHtml(t("documentPlaceholder"))}" required autocomplete="off" />
+          </label>
+          <label class="home-field" for="verify-cnic">
+            <span class="home-label">${t("cnic")}</span>
+            <input
+              class="home-input"
+              id="verify-cnic"
+              name="cnic"
+              type="text"
+              inputmode="numeric"
+              maxlength="13"
+              placeholder="${escapeHtml(t("cnicPlaceholder"))}"
+              required
+              autocomplete="off"
+            />
+          </label>
+          <div class="home-form-extra"></div>
+          <button class="home-btn home-btn-verify" type="submit">${iconUserCheck()} ${t("verifyBtn")}</button>
         </form>
         <p class="home-card-hint">${homeCardHint()}</p>
       </section>
 
-      <section class="home-card">
-        <h2 class="home-card-title">Track Your Application</h2>
+      <section class="home-card" id="home-track">
+        <h2 class="home-card-title">${t("trackTitle")}</h2>
         <form id="track-application-form" class="home-form">
-          <input
-            class="home-input"
-            name="trackingId"
-            type="text"
-            placeholder="Enter Application Tracking ID"
-            required
-          />
-          <input
-            class="home-input"
-            name="cnic"
-            type="text"
-            inputmode="numeric"
-            maxlength="13"
-            placeholder="Enter CNIC# without dashes (e.g. 3520212345678)"
-            required
-          />
-          <button class="home-btn home-btn-track" type="submit">${iconTrack()} Track Application</button>
+          <label class="home-field" for="track-id">
+            <span class="home-label">${t("trackingId")}</span>
+            <input
+              class="home-input"
+              id="track-id"
+              name="trackingId"
+              type="text"
+              placeholder="${escapeHtml(t("trackingPlaceholder"))}"
+              required
+              autocomplete="off"
+            />
+          </label>
+          <label class="home-field" for="track-cnic">
+            <span class="home-label">${t("cnic")}</span>
+            <input
+              class="home-input"
+              id="track-cnic"
+              name="cnic"
+              type="text"
+              inputmode="numeric"
+              maxlength="13"
+              placeholder="${escapeHtml(t("cnicPlaceholder"))}"
+              required
+              autocomplete="off"
+            />
+          </label>
+          <div class="home-form-extra"></div>
+          <button class="home-btn home-btn-track" type="submit">${iconTrack()} ${t("trackBtn")}</button>
         </form>
         <p class="home-card-hint">${homeCardHint()}</p>
       </section>
     </div>
+    <nav class="home-mobile-bar" aria-label="Quick actions">
+      <button class="home-mobile-btn" type="button" data-action="scroll-verify">${t("verifyBtn")}</button>
+      <button class="home-mobile-btn home-mobile-btn-accent" type="button" data-action="scroll-track">${t("trackBtn")}</button>
+    </nav>
   `);
 }
 
@@ -398,6 +647,7 @@ function resolveVehicleFitnessByDocument(documentNumber) {
 }
 
 function handleTrackApplication(form) {
+  if (!guardPublicLookup(form)) return;
   const trackingId = form.querySelector('[name="trackingId"]')?.value?.trim() ?? "";
   const cnic = normalizeCnic(form.querySelector('[name="cnic"]')?.value ?? "");
   if (!trackingId) {
@@ -408,17 +658,28 @@ function handleTrackApplication(form) {
     showToast("Enter a valid 13-digit CNIC without dashes");
     return;
   }
+  recordLookupAttempt();
   const token =
     findTokenByField("Tracking ID", trackingId) ||
     (listSavedTokens().includes(trackingId) ? trackingId : null);
   if (!token) {
+    recordAnalyticsEvent(EVENT_TYPES.TRACK_LOOKUP, {
+      success: false,
+      trackingId,
+    });
     showToast("No application found for this Tracking ID");
     return;
   }
+  recordAnalyticsEvent(EVENT_TYPES.TRACK_LOOKUP, {
+    success: true,
+    trackingId,
+    token,
+  });
   navigate(followPath(token));
 }
 
 function handleVerifyLicense(form) {
+  if (!guardPublicLookup(form)) return;
   const licenseType = form.querySelector('[name="licenseType"]')?.value ?? "";
   const documentNumber = form.querySelector('[name="documentNumber"]')?.value?.trim() ?? "";
   const cnic = normalizeCnic(form.querySelector('[name="cnic"]')?.value ?? "");
@@ -434,30 +695,64 @@ function handleVerifyLicense(form) {
     showToast("This demo supports Vehicle Fitness Certificate verification only");
     return;
   }
+  recordLookupAttempt();
   const token = resolveVehicleFitnessByDocument(documentNumber);
   if (!token) {
+    recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
+      success: false,
+      licenseType,
+    });
     showToast("No certificate found for this document number");
     return;
   }
+  recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
+    success: true,
+    licenseType,
+    token,
+  });
   navigate(followPath(token));
 }
 
 function adminLoginPage() {
   return `
     <div class="login-shell">
-      <div class="login-panel card">
-        <div class="login-panel-body">
-          <img class="login-logo" src="/images/logo-dastak.png" alt="Dastak" height="44" />
-          <h2 class="login-title">Admin sign in</h2>
-          <p class="login-subtitle">Manage vehicle fitness certificates and follow links.</p>
-          <form id="admin-login-form" class="admin-login-form" autocomplete="off">
-            <label class="form-field" for="admin-password">
-              <span class="form-label">Password</span>
-              <input id="admin-password" name="password" type="password" placeholder="Enter admin password" required />
+      <div class="login-bg" aria-hidden="true">
+        <span class="login-orb login-orb-a"></span>
+        <span class="login-orb login-orb-b"></span>
+        <span class="login-orb login-orb-c"></span>
+        <span class="login-grid-pattern"></span>
+      </div>
+      <div class="login-card login-panel-enter">
+        <aside class="login-brand">
+          <img class="login-logo" src="/images/logo-dastak.png" alt="Dastak" height="52" />
+          <p class="login-brand-kicker">Dastak · Admin</p>
+          <h1 class="login-brand-title">Vehicle fitness certificates</h1>
+          <p class="login-brand-text">Create follow links, edit certificate data, and print official A4 forms with QR verification.</p>
+          <ul class="login-brand-list">
+            <li>Manage certificates &amp; tracking IDs</li>
+            <li>Preview &amp; print Form-I layout</li>
+            <li>Share secure public follow links</li>
+          </ul>
+        </aside>
+        <section class="login-form-side">
+          <div class="login-form-head login-enter login-enter-2">
+            <h2 class="login-title">Welcome back</h2>
+            <p class="login-subtitle">Sign in to open the admin dashboard.</p>
+          </div>
+          <form id="admin-login-form" class="admin-login-form login-enter login-enter-4" autocomplete="off">
+            <label class="form-field login-field" for="admin-password">
+              <span class="form-label">Admin password</span>
+              <div class="form-input-wrap login-input-wrap">
+                <span class="form-field-icon">${iconLock()}</span>
+                <input id="admin-password" class="form-control" name="password" type="password" placeholder="Enter your password" required />
+              </div>
             </label>
-            <button class="btn btn-primary btn-block" type="submit">Sign in to dashboard</button>
+            <button class="btn btn-teal btn-block login-submit-btn admin-pill-btn" type="submit">
+              Continue to dashboard ${iconArrowRight()}
+            </button>
           </form>
-        </div>
+          <p class="login-footnote login-enter login-enter-4">Authorized staff only. Session stays on this device.</p>
+        </section>
       </div>
       <div class="toast" id="toast"></div>
     </div>
@@ -466,7 +761,14 @@ function adminLoginPage() {
 
 function renderCertSidebar(activeToken) {
   const summaries = listSavedTokens()
-    .map(getCertificateSummary)
+    .map((token) => {
+      const summary = getCertificateSummary(token);
+      const { values } = getCertificateForEdit(token);
+      return {
+        ...summary,
+        daysLeft: daysUntilExpiry(values["Expiry Date"]),
+      };
+    })
     .sort((a, b) => a.applicant.localeCompare(b.applicant));
 
   const items = summaries
@@ -478,8 +780,11 @@ function renderCertSidebar(activeToken) {
         >
           <div class="cert-list-top">
             <strong class="cert-list-name">${escapeHtml(item.applicant)}</strong>
-            <span class="cert-badge ${item.saved ? "cert-badge-saved" : "cert-badge-default"}">
-              ${item.saved ? "Saved" : "Default"}
+            <span class="cert-list-badges">
+              ${certSidebarExpiryBadge(item.daysLeft)}
+              <span class="cert-badge ${item.saved ? "cert-badge-saved" : "cert-badge-default"}">
+                ${item.saved ? "Saved" : "Default"}
+              </span>
             </span>
           </div>
           <p class="cert-list-number">${escapeHtml(item.certificateNumber)}</p>
@@ -497,6 +802,18 @@ function renderCertSidebar(activeToken) {
           <p class="admin-sidebar-count">${summaries.length} total</p>
         </div>
         <button class="btn btn-primary btn-sm" type="button" data-action="admin-create-new">${iconPlus()} New</button>
+      </div>
+      <div class="admin-sidebar-tools">
+        <button class="btn btn-ghost btn-sm admin-pill-btn" type="button" data-action="export-json">Export JSON</button>
+        <button class="btn btn-ghost btn-sm admin-pill-btn" type="button" data-action="export-csv">Export CSV</button>
+        <label class="btn btn-ghost btn-sm admin-pill-btn import-label">
+          Import JSON
+          <input type="file" accept="application/json,.json" data-import="json" hidden />
+        </label>
+        <label class="btn btn-ghost btn-sm admin-pill-btn import-label">
+          Import CSV
+          <input type="file" accept=".csv,text/csv" data-import="csv" hidden />
+        </label>
       </div>
       <div class="cert-list">${items}</div>
     </aside>
@@ -519,11 +836,20 @@ function renderFormSections(data) {
 function renderCertEditor(token, data, isCreate) {
   const certNo = escapeHtml(data.values["Certificate Number"] || "—");
   const tracking = escapeHtml(data.values["Tracking ID"] || "—");
+  const expiringCount = countExpiringWithin(30);
+  const alertsHtml =
+    expiringCount > 0
+      ? `<a class="admin-alert-banner" href="/admin/dashboard?view=analytics&amp;filter=expiring">
+          <strong>${expiringCount}</strong> certificate${expiringCount === 1 ? "" : "s"} expiring within 30 days — view in analytics
+        </a>`
+      : "";
 
   return `
     <div class="admin-layout">
       ${renderCertSidebar(token)}
       <div class="admin-main">
+        ${alertsHtml}
+        ${expiryReminderHtml(data.values["Expiry Date"])}
         <div class="admin-main-head">
           <div class="admin-main-head-text">
             <p class="admin-breadcrumb">Dashboard · ${isCreate ? "New" : "Edit"}</p>
@@ -534,6 +860,7 @@ function renderCertEditor(token, data, isCreate) {
             <button class="btn btn-ghost admin-pill-btn" type="button" data-action="copy">${iconCopy()} Copy link</button>
             <a class="btn btn-ghost admin-pill-btn" id="open-cert-link" href="${followPath(token)}" target="_blank" rel="noreferrer">${iconPreview()} Preview</a>
             <a class="btn btn-ghost admin-pill-btn" id="open-print-link" href="${printPath(token)}" target="_blank" rel="noreferrer">${iconPrint()} Print</a>
+            <button class="btn btn-teal admin-pill-btn" type="button" data-action="download-pdf" data-token="${escapeHtml(token)}">${iconDownload()} Download PDF</button>
           </div>
         </div>
 
@@ -557,13 +884,26 @@ function renderCertEditor(token, data, isCreate) {
                 <span class="form-label">Certificate status</span>
                 <div class="form-input-wrap">
                   <span class="form-field-icon">${fieldIcon("status")}</span>
-                  <input id="cert-status" class="form-control" name="status" type="text" value="${escapeHtml(data.status)}" />
+                  ${fieldSelect({
+                    id: "cert-status",
+                    name: "status",
+                    value: data.status || CERTIFICATE_STATUS_OPTIONS[0],
+                    options: CERTIFICATE_STATUS_OPTIONS,
+                  })}
                 </div>
               </label>
             </div>
           </section>
 
           <div class="admin-form-stack">${renderFormSections(data)}</div>
+
+          <section class="admin-form-panel admin-form-panel-audit">
+            <div class="admin-form-panel-head">
+              <h3 class="admin-form-panel-title">Audit trail</h3>
+              <p class="admin-form-panel-desc">Changes on this device (admin).</p>
+            </div>
+            ${renderAuditPanelHtml(token, escapeHtml)}
+          </section>
 
           <footer class="editor-toolbar">
             <div class="editor-toolbar-section editor-toolbar-section-primary">
@@ -604,21 +944,194 @@ function isCreateMode() {
   return new URLSearchParams(window.location.search).get("create") === "1";
 }
 
+function renderHealthBadge(health) {
+  return `<span class="fitness-badge fitness-badge-${health.tone}">${escapeHtml(health.label)}</span>`;
+}
+
+function renderActivityChart(buckets) {
+  const max = Math.max(1, ...buckets.map((b) => b.total));
+  const bars = buckets
+    .map(
+      (b) => `
+        <div class="analytics-bar-col" title="${escapeHtml(b.label)}: ${b.total} events">
+          <div class="analytics-bar-stack" style="height: ${Math.round((b.total / max) * 100)}%">
+            <span class="analytics-bar-seg analytics-bar-views" style="flex-grow: ${b.views || 0.001}"></span>
+            <span class="analytics-bar-seg analytics-bar-prints" style="flex-grow: ${b.prints || 0.001}"></span>
+            <span class="analytics-bar-seg analytics-bar-lookups" style="flex-grow: ${b.lookups || 0.001}"></span>
+          </div>
+          <span class="analytics-bar-label">${escapeHtml(b.key.slice(5))}</span>
+        </div>
+      `
+    )
+    .join("");
+  return `
+    <div class="analytics-chart card">
+      <div class="analytics-chart-head">
+        <div>
+          <h3 class="analytics-panel-title">${iconActivity()} Activity (7 days)</h3>
+          <p class="analytics-panel-desc">Preview views, print opens, and public lookups</p>
+        </div>
+        <ul class="analytics-legend">
+          <li><span class="analytics-legend-dot analytics-bar-views"></span> Views</li>
+          <li><span class="analytics-legend-dot analytics-bar-prints"></span> Prints</li>
+          <li><span class="analytics-legend-dot analytics-bar-lookups"></span> Lookups</li>
+        </ul>
+      </div>
+      <div class="analytics-bars">${bars}</div>
+    </div>
+  `;
+}
+
+function renderAnalyticsDashboard() {
+  const tokens = listSavedTokens();
+  const rows = buildFitnessTrackingRows(tokens, getCertificateForEdit, isCertificateSaved).sort((a, b) => {
+    const aExp = a.daysLeft ?? 9999;
+    const bExp = b.daysLeft ?? 9999;
+    if (aExp !== bExp) return aExp - bExp;
+    return a.applicant.localeCompare(b.applicant);
+  });
+  const events7d = eventsSince(7);
+  const metrics = computeOverviewMetrics(rows, events7d);
+  const buckets = dailyActivityBuckets(7);
+  const recent = getAnalyticsEvents(12);
+
+  const kpi = (label, value, hint) => `
+    <article class="analytics-kpi card">
+      <p class="analytics-kpi-label">${label}</p>
+      <p class="analytics-kpi-value">${value}</p>
+      ${hint ? `<p class="analytics-kpi-hint">${hint}</p>` : ""}
+    </article>
+  `;
+
+  const districtList = metrics.topDistricts
+    .map(
+      ([name, count]) =>
+        `<li><span>${escapeHtml(name)}</span><strong>${count}</strong></li>`
+    )
+    .join("");
+
+  const trackingRows = rows
+    .map((row) => {
+      const daysLabel =
+        row.daysLeft == null ? "—" : row.daysLeft < 0 ? `${Math.abs(row.daysLeft)}d ago` : `${row.daysLeft}d`;
+      return `
+        <tr class="analytics-track-row" data-token="${escapeHtml(row.token)}" data-days-left="${row.daysLeft ?? ""}">
+          <td><code class="analytics-code">${escapeHtml(row.trackingId)}</code></td>
+          <td>${escapeHtml(row.applicant)}</td>
+          <td>${escapeHtml(row.district)}</td>
+          <td>${renderHealthBadge(row.health)}</td>
+          <td class="analytics-muted">${escapeHtml(row.appStatus.slice(0, 48))}${row.appStatus.length > 48 ? "…" : ""}</td>
+          <td>${escapeHtml(row.expiry || "—")}<span class="analytics-sub">${daysLabel}</span></td>
+          <td class="analytics-num">${row.views}</td>
+          <td class="analytics-num">${row.prints}</td>
+          <td class="analytics-muted">${formatRelativeTime(row.lastAt)}</td>
+          <td>
+            <a class="btn btn-ghost btn-sm admin-pill-btn" href="/admin/dashboard?token=${encodeURIComponent(row.token)}">Edit</a>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  const activityItems = recent
+    .map((event) => {
+      const meta = [event.trackingId, event.token].filter(Boolean).join(" · ");
+      return `
+        <li class="analytics-activity-item">
+          <div>
+            <p class="analytics-activity-title">${escapeHtml(formatEventLabel(event))}</p>
+            ${meta ? `<p class="analytics-activity-meta">${escapeHtml(meta)}</p>` : ""}
+          </div>
+          <time class="analytics-activity-time" datetime="${escapeHtml(event.at)}">${formatRelativeTime(event.at)}</time>
+        </li>
+      `;
+    })
+    .join("");
+
+  return `
+    <div class="analytics-page">
+      <div class="analytics-page-head">
+        <div>
+          <p class="admin-breadcrumb">Dashboard · Analytics</p>
+          <h2 class="admin-main-title">Vehicle fitness tracking</h2>
+          <p class="admin-main-meta analytics-page-lead">Monitor certificate lifecycle, expiry risk, and how citizens use verify &amp; track on this device.</p>
+        </div>
+        <div class="analytics-page-actions">
+          <label class="analytics-search-wrap">
+            <span class="visually-hidden">Filter tracking table</span>
+            <input id="analytics-track-filter" class="form-control" type="search" placeholder="Search tracking ID, name, district…" autocomplete="off" />
+          </label>
+          <button class="btn btn-ghost admin-pill-btn btn-compact" type="button" data-action="analytics-clear">Clear activity log</button>
+        </div>
+      </div>
+
+      <div class="analytics-kpi-grid">
+        ${kpi("Certificates", metrics.total, `${metrics.saved} saved locally`)}
+        ${kpi("Expiring ≤ 30 days", metrics.expiringSoon, `${metrics.expired} expired`)}
+        ${kpi("Preview views (7d)", metrics.views7d, "Public certificate pages")}
+        ${kpi("Track / verify (7d)", metrics.lookups7d, `${metrics.successfulLookups7d} matched`)}
+      </div>
+
+      <div class="analytics-grid-main">
+        ${renderActivityChart(buckets)}
+        <aside class="analytics-side card">
+          <h3 class="analytics-panel-title">By district</h3>
+          <ul class="analytics-district-list">${districtList || "<li><span>—</span><strong>0</strong></li>"}</ul>
+          <h3 class="analytics-panel-title analytics-panel-title-spaced">Recent activity</h3>
+          <ul class="analytics-activity-list">${activityItems || '<li class="analytics-muted">No events yet — open a certificate or use Track on the home page.</li>'}</ul>
+        </aside>
+      </div>
+
+      <section class="analytics-table-wrap card">
+        <div class="analytics-table-head">
+          <div>
+            <h3 class="analytics-panel-title">${iconTrack()} Fitness applications</h3>
+            <p class="analytics-panel-desc">${rows.length} records · click a row to open the editor</p>
+          </div>
+        </div>
+        <div class="analytics-table-scroll">
+          <table class="analytics-table">
+            <thead>
+              <tr>
+                <th>Tracking ID</th>
+                <th>Applicant</th>
+                <th>District</th>
+                <th>Fitness</th>
+                <th>Application status</th>
+                <th>Expiry</th>
+                <th>Views</th>
+                <th>Prints</th>
+                <th>Last activity</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="analytics-track-body">${trackingRows}</tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
 function adminDashboardPage() {
+  const view = getAdminView();
+  if (view === "analytics") {
+    return adminDashboardShell(renderAnalyticsDashboard(), "analytics");
+  }
   const isCreate = isCreateMode();
   const token = isCreate ? generateLinkId() : getEditorToken();
   const data = isCreate ? newCertificateTemplate() : getCertificateForEdit(token);
-  return adminDashboardShell(renderCertEditor(token, data, isCreate));
+  return adminDashboardShell(renderCertEditor(token, data, isCreate), "certificates");
 }
 
 function certificatePage(token) {
   const cert = getCertificate(token);
   if (!cert) {
     return layout(`
-      <h1 class="page-title">Vehicle Fitness Certificate</h1>
+      <h1 class="page-title">${t("certTitle")}</h1>
       <div class="not-found">
         <p class="alert">Certificate Status: <strong>Not Found</strong></p>
-        <a class="btn btn-primary" href="/">Back to Home</a>
+        <a class="btn btn-primary" href="/">${t("backHome")}</a>
       </div>
     `);
   }
@@ -634,14 +1147,16 @@ function certificatePage(token) {
   ).join("");
 
   return layout(`
-    <h1 class="page-title">Vehicle Fitness Certificate</h1>
+    <h1 class="page-title">${t("certTitle")}</h1>
+    ${expiryReminderHtml(values["Expiry Date"])}
     <div class="card">
       <div class="card-body">
-        <p class="alert">Certificate Status: <strong>${escapeHtml(cert.status)}</strong></p>
+        <p class="alert">${t("certStatus")}: <strong>${escapeHtml(cert.status)}</strong></p>
         <dl class="fields">${fields}</dl>
       </div>
     </div>
-    <a class="btn btn-primary" href="/">Back to Home</a>
+    <a class="btn btn-primary" href="/">${t("backHome")}</a>
+    <div id="cert-expiry-reminder" hidden data-token="${escapeHtml(token)}" data-expiry="${escapeHtml(values["Expiry Date"] ?? "")}"></div>
   `);
 }
 
@@ -674,9 +1189,22 @@ function saveFromEditor(previewAfter) {
     showToast("Follow link ID is required");
     return;
   }
+  const before = getCertificateForEdit(token);
   const payload = readFormValues(form);
   saveCertificate(token, payload);
   sessionStorage.setItem("dastak:editor-token", token);
+  const valueChanges = diffCertificateValues(before.values, payload.values);
+  const statusChanged = before.status !== payload.status;
+  recordCertificateAudit(token, {
+    action: isCreateMode() ? "create" : "save",
+    role: "admin",
+    summary: isCreateMode() ? "Certificate created" : "Certificate updated",
+    changes: [
+      ...(statusChanged ? [{ field: "status", from: before.status, to: payload.status }] : []),
+      ...valueChanges,
+    ],
+  });
+  recordAnalyticsEvent(EVENT_TYPES.ADMIN_SAVE, { token, trackingId: payload.values["Tracking ID"] });
   showToast(isCreateMode() ? "Certificate created" : "Certificate saved");
   if (previewAfter) {
     window.open(followPath(token), "_blank", "noopener,noreferrer");
@@ -736,11 +1264,49 @@ function bindActions() {
         showToast(isCreateMode() ? "New IDs generated (not saved)" : "Form reset (not saved)");
       }
       if (action === "save-preview") saveFromEditor(true);
+      if (action === "download-pdf") {
+        const pdfToken =
+          el.getAttribute("data-token") ||
+          document.querySelector('[name="linkToken"]')?.value?.trim();
+        if (!pdfToken) return;
+        showToast("Preparing PDF…");
+        try {
+          const { downloadCertificatePdf } = await import("./pdf-download.js");
+          await downloadCertificatePdf(pdfToken);
+          showToast("PDF downloaded");
+        } catch {
+          showToast("PDF download failed");
+        }
+      }
+      if (action === "toggle-lang") {
+        setLang(getLang() === "ur" ? "en" : "ur");
+        render();
+      }
+      if (action === "scroll-verify") {
+        document.getElementById("home-verify")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      if (action === "scroll-track") {
+        document.getElementById("home-track")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      if (action === "export-json") {
+        downloadTextFile(`dastak-certificates-${Date.now()}.json`, exportCertificatesJson());
+        showToast("JSON exported");
+      }
+      if (action === "export-csv") {
+        downloadTextFile(`dastak-certificates-${Date.now()}.csv`, exportCertificatesCsv(), "text/csv");
+        showToast("CSV exported");
+      }
       if (action === "delete-cert") {
         const token = document.querySelector('[name="linkToken"]')?.value?.trim();
         if (!token) return;
         if (!window.confirm(`Delete saved data for link ID "${token}"?`)) return;
         deleteCertificate(token);
+        recordCertificateAudit(token, {
+          action: "delete",
+          role: "admin",
+          summary: "Certificate deleted from storage",
+          changes: [],
+        });
         showToast(
           token === FOLLOW_TOKEN
             ? "Default link reset to built-in values"
@@ -750,6 +1316,12 @@ function bindActions() {
       }
       if (action === "admin-create-new") {
         navigate("/admin/dashboard?create=1");
+      }
+      if (action === "analytics-clear") {
+        if (!window.confirm("Clear all locally stored analytics events? Certificate data is not affected.")) return;
+        clearAnalyticsEvents();
+        showToast("Activity log cleared");
+        navigate("/admin/dashboard?view=analytics");
       }
       if (action === "admin-logout") {
         logoutAdmin();
@@ -801,6 +1373,13 @@ function bindActions() {
       saveFromEditor(false);
     });
     form.addEventListener("input", () => updateFollowLinkPreview());
+    form.addEventListener("change", (event) => {
+      if (event.target.getAttribute("name") !== "Issue Date") return;
+      const expiryInput = form.querySelector(`[name="${cssEscape("Expiry Date")}"]`);
+      if (expiryInput) {
+        expiryInput.value = expiryFromIssueDate(event.target.value);
+      }
+    });
   }
 
   document.querySelectorAll(".cert-list-item").forEach((link) => {
@@ -809,6 +1388,56 @@ function bindActions() {
       const url = new URL(link.href);
       sessionStorage.setItem("dastak:editor-token", url.searchParams.get("token") || FOLLOW_TOKEN);
       navigate(`${url.pathname}${url.search}`);
+    });
+  });
+
+  const trackFilter = document.getElementById("analytics-track-filter");
+  const trackBody = document.getElementById("analytics-track-body");
+  if (trackFilter && trackBody) {
+    trackFilter.addEventListener("input", () => {
+      const q = trackFilter.value.trim().toLowerCase();
+      trackBody.querySelectorAll(".analytics-track-row").forEach((row) => {
+        const text = row.textContent?.toLowerCase() ?? "";
+        row.hidden = q.length > 0 && !text.includes(q);
+      });
+    });
+  }
+
+  document.querySelectorAll(".analytics-track-row").forEach((row) => {
+    row.addEventListener("click", (event) => {
+      if (event.target.closest("a, button")) return;
+      const token = row.getAttribute("data-token");
+      if (!token) return;
+      sessionStorage.setItem("dastak:editor-token", token);
+      navigate(`/admin/dashboard?token=${encodeURIComponent(token)}`);
+    });
+  });
+
+  const expiringFilter = new URLSearchParams(window.location.search).get("filter");
+  if (expiringFilter === "expiring" && trackBody) {
+    trackBody.querySelectorAll(".analytics-track-row").forEach((row) => {
+      const left = Number(row.getAttribute("data-days-left"));
+      row.hidden = !(Number.isFinite(left) && left >= 0 && left <= 30);
+    });
+    if (trackFilter) trackFilter.placeholder = "Showing expiring within 30 days…";
+  }
+
+  document.querySelectorAll("[data-import]").forEach((input) => {
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const kind = input.getAttribute("data-import");
+        const count =
+          kind === "csv" ? importCertificatesCsv(text) : importCertificatesJson(text);
+        showToast(`Imported ${count} certificate(s)`);
+        input.value = "";
+        render();
+      } catch {
+        showToast("Import failed — check file format");
+        input.value = "";
+      }
     });
   });
 }
@@ -831,6 +1460,7 @@ function render() {
   if (printMatch) {
     const printToken = printMatch[1];
     if (!getCertificate(printToken)) {
+      recordAnalyticsEvent(EVENT_TYPES.CERT_PRINT, { token: printToken, success: false });
       app.innerHTML = layout(`
         <h1 class="page-title">Print certificate</h1>
         <div class="not-found">
@@ -841,6 +1471,7 @@ function render() {
       bindActions();
       return;
     }
+    recordAnalyticsEvent(EVENT_TYPES.CERT_PRINT, { token: printToken, success: true });
     app.innerHTML = renderA4PrintPage(printToken);
     bindActions();
     mountPrintQr();
@@ -849,7 +1480,13 @@ function render() {
 
   const certMatch = path.match(/^\/vehiclefitness\/([^/]+)$/);
   if (certMatch) {
-    app.innerHTML = certificatePage(certMatch[1]);
+    const certToken = certMatch[1];
+    const cert = getCertificate(certToken);
+    recordAnalyticsEvent(EVENT_TYPES.CERT_VIEW, {
+      token: certToken,
+      success: !!cert,
+    });
+    app.innerHTML = certificatePage(certToken);
   } else if (path === "/admin/dashboard") {
     app.innerHTML = adminDashboardPage();
   } else if (path === "/admin") {
@@ -861,6 +1498,19 @@ function render() {
   }
   bindActions();
   syncThemeToggleUI();
+  applyDocumentLang();
+
+  const certReminder = document.getElementById("cert-expiry-reminder");
+  if (certReminder) {
+    maybeShowPublicExpiryReminder(
+      certReminder.getAttribute("data-token") || "",
+      certReminder.getAttribute("data-expiry") || ""
+    );
+  }
+
+  if (path === "/admin/dashboard" && isAdminLoggedIn()) {
+    window.setTimeout(() => maybeShowAdminExpiryReminder(), 300);
+  }
 }
 
 window.addEventListener("popstate", render);

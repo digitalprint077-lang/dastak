@@ -32,6 +32,20 @@ export const ALL_FIELD_LABELS = [...FIELD_LABELS, ...PRINT_FIELD_LABELS];
 
 export const DATE_FIELD_LABELS = ["Issue Date", "Expiry Date", "Renewal From", "Renewal To"];
 
+export const CERTIFICATE_STATUS_OPTIONS = ["Issued", "Pending", "Under Review", "Revoked", "Expired"];
+
+export const APPLICATION_STATUS_OPTIONS = [
+  "Application Submitted",
+  "Under Review",
+  "Exam Scheduled",
+  "Certificate Ready - Available for Download",
+  "Rejected",
+  "On Hold",
+];
+
+/** Vehicle fitness certificates are valid for six months from issue date. */
+export const CERTIFICATE_VALIDITY_MONTHS = 6;
+
 const DEFAULT_VALUES = {
   "Certificate Number": "PES001VF00000236",
   "Tracking ID": "VF260921-0000885",
@@ -114,6 +128,9 @@ export function newCertificateTemplate() {
   NEW_CERT_EMPTY_FIELDS.forEach((label) => {
     values[label] = "";
   });
+  const issue = todayIsoDate();
+  values["Issue Date"] = issue;
+  values["Expiry Date"] = expiryFromIssueDate(issue);
   return {
     status: "Issued",
     values,
@@ -211,6 +228,7 @@ export function readFormValues(form) {
     const input = form.querySelector(`[name="${cssEscape(label)}"]`);
     values[label] = input?.value?.trim() ?? "";
   });
+  applyCertificateValidity(values);
   return { status, values };
 }
 
@@ -246,6 +264,29 @@ export function toDateInputValue(value) {
   const m = String(parsed.getMonth() + 1).padStart(2, "0");
   const d = String(parsed.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+export function todayIsoDate() {
+  return toDateInputValue(new Date().toISOString().slice(0, 10));
+}
+
+/** Expiry date = issue date + {@link CERTIFICATE_VALIDITY_MONTHS} months (calendar). */
+export function expiryFromIssueDate(issueValue) {
+  const iso = toDateInputValue(issueValue);
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setMonth(date.getMonth() + CERTIFICATE_VALIDITY_MONTHS);
+  const yy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
+export function applyCertificateValidity(values) {
+  if (!values || !values["Issue Date"]) return values;
+  values["Expiry Date"] = expiryFromIssueDate(values["Issue Date"]);
+  return values;
 }
 
 export function formatPrintDate(value) {
