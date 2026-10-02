@@ -18,14 +18,14 @@ export function exportCertificatesJson() {
   );
 }
 
-export function importCertificatesJson(text) {
+export async function importCertificatesJson(text) {
   const parsed = JSON.parse(text);
   const map = parsed.certificates || parsed;
   if (!map || typeof map !== "object") throw new Error("Invalid backup format");
   let count = 0;
   for (const [token, payload] of Object.entries(map)) {
     if (!token || !payload?.values) continue;
-    saveCertificate(token, {
+    await saveCertificate(token, {
       status: payload.status || "Issued",
       values: payload.values,
     });
@@ -85,7 +85,7 @@ function parseCsvLine(line) {
   return out;
 }
 
-export function importCertificatesCsv(text) {
+export async function importCertificatesCsv(text) {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) throw new Error("CSV has no data rows");
   const header = parseCsvLine(lines[0]);
@@ -99,7 +99,7 @@ export function importCertificatesCsv(text) {
     CSV_COLUMNS.slice(2).forEach((key) => {
       if (row[key] != null && String(row[key]).trim()) values[key] = String(row[key]).trim();
     });
-    saveCertificate(token, {
+    await saveCertificate(token, {
       status: row.status?.trim() || "Issued",
       values,
     });

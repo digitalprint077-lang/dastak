@@ -26,12 +26,15 @@ function fitRect(innerW, innerH, aspect) {
 /**
  * QR with centered Dastak mark (white patch + full logo, high error correction).
  */
-export async function qrDataUrlWithLogo(text, { size = 240 } = {}) {
+export async function qrDataUrlWithLogo(text, { size = 240, errorCorrectionLevel } = {}) {
+  const ecLevel =
+    errorCorrectionLevel ||
+    (String(text).length > 180 ? "M" : "H");
   const canvas = document.createElement("canvas");
   await QRCode.toCanvas(canvas, text, {
     width: size,
-    margin: 1,
-    errorCorrectionLevel: "H",
+    margin: 2,
+    errorCorrectionLevel: ecLevel,
     color: { dark: "#000000", light: "#ffffff" },
   });
 

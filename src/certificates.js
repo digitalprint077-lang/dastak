@@ -1,15 +1,13 @@
-import {
-  certificatePayloadMatchesSlug,
-  decodeCertificateUrlHash,
-  encodeCertificateUrlHash,
-} from "./cert-url-hash.js";
+import { certificatePayloadMatchesSlug, decodeCertificateUrlHash } from "./cert-url-hash.js";
 import {
   buildPublishedBundle,
   buildFullPublishBundle,
   findPublishedEntry,
   getMergedPublishedMap,
+  hydrateCertificateFromApi,
   registerBuiltInCertificates,
   syncPublishedCertificates,
+  upsertPublishedCertificate,
 } from "./publish.js";
 
 export {
@@ -17,6 +15,7 @@ export {
   buildPublishedBundle,
   downloadPublishedBundle,
   ensurePublishedLoaded,
+  hydrateCertificateFromApi,
   loadPublishedCertificates,
 } from "./publish.js";
 
@@ -137,11 +136,14 @@ export function followPathPublic(token = FOLLOW_TOKEN) {
   return `/vehiclefitness/${encodeURIComponent(publicQrSlug(token))}`;
 }
 
+/** Short URL for QR codes (must stay small so phones can scan reliably). */
+export function followLinkPublicShort(origin = publicSiteOrigin(), token = FOLLOW_TOKEN) {
+  return `${origin || publicSiteOrigin()}${followPathPublic(token)}`;
+}
+
+/** Public verify link — same short URL as QR; optional hash only for legacy links. */
 export function followLinkPublic(origin = publicSiteOrigin(), token = FOLLOW_TOKEN) {
-  const { status, values } = getCertificateForEdit(token);
-  const base = `${origin || publicSiteOrigin()}${followPathPublic(token)}`;
-  const hash = encodeCertificateUrlHash({ token, status, values });
-  return `${base}#${hash}`;
+  return followLinkPublicShort(origin, token);
 }
 
 export function resolveCertificateToken(slug) {
@@ -246,7 +248,7 @@ export function getCertificate(tokenOrSlug) {
   return certificateFromTokenKey(resolved) || certificateFromTokenKey(tokenOrSlug);
 }
 
-export function saveCertificate(token, { status, values }) {
+export async function saveCertificate(token, { status, values }) {
   localStorage.setItem(
     `${STORAGE_PREFIX}${token}`,
     JSON.stringify({ status, values })
@@ -257,7 +259,9 @@ export function saveCertificate(token, { status, values }) {
       return { token: t, payload: { status, values } };
     })
   );
-  return syncPublishedCertificates(bundle);
+  const syncResult = await syncPublishedCertificates(bundle);
+  await upsertPublishedCertificate(token, { status, values });
+  return syncResult;
 }
 
 export function deleteCertificate(token) {
@@ -459,7 +463,7 @@ export function getPrintData(token, origin = publicSiteOrigin()) {
     district,
     districtOffice: district,
     printedDate: formatPrintDate(new Date().toISOString().slice(0, 10)),
-    previewUrl: followLinkPublic(origin, token),
+    previewUrl: followLinkPublicShort(origin, token),
     previewPath: followPathPublic(token),
   };
 }

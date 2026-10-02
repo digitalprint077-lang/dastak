@@ -122,6 +122,62 @@ export function downloadPublishedBundle(bundle) {
   URL.revokeObjectURL(url);
 }
 
+export function ingestPublishedCertificate(token, payload) {
+  if (!token || !payload?.values) return;
+  const entry = {
+    status: payload.status || "Issued",
+    values: { ...payload.values },
+  };
+  remotePublished = normalizeBundle(remotePublished);
+  remotePublished.certificates[token] = entry;
+  const overlay = getPublishedOverlay();
+  setPublishedOverlay({
+    version: 1,
+    certificates: { ...overlay.certificates, [token]: entry },
+  });
+}
+
+export async function hydrateCertificateFromApi(slug) {
+  const needle = decodeURIComponent(String(slug ?? "").trim());
+  if (!needle || findPublishedEntry(needle)) return;
+  try {
+    const res = await fetch(`/api/certificate/${encodeURIComponent(needle)}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return;
+    const type = res.headers.get("content-type") ?? "";
+    if (type.includes("text/html")) return;
+    const data = await res.json();
+    if (!data?.token || !data?.values) return;
+    ingestPublishedCertificate(data.token, { status: data.status, values: data.values });
+  } catch {
+    /* offline or API unavailable */
+  }
+}
+
+export async function upsertPublishedCertificate(token, payload) {
+  ingestPublishedCertificate(token, payload);
+  const syncKey = getAdminSyncKey();
+  if (!syncKey || !token) return { ok: false, reason: "no-key" };
+  try {
+    const res = await fetch(`/api/certificate/${encodeURIComponent(token)}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Admin-Sync-Key": syncKey,
+      },
+      body: JSON.stringify({
+        status: payload.status || "Issued",
+        values: payload.values || {},
+      }),
+    });
+    if (res.ok || res.status === 204) return { ok: true };
+    return { ok: false, reason: res.status === 503 ? "no-kv" : "unauthorized" };
+  } catch {
+    return { ok: false, reason: "network" };
+  }
+}
+
 export async function syncPublishedCertificates(bundle) {
   const normalized = normalizeBundle(bundle);
   const overlay = getPublishedOverlay();

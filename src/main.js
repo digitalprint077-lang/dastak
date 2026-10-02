@@ -25,6 +25,7 @@ import {
   buildPublishedBundle,
   downloadPublishedBundle,
   ensurePublishedLoaded,
+  hydrateCertificateFromApi,
   resolveCertificateToken,
   printPath,
   readFormValues,
@@ -1224,8 +1225,8 @@ async function saveFromEditor(previewAfter) {
   } else {
     showToast(
       isCreateMode()
-        ? "Certificate created — download a new PDF so the QR includes this certificate"
-        : "Certificate saved — download a new PDF so the QR includes this certificate"
+        ? "Certificate created — bind Cloudflare KV or export public registry for phone scans"
+        : "Certificate saved — bind Cloudflare KV or export public registry for phone scans"
     );
   }
   if (previewAfter) {
@@ -1464,7 +1465,7 @@ function bindActions() {
         const text = await file.text();
         const kind = input.getAttribute("data-import");
         const count =
-          kind === "csv" ? importCertificatesCsv(text) : importCertificatesJson(text);
+          kind === "csv" ? await importCertificatesCsv(text) : await importCertificatesJson(text);
         showToast(`Imported ${count} certificate(s)`);
         input.value = "";
         void render();
@@ -1495,6 +1496,7 @@ async function render() {
 
   const printMatch = path.match(/^\/vehiclefitness\/([^/]+)\/print$/);
   if (printMatch) {
+    await hydrateCertificateFromApi(printMatch[1]);
     const printToken = resolveCertificateToken(printMatch[1]) || printMatch[1];
     if (!getCertificate(printToken)) {
       recordAnalyticsEvent(EVENT_TYPES.CERT_PRINT, { token: printToken, success: false });
@@ -1519,6 +1521,7 @@ async function render() {
 
   const certMatch = path.match(/^\/vehiclefitness\/([^/]+)$/);
   if (certMatch) {
+    await hydrateCertificateFromApi(certMatch[1]);
     const certToken = resolveCertificateToken(certMatch[1]) || certMatch[1];
     const cert = getCertificate(certToken);
     recordAnalyticsEvent(EVENT_TYPES.CERT_VIEW, {
