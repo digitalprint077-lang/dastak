@@ -214,7 +214,7 @@ async function tryIngestCertJson(url) {
 
 export async function hydrateCertificateFromStatic(slug) {
   const needle = decodeURIComponent(String(slug ?? "").trim());
-  if (!needle || findPublishedEntryPublic(needle)) return;
+  if (!needle || findPublishedEntry(needle)) return;
 
   const queryToken =
     typeof window !== "undefined"
@@ -231,7 +231,7 @@ export async function hydrateCertificateFromStatic(slug) {
 
 export async function hydrateCertificateFromApi(slug) {
   const needle = decodeURIComponent(String(slug ?? "").trim());
-  if (!needle || findPublishedEntryPublic(needle)) return;
+  if (!needle || findPublishedEntry(needle)) return;
   await tryIngestCertJson(`/api/certificate/${encodeURIComponent(needle)}`);
 }
 
@@ -240,7 +240,7 @@ export async function hydratePublicCertificate(slug) {
   await hydrateCertificateFromStatic(slug);
   await hydrateCertificateFromApi(slug);
   const needle = decodeURIComponent(String(slug ?? "").trim());
-  if (!needle || findPublishedEntryPublic(needle)) return;
+  if (!needle || findPublishedEntry(needle)) return;
   if (typeof window !== "undefined") {
     await new Promise((resolve) => window.setTimeout(resolve, 400));
     await hydrateCertificateFromStatic(slug);

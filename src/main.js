@@ -1499,7 +1499,7 @@ async function render() {
       token: certToken,
       success: !!cert,
     });
-    app.innerHTML = certificatePage(certToken);
+    app.innerHTML = certificatePage(certMatch[1]);
   } else if (path === "/admin/dashboard") {
     app.innerHTML = adminDashboardPage();
   } else if (path === "/admin") {

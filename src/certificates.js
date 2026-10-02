@@ -3,7 +3,6 @@ import {
   buildPublishedBundle,
   buildFullPublishBundle,
   findPublishedEntry,
-  findPublishedEntryPublic,
   getMergedPublishedMap,
   hydrateCertificateFromApi,
   registerBuiltInCertificates,
@@ -251,21 +250,28 @@ function certificateFromPublicTokenKey(token) {
   const builtIn = readBuiltInPayload(token);
   if (builtIn) return certificateFromStored(builtIn);
   if (certificates[token]) return certificates[token];
-  const published = findPublishedEntryPublic(token);
+  const published = findPublishedEntry(token);
   if (published?.payload) return certificateFromStored(published.payload);
+  const stored = readStoredPayload(token);
+  if (stored) return certificateFromStored(stored);
   return null;
 }
 
 export function resolvePublicCertificateToken(slug) {
   const id = decodeURIComponent(String(slug ?? "").trim());
   if (!id) return null;
-  if (readBuiltInPayload(id)) return id;
-  const published = findPublishedEntryPublic(id);
+  if (readStoredPayload(id) || readBuiltInPayload(id)) return id;
+  const published = findPublishedEntry(id);
   if (published) return published.token;
+  for (const token of listSavedTokens()) {
+    const { values } = getCertificateForEdit(token);
+    if (String(values["Tracking ID"] ?? "").trim() === id) return token;
+    if (String(values["Certificate Number"] ?? "").trim() === id) return token;
+  }
   return id;
 }
 
-/** Verify / QR / phones — ignores admin-only browser storage. */
+/** Verify / QR — published bundle, static files, then saved cert on this device. */
 export function getPublicCertificate(tokenOrSlug) {
   if (!tokenOrSlug) return null;
   const fromHash = certificateFromUrlHash(tokenOrSlug);
