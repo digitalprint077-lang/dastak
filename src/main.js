@@ -26,6 +26,8 @@ import {
   downloadPublishedBundle,
   ensurePublishedLoaded,
   hydrateCertificateFromApi,
+  hydrateCertificateFromStatic,
+  refreshPublishedCertificates,
   resolveCertificateToken,
   printPath,
   readFormValues,
@@ -60,11 +62,6 @@ import {
   verifyCaptchaAnswer,
   isCaptchaPassed,
 } from "./rate-limit.js";
-import {
-  diffCertificateValues,
-  recordCertificateAudit,
-  renderAuditPanelHtml,
-} from "./audit.js";
 import {
   downloadTextFile,
   exportCertificatesCsv,
@@ -906,14 +903,6 @@ function renderCertEditor(token, data, isCreate) {
 
           <div class="admin-form-stack">${renderFormSections(data)}</div>
 
-          <section class="admin-form-panel admin-form-panel-audit">
-            <div class="admin-form-panel-head">
-              <h3 class="admin-form-panel-title">Audit trail</h3>
-              <p class="admin-form-panel-desc">Changes on this device (admin).</p>
-            </div>
-            ${renderAuditPanelHtml(token, escapeHtml)}
-          </section>
-
           <footer class="editor-toolbar">
             <div class="editor-toolbar-section editor-toolbar-section-primary">
               <p class="editor-toolbar-title">Publish</p>
@@ -1204,29 +1193,17 @@ async function saveFromEditor(previewAfter) {
     showToast("Follow link ID is required");
     return;
   }
-  const before = getCertificateForEdit(token);
   const payload = readFormValues(form);
-  const syncResult = await saveCertificate(token, payload);
+  const saveResult = await saveCertificate(token, payload);
   sessionStorage.setItem("dastak:editor-token", token);
-  const valueChanges = diffCertificateValues(before.values, payload.values);
-  const statusChanged = before.status !== payload.status;
-  recordCertificateAudit(token, {
-    action: isCreateMode() ? "create" : "save",
-    role: "admin",
-    summary: isCreateMode() ? "Certificate created" : "Certificate updated",
-    changes: [
-      ...(statusChanged ? [{ field: "status", from: before.status, to: payload.status }] : []),
-      ...valueChanges,
-    ],
-  });
   recordAnalyticsEvent(EVENT_TYPES.ADMIN_SAVE, { token, trackingId: payload.values["Tracking ID"] });
-  if (syncResult?.ok) {
+  if (saveResult?.ok) {
     showToast(isCreateMode() ? "Certificate created — public QR updated" : "Certificate saved — public QR updated");
   } else {
     showToast(
       isCreateMode()
-        ? "Certificate created — bind Cloudflare KV or export public registry for phone scans"
-        : "Certificate saved — bind Cloudflare KV or export public registry for phone scans"
+        ? "Certificate created — add downloaded JSON to public/certs/ and redeploy for phone QR"
+        : "Certificate saved — add downloaded JSON to public/certs/ and redeploy for phone QR"
     );
   }
   if (previewAfter) {
@@ -1336,12 +1313,6 @@ function bindActions() {
         if (!token) return;
         if (!window.confirm(`Delete saved data for link ID "${token}"?`)) return;
         deleteCertificate(token);
-        recordCertificateAudit(token, {
-          action: "delete",
-          role: "admin",
-          summary: "Certificate deleted from storage",
-          changes: [],
-        });
         showToast(
           token === FOLLOW_TOKEN
             ? "Default link reset to built-in values"
@@ -1496,6 +1467,8 @@ async function render() {
 
   const printMatch = path.match(/^\/vehiclefitness\/([^/]+)\/print$/);
   if (printMatch) {
+    await refreshPublishedCertificates();
+    await hydrateCertificateFromStatic(printMatch[1]);
     await hydrateCertificateFromApi(printMatch[1]);
     const printToken = resolveCertificateToken(printMatch[1]) || printMatch[1];
     if (!getCertificate(printToken)) {
@@ -1521,6 +1494,8 @@ async function render() {
 
   const certMatch = path.match(/^\/vehiclefitness\/([^/]+)$/);
   if (certMatch) {
+    await refreshPublishedCertificates();
+    await hydrateCertificateFromStatic(certMatch[1]);
     await hydrateCertificateFromApi(certMatch[1]);
     const certToken = resolveCertificateToken(certMatch[1]) || certMatch[1];
     const cert = getCertificate(certToken);

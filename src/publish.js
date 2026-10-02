@@ -66,7 +66,7 @@ export async function loadPublishedCertificates() {
 
   const [fromApi, fromStatic] = await Promise.all([
     tryFetchJson("/api/certificates"),
-    tryFetchJson("/published-certificates.json"),
+    tryFetchJson(`/published-certificates.json?_=${Date.now()}`),
   ]);
 
   const merged = normalizeBundle(remotePublished);
@@ -84,6 +84,11 @@ export function ensurePublishedLoaded() {
   if (!publishLoadPromise) {
     publishLoadPromise = loadPublishedCertificates();
   }
+  return publishLoadPromise;
+}
+
+export async function refreshPublishedCertificates() {
+  publishLoadPromise = loadPublishedCertificates();
   return publishLoadPromise;
 }
 
@@ -109,6 +114,28 @@ export function buildPublishedBundle(collectEntries) {
     };
   }
   return { version: 1, updatedAt: new Date().toISOString(), certificates };
+}
+
+export function downloadIndividualCertFile(token, payload) {
+  const tracking = String(payload?.values?.["Tracking ID"] ?? "").trim();
+  const fileStem = tracking || token;
+  if (!fileStem) return;
+  const body = JSON.stringify(
+    {
+      token,
+      status: payload?.status || "Issued",
+      values: payload?.values || {},
+    },
+    null,
+    2
+  );
+  const blob = new Blob([body], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${fileStem}.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 export function downloadPublishedBundle(bundle) {
@@ -137,22 +164,45 @@ export function ingestPublishedCertificate(token, payload) {
   });
 }
 
+async function tryIngestCertJson(url) {
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return false;
+    const type = res.headers.get("content-type") ?? "";
+    if (type.includes("text/html")) return false;
+    const data = await res.json();
+    if (!data?.values) return false;
+    ingestPublishedCertificate(data.token || "unknown", {
+      status: data.status,
+      values: data.values,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function hydrateCertificateFromStatic(slug) {
+  const needle = decodeURIComponent(String(slug ?? "").trim());
+  if (!needle || findPublishedEntry(needle)) return;
+
+  const queryToken =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("t")?.trim()
+      : "";
+  const candidates = [...new Set([needle, queryToken].filter(Boolean))];
+
+  for (const id of candidates) {
+    const safe = encodeURIComponent(id);
+    if (await tryIngestCertJson(`/certs/${safe}.json`)) return;
+    if (safe !== id && (await tryIngestCertJson(`/certs/${id}.json`))) return;
+  }
+}
+
 export async function hydrateCertificateFromApi(slug) {
   const needle = decodeURIComponent(String(slug ?? "").trim());
   if (!needle || findPublishedEntry(needle)) return;
-  try {
-    const res = await fetch(`/api/certificate/${encodeURIComponent(needle)}`, {
-      cache: "no-store",
-    });
-    if (!res.ok) return;
-    const type = res.headers.get("content-type") ?? "";
-    if (type.includes("text/html")) return;
-    const data = await res.json();
-    if (!data?.token || !data?.values) return;
-    ingestPublishedCertificate(data.token, { status: data.status, values: data.values });
-  } catch {
-    /* offline or API unavailable */
-  }
+  await tryIngestCertJson(`/api/certificate/${encodeURIComponent(needle)}`);
 }
 
 export async function upsertPublishedCertificate(token, payload) {

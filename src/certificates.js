@@ -6,6 +6,7 @@ import {
   getMergedPublishedMap,
   hydrateCertificateFromApi,
   registerBuiltInCertificates,
+  downloadIndividualCertFile,
   syncPublishedCertificates,
   upsertPublishedCertificate,
 } from "./publish.js";
@@ -13,10 +14,13 @@ import {
 export {
   buildFullPublishBundle,
   buildPublishedBundle,
+  downloadIndividualCertFile,
   downloadPublishedBundle,
   ensurePublishedLoaded,
   hydrateCertificateFromApi,
+  hydrateCertificateFromStatic,
   loadPublishedCertificates,
+  refreshPublishedCertificates,
 } from "./publish.js";
 
 export const FOLLOW_TOKEN = "TvALy858l8Oc";
@@ -138,7 +142,8 @@ export function followPathPublic(token = FOLLOW_TOKEN) {
 
 /** Short URL for QR codes (must stay small so phones can scan reliably). */
 export function followLinkPublicShort(origin = publicSiteOrigin(), token = FOLLOW_TOKEN) {
-  return `${origin || publicSiteOrigin()}${followPathPublic(token)}`;
+  const base = `${origin || publicSiteOrigin()}${followPathPublic(token)}`;
+  return `${base}?t=${encodeURIComponent(token)}`;
 }
 
 /** Public verify link — same short URL as QR; optional hash only for legacy links. */
@@ -244,6 +249,15 @@ export function getCertificate(tokenOrSlug) {
   if (!tokenOrSlug) return null;
   const fromHash = certificateFromUrlHash(tokenOrSlug);
   if (fromHash) return fromHash;
+
+  if (typeof window !== "undefined") {
+    const queryToken = new URLSearchParams(window.location.search).get("t")?.trim();
+    if (queryToken) {
+      const fromQuery = certificateFromTokenKey(queryToken);
+      if (fromQuery) return fromQuery;
+    }
+  }
+
   const resolved = resolveCertificateToken(tokenOrSlug) || tokenOrSlug;
   return certificateFromTokenKey(resolved) || certificateFromTokenKey(tokenOrSlug);
 }
@@ -260,8 +274,13 @@ export async function saveCertificate(token, { status, values }) {
     })
   );
   const syncResult = await syncPublishedCertificates(bundle);
-  await upsertPublishedCertificate(token, { status, values });
-  return syncResult;
+  const upsertResult = await upsertPublishedCertificate(token, { status, values });
+  const publishedOk = syncResult?.ok || upsertResult?.ok;
+  if (!publishedOk) {
+    downloadIndividualCertFile(token, { status, values });
+    downloadPublishedBundle(bundle);
+  }
+  return { ok: publishedOk, syncResult, upsertResult };
 }
 
 export function deleteCertificate(token) {
