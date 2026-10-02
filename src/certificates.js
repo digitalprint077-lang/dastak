@@ -3,6 +3,7 @@ import {
   buildPublishedBundle,
   buildFullPublishBundle,
   findPublishedEntry,
+  findPublishedEntryPublic,
   getMergedPublishedMap,
   hydrateCertificateFromApi,
   registerBuiltInCertificates,
@@ -17,6 +18,7 @@ export {
   downloadIndividualCertFile,
   downloadPublishedBundle,
   ensurePublishedLoaded,
+  findPublishedEntryPublic,
   hydrateCertificateFromApi,
   hydrateCertificateFromStatic,
   hydratePublicCertificate,
@@ -250,7 +252,7 @@ function certificateFromPublicTokenKey(token) {
   const builtIn = readBuiltInPayload(token);
   if (builtIn) return certificateFromStored(builtIn);
   if (certificates[token]) return certificates[token];
-  const published = findPublishedEntry(token);
+  const published = findPublishedEntryPublic(token);
   if (published?.payload) return certificateFromStored(published.payload);
   const stored = readStoredPayload(token);
   if (stored) return certificateFromStored(stored);
@@ -260,9 +262,10 @@ function certificateFromPublicTokenKey(token) {
 export function resolvePublicCertificateToken(slug) {
   const id = decodeURIComponent(String(slug ?? "").trim());
   if (!id) return null;
-  if (readStoredPayload(id) || readBuiltInPayload(id)) return id;
-  const published = findPublishedEntry(id);
+  if (readBuiltInPayload(id)) return id;
+  const published = findPublishedEntryPublic(id);
   if (published) return published.token;
+  if (readStoredPayload(id)) return id;
   for (const token of listSavedTokens()) {
     const { values } = getCertificateForEdit(token);
     if (String(values["Tracking ID"] ?? "").trim() === id) return token;
@@ -326,7 +329,12 @@ export async function saveCertificate(token, { status, values }) {
     downloadIndividualCertFile(token, { status, values });
     downloadPublishedBundle(bundle);
   }
-  return { ok: publishedOk, syncResult, upsertResult };
+  return {
+    saved: true,
+    publishedOnline: publishedOk,
+    syncResult,
+    upsertResult,
+  };
 }
 
 export function deleteCertificate(token) {

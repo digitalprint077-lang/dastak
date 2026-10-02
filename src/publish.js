@@ -1,9 +1,28 @@
 import publishedSeed from "../public/published-certificates.json";
 import { getAdminSyncKey } from "./admin.js";
 
+const staticCertFiles = import.meta.glob("../public/certs/*.json", {
+  eager: true,
+  import: "default",
+});
+
 const OVERLAY_KEY = "dastak:published-overlay";
 
-let remotePublished = normalizeBundle(publishedSeed);
+function bundleFromRepoStaticFiles() {
+  const merged = normalizeBundle(publishedSeed);
+  for (const data of Object.values(staticCertFiles)) {
+    if (!data || typeof data !== "object") continue;
+    const token = String(data.token ?? "").trim();
+    if (!token || !data.values) continue;
+    merged.certificates[token] = {
+      status: data.status || "Issued",
+      values: { ...data.values },
+    };
+  }
+  return merged;
+}
+
+let remotePublished = bundleFromRepoStaticFiles();
 let builtInPublished = {};
 let publishLoadPromise = null;
 
@@ -237,13 +256,14 @@ export async function hydrateCertificateFromApi(slug) {
 
 export async function hydratePublicCertificate(slug) {
   await refreshPublishedCertificates();
-  await hydrateCertificateFromStatic(slug);
-  await hydrateCertificateFromApi(slug);
-  const needle = decodeURIComponent(String(slug ?? "").trim());
-  if (!needle || findPublishedEntry(needle)) return;
-  if (typeof window !== "undefined") {
-    await new Promise((resolve) => window.setTimeout(resolve, 400));
+  for (let attempt = 0; attempt < 4; attempt++) {
     await hydrateCertificateFromStatic(slug);
+    await hydrateCertificateFromApi(slug);
+    const needle = decodeURIComponent(String(slug ?? "").trim());
+    if (!needle || findPublishedEntryPublic(needle)) return;
+    if (typeof window !== "undefined" && attempt < 3) {
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    }
   }
 }
 

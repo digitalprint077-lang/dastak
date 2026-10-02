@@ -1197,14 +1197,16 @@ async function saveFromEditor(previewAfter) {
   const saveResult = await saveCertificate(token, payload);
   sessionStorage.setItem("dastak:editor-token", token);
   recordAnalyticsEvent(EVENT_TYPES.ADMIN_SAVE, { token, trackingId: payload.values["Tracking ID"] });
-  if (saveResult?.ok) {
-    showToast(isCreateMode() ? "Certificate created — public QR updated" : "Certificate saved — public QR updated");
-  } else {
+  if (saveResult?.publishedOnline) {
+    showToast(isCreateMode() ? "Certificate created — live QR updated" : "Certificate saved — live QR updated");
+  } else if (saveResult?.saved) {
     showToast(
       isCreateMode()
-        ? "Certificate created — add downloaded JSON to public/certs/ and redeploy for phone QR"
-        : "Certificate saved — add downloaded JSON to public/certs/ and redeploy for phone QR"
+        ? "Certificate created — Preview works here; for phone QR, deploy the downloaded JSON files"
+        : "Certificate saved — Preview works here; for phone QR, deploy the downloaded JSON files"
     );
+  } else {
+    showToast("Could not save certificate");
   }
   if (previewAfter) {
     window.open(followLinkPublic(publicSiteOrigin(), token), "_blank", "noopener,noreferrer");
@@ -1272,7 +1274,7 @@ function bindActions() {
           })
         );
         downloadPublishedBundle(bundle);
-        showToast("Downloaded published-certificates.json — replace public/ file and redeploy");
+        showToast("Downloaded registry JSON — replace public/published-certificates.json and redeploy");
       }
       if (action === "download-pdf") {
         const pdfToken =

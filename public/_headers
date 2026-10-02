@@ -1,0 +1,5 @@
+/published-certificates.json
+  Cache-Control: no-store, must-revalidate
+
+/certs/*
+  Cache-Control: no-store, must-revalidate
