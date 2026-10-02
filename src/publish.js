@@ -36,10 +36,15 @@ export function getMergedPublishedMap() {
   return { ...builtInPublished, ...remote.certificates, ...overlay.certificates };
 }
 
-export function findPublishedEntry(slugOrToken) {
+/** Published data for phones / public verify (no admin localStorage overlay). */
+export function getMergedPublishedMapForPublic() {
+  const remote = normalizeBundle(remotePublished);
+  return { ...builtInPublished, ...remote.certificates };
+}
+
+function findEntryInMap(map, slugOrToken) {
   const needle = String(slugOrToken ?? "").trim();
   if (!needle) return null;
-  const map = getMergedPublishedMap();
   if (map[needle]) return { token: needle, payload: map[needle] };
   for (const [token, payload] of Object.entries(map)) {
     const tracking = String(payload?.values?.["Tracking ID"] ?? "").trim();
@@ -49,6 +54,14 @@ export function findPublishedEntry(slugOrToken) {
     }
   }
   return null;
+}
+
+export function findPublishedEntry(slugOrToken) {
+  return findEntryInMap(getMergedPublishedMap(), slugOrToken);
+}
+
+export function findPublishedEntryPublic(slugOrToken) {
+  return findEntryInMap(getMergedPublishedMapForPublic(), slugOrToken);
 }
 
 export async function loadPublishedCertificates() {
@@ -66,7 +79,11 @@ export async function loadPublishedCertificates() {
 
   const [fromApi, fromStatic] = await Promise.all([
     tryFetchJson("/api/certificates"),
-    tryFetchJson(`/published-certificates.json?_=${Date.now()}`),
+    tryFetchJson(
+      typeof window !== "undefined"
+        ? `${absoluteAssetUrl("/published-certificates.json")}?_=${Date.now()}`
+        : `/published-certificates.json?_=${Date.now()}`
+    ),
   ]);
 
   const merged = normalizeBundle(remotePublished);
@@ -158,15 +175,28 @@ export function ingestPublishedCertificate(token, payload) {
   remotePublished = normalizeBundle(remotePublished);
   remotePublished.certificates[token] = entry;
   const overlay = getPublishedOverlay();
-  setPublishedOverlay({
-    version: 1,
-    certificates: { ...overlay.certificates, [token]: entry },
-  });
+  try {
+    setPublishedOverlay({
+      version: 1,
+      certificates: { ...overlay.certificates, [token]: entry },
+    });
+  } catch {
+    /* private mode / storage blocked — in-memory publish still updated */
+  }
+}
+
+function absoluteAssetUrl(path) {
+  if (typeof window === "undefined") return path;
+  try {
+    return new URL(path, window.location.origin).href;
+  } catch {
+    return path;
+  }
 }
 
 async function tryIngestCertJson(url) {
   try {
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(absoluteAssetUrl(url), { cache: "no-store" });
     if (!res.ok) return false;
     const type = res.headers.get("content-type") ?? "";
     if (type.includes("text/html")) return false;
@@ -184,7 +214,7 @@ async function tryIngestCertJson(url) {
 
 export async function hydrateCertificateFromStatic(slug) {
   const needle = decodeURIComponent(String(slug ?? "").trim());
-  if (!needle || findPublishedEntry(needle)) return;
+  if (!needle || findPublishedEntryPublic(needle)) return;
 
   const queryToken =
     typeof window !== "undefined"
@@ -201,8 +231,20 @@ export async function hydrateCertificateFromStatic(slug) {
 
 export async function hydrateCertificateFromApi(slug) {
   const needle = decodeURIComponent(String(slug ?? "").trim());
-  if (!needle || findPublishedEntry(needle)) return;
+  if (!needle || findPublishedEntryPublic(needle)) return;
   await tryIngestCertJson(`/api/certificate/${encodeURIComponent(needle)}`);
+}
+
+export async function hydratePublicCertificate(slug) {
+  await refreshPublishedCertificates();
+  await hydrateCertificateFromStatic(slug);
+  await hydrateCertificateFromApi(slug);
+  const needle = decodeURIComponent(String(slug ?? "").trim());
+  if (!needle || findPublishedEntryPublic(needle)) return;
+  if (typeof window !== "undefined") {
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+    await hydrateCertificateFromStatic(slug);
+  }
 }
 
 export async function upsertPublishedCertificate(token, payload) {

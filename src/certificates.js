@@ -3,6 +3,7 @@ import {
   buildPublishedBundle,
   buildFullPublishBundle,
   findPublishedEntry,
+  findPublishedEntryPublic,
   getMergedPublishedMap,
   hydrateCertificateFromApi,
   registerBuiltInCertificates,
@@ -19,6 +20,7 @@ export {
   ensurePublishedLoaded,
   hydrateCertificateFromApi,
   hydrateCertificateFromStatic,
+  hydratePublicCertificate,
   loadPublishedCertificates,
   refreshPublishedCertificates,
 } from "./publish.js";
@@ -243,6 +245,44 @@ function certificateFromUrlHash(slug) {
   const payload = decodeCertificateUrlHash();
   if (!payload || !certificatePayloadMatchesSlug(payload, slug)) return null;
   return certificateFromStored({ status: payload.status, values: payload.values });
+}
+
+function certificateFromPublicTokenKey(token) {
+  const builtIn = readBuiltInPayload(token);
+  if (builtIn) return certificateFromStored(builtIn);
+  if (certificates[token]) return certificates[token];
+  const published = findPublishedEntryPublic(token);
+  if (published?.payload) return certificateFromStored(published.payload);
+  return null;
+}
+
+export function resolvePublicCertificateToken(slug) {
+  const id = decodeURIComponent(String(slug ?? "").trim());
+  if (!id) return null;
+  if (readBuiltInPayload(id)) return id;
+  const published = findPublishedEntryPublic(id);
+  if (published) return published.token;
+  return id;
+}
+
+/** Verify / QR / phones — ignores admin-only browser storage. */
+export function getPublicCertificate(tokenOrSlug) {
+  if (!tokenOrSlug) return null;
+  const fromHash = certificateFromUrlHash(tokenOrSlug);
+  if (fromHash) return fromHash;
+
+  if (typeof window !== "undefined") {
+    const queryToken = new URLSearchParams(window.location.search).get("t")?.trim();
+    if (queryToken) {
+      const fromQuery = certificateFromPublicTokenKey(queryToken);
+      if (fromQuery) return fromQuery;
+    }
+  }
+
+  const resolved = resolvePublicCertificateToken(tokenOrSlug) || tokenOrSlug;
+  return (
+    certificateFromPublicTokenKey(resolved) || certificateFromPublicTokenKey(tokenOrSlug)
+  );
 }
 
 export function getCertificate(tokenOrSlug) {

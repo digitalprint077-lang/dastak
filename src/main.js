@@ -17,6 +17,7 @@ import {
   generateLinkId,
   newCertificateTemplate,
   getCertificate,
+  getPublicCertificate,
   getCertificateForEdit,
   getCertificateSummary,
   findTokenByField,
@@ -26,10 +27,8 @@ import {
   buildPublishedBundle,
   downloadPublishedBundle,
   ensurePublishedLoaded,
-  hydrateCertificateFromApi,
-  hydrateCertificateFromStatic,
-  refreshPublishedCertificates,
-  resolveCertificateToken,
+  hydratePublicCertificate,
+  resolvePublicCertificateToken,
   printPath,
   readFormValues,
   saveCertificate,
@@ -1127,8 +1126,8 @@ function adminDashboardPage() {
 }
 
 function certificatePage(token) {
-  const resolved = resolveCertificateToken(token) || token;
-  const cert = getCertificate(resolved);
+  const resolved = resolvePublicCertificateToken(token) || token;
+  const cert = getPublicCertificate(resolved);
   if (!cert) {
     return layout(`
       <h1 class="page-title">${t("certTitle")}</h1>
@@ -1139,7 +1138,7 @@ function certificatePage(token) {
     `);
   }
 
-  const { values } = getCertificateForEdit(resolved);
+  const values = Object.fromEntries(cert.fields);
   const fields = ALL_FIELD_LABELS.map(
     (label) => `
         <div class="field">
@@ -1468,11 +1467,9 @@ async function render() {
 
   const printMatch = path.match(/^\/vehiclefitness\/([^/]+)\/print$/);
   if (printMatch) {
-    await refreshPublishedCertificates();
-    await hydrateCertificateFromStatic(printMatch[1]);
-    await hydrateCertificateFromApi(printMatch[1]);
-    const printToken = resolveCertificateToken(printMatch[1]) || printMatch[1];
-    if (!getCertificate(printToken)) {
+    await hydratePublicCertificate(printMatch[1]);
+    const printToken = resolvePublicCertificateToken(printMatch[1]) || printMatch[1];
+    if (!getPublicCertificate(printToken)) {
       recordAnalyticsEvent(EVENT_TYPES.CERT_PRINT, { token: printToken, success: false });
       app.innerHTML = layout(`
         <h1 class="page-title">Print certificate</h1>
@@ -1495,11 +1492,9 @@ async function render() {
 
   const certMatch = path.match(/^\/vehiclefitness\/([^/]+)$/);
   if (certMatch) {
-    await refreshPublishedCertificates();
-    await hydrateCertificateFromStatic(certMatch[1]);
-    await hydrateCertificateFromApi(certMatch[1]);
-    const certToken = resolveCertificateToken(certMatch[1]) || certMatch[1];
-    const cert = getCertificate(certToken);
+    await hydratePublicCertificate(certMatch[1]);
+    const certToken = resolvePublicCertificateToken(certMatch[1]) || certMatch[1];
+    const cert = getPublicCertificate(certToken);
     recordAnalyticsEvent(EVENT_TYPES.CERT_VIEW, {
       token: certToken,
       success: !!cert,
