@@ -43,24 +43,27 @@ export function findPublishedEntry(slugOrToken) {
 }
 
 export async function loadPublishedCertificates() {
-  const tryFetch = async (url) => {
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return null;
-    return normalizeBundle(await res.json());
+  const tryFetchJson = async (url) => {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) return null;
+      const type = res.headers.get("content-type") ?? "";
+      if (type.includes("text/html")) return null;
+      return normalizeBundle(await res.json());
+    } catch {
+      return null;
+    }
   };
 
-  try {
-    const [fromApi, fromStatic] = await Promise.all([
-      tryFetch("/api/certificates"),
-      tryFetch("/published-certificates.json"),
-    ]);
-    const merged = normalizeBundle(fromStatic);
-    const api = normalizeBundle(fromApi);
-    merged.certificates = { ...merged.certificates, ...api.certificates };
-    remotePublished = Object.keys(merged.certificates).length ? merged : fromApi || fromStatic;
-  } catch {
-    remotePublished = null;
-  }
+  const [fromApi, fromStatic] = await Promise.all([
+    tryFetchJson("/api/certificates"),
+    tryFetchJson("/published-certificates.json"),
+  ]);
+  const merged = normalizeBundle(fromStatic);
+  const api = normalizeBundle(fromApi);
+  merged.certificates = { ...merged.certificates, ...api.certificates };
+  remotePublished =
+    Object.keys(merged.certificates).length > 0 ? merged : fromStatic || fromApi || null;
 }
 
 export function buildPublishedBundle(collectEntries) {
