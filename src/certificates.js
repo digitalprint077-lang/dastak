@@ -1,3 +1,12 @@
+import {
+  buildPublishedBundle,
+  findPublishedEntry,
+  getMergedPublishedMap,
+  syncPublishedCertificates,
+} from "./publish.js";
+
+export { loadPublishedCertificates } from "./publish.js";
+
 export const FOLLOW_TOKEN = "TvALy858l8Oc";
 
 export const FIELD_LABELS = [
@@ -80,6 +89,68 @@ export const certificates = {
 
 const STORAGE_PREFIX = "dastak:cert:";
 
+function readStoredPayload(token) {
+  try {
+    const raw = localStorage.getItem(`${STORAGE_PREFIX}${token}`);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    /* ignore corrupt storage */
+  }
+  return null;
+}
+
+function readBuiltInPayload(token) {
+  if (!certificates[token]) return null;
+  return {
+    status: certificates[token].status,
+    values: Object.fromEntries(certificates[token].fields),
+  };
+}
+
+export function publicSiteOrigin() {
+  const configured = import.meta.env.VITE_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  if (configured) return configured;
+  if (typeof window !== "undefined") return window.location.origin;
+  return "";
+}
+
+export function publicQrSlug(token) {
+  const { values } = getCertificateForEdit(token);
+  const tracking = String(values["Tracking ID"] ?? "").trim();
+  return tracking || token;
+}
+
+export function followPathPublic(token = FOLLOW_TOKEN) {
+  return `/vehiclefitness/${encodeURIComponent(publicQrSlug(token))}`;
+}
+
+export function followLinkPublic(origin = publicSiteOrigin(), token = FOLLOW_TOKEN) {
+  return `${origin || publicSiteOrigin()}${followPathPublic(token)}`;
+}
+
+export function resolveCertificateToken(slug) {
+  const id = decodeURIComponent(String(slug ?? "").trim());
+  if (!id) return null;
+  if (readStoredPayload(id) || readBuiltInPayload(id)) return id;
+  const published = findPublishedEntry(id);
+  if (published) return published.token;
+  for (const token of listSavedTokens()) {
+    const { values } = getCertificateForEdit(token);
+    if (String(values["Tracking ID"] ?? "").trim() === id) return token;
+    if (String(values["Certificate Number"] ?? "").trim() === id) return token;
+  }
+  return id;
+}
+
+function certificateFromTokenKey(token) {
+  const stored = readStoredPayload(token);
+  if (stored) return certificateFromStored(stored);
+  if (certificates[token]) return certificates[token];
+  const published = findPublishedEntry(token);
+  if (published?.payload) return certificateFromStored(published.payload);
+  return null;
+}
+
 export function defaultCertificate() {
   return {
     status: "Issued",
@@ -145,17 +216,15 @@ export function certificateFromStored(stored) {
   };
 }
 
-export function getCertificate(token) {
-  if (!token) return null;
-  try {
-    const raw = localStorage.getItem(`${STORAGE_PREFIX}${token}`);
-    if (raw) {
-      return certificateFromStored(JSON.parse(raw));
-    }
-  } catch {
-    /* ignore corrupt storage */
+export function getCertificate(tokenOrSlug) {
+  if (!tokenOrSlug) return null;
+  const direct = certificateFromTokenKey(tokenOrSlug);
+  if (direct) return direct;
+  const resolved = resolveCertificateToken(tokenOrSlug);
+  if (resolved && resolved !== tokenOrSlug) {
+    return certificateFromTokenKey(resolved);
   }
-  return certificates[token] || null;
+  return null;
 }
 
 export function saveCertificate(token, { status, values }) {
@@ -163,6 +232,13 @@ export function saveCertificate(token, { status, values }) {
     `${STORAGE_PREFIX}${token}`,
     JSON.stringify({ status, values })
   );
+  const bundle = buildPublishedBundle(() =>
+    listSavedTokens().map((t) => {
+      const payload = readStoredPayload(t) || readBuiltInPayload(t);
+      return payload ? { token: t, payload } : null;
+    }).filter(Boolean)
+  );
+  void syncPublishedCertificates(bundle);
 }
 
 export function deleteCertificate(token) {
@@ -186,6 +262,9 @@ export function findTokenByField(label, value) {
   for (const token of listSavedTokens()) {
     const { values } = getCertificateForEdit(token);
     if (String(values[label] ?? "").trim() === needle) return token;
+  }
+  for (const [token, payload] of Object.entries(getMergedPublishedMap())) {
+    if (String(payload?.values?.[label] ?? "").trim() === needle) return token;
   }
   return null;
 }
@@ -326,7 +405,7 @@ export function formatAmountPrintLines(amount, amountWords) {
   return { line1: fallback, line2: null };
 }
 
-export function getPrintData(token, origin = window.location.origin) {
+export function getPrintData(token, origin = publicSiteOrigin()) {
   const { values } = getCertificateForEdit(token);
   const v = (key) => values[key] || "";
   const district = v("District") || "Peshawar";
@@ -361,8 +440,8 @@ export function getPrintData(token, origin = window.location.origin) {
     district,
     districtOffice: district,
     printedDate: formatPrintDate(new Date().toISOString().slice(0, 10)),
-    previewUrl: followLink(origin, token),
-    previewPath: followPath(token),
+    previewUrl: followLinkPublic(origin, token),
+    previewPath: followPathPublic(token),
   };
 }
 

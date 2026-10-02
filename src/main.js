@@ -19,6 +19,8 @@ import {
   findTokenByField,
   listSavedTokens,
   isCertificateSaved,
+  loadPublishedCertificates,
+  resolveCertificateToken,
   printPath,
   readFormValues,
   saveCertificate,
@@ -1465,7 +1467,7 @@ function render() {
 
   const printMatch = path.match(/^\/vehiclefitness\/([^/]+)\/print$/);
   if (printMatch) {
-    const printToken = printMatch[1];
+    const printToken = resolveCertificateToken(printMatch[1]) || printMatch[1];
     if (!getCertificate(printToken)) {
       recordAnalyticsEvent(EVENT_TYPES.CERT_PRINT, { token: printToken, success: false });
       app.innerHTML = layout(`
@@ -1489,7 +1491,7 @@ function render() {
 
   const certMatch = path.match(/^\/vehiclefitness\/([^/]+)$/);
   if (certMatch) {
-    const certToken = certMatch[1];
+    const certToken = resolveCertificateToken(certMatch[1]) || certMatch[1];
     const cert = getCertificate(certToken);
     recordAnalyticsEvent(EVENT_TYPES.CERT_VIEW, {
       token: certToken,
@@ -1541,4 +1543,4 @@ document.addEventListener("click", (event) => {
 });
 
 applyTheme();
-render();
+loadPublishedCertificates().finally(() => render());
