@@ -39,9 +39,16 @@ export function loginAdmin(password) {
       sessionId,
       createdAt: Date.now(),
       expiresAt: Date.now() + SESSION_MS,
+      syncKey: password,
     })
   );
   return true;
+}
+
+export function getAdminSyncKey() {
+  const session = readSession();
+  if (session?.syncKey) return session.syncKey;
+  return adminPassword();
 }
 
 export function logoutAdmin() {

@@ -1,4 +1,5 @@
 import publishedSeed from "../public/published-certificates.json";
+import { getAdminSyncKey } from "./admin.js";
 
 const OVERLAY_KEY = "dastak:published-overlay";
 
@@ -86,6 +87,18 @@ export function ensurePublishedLoaded() {
   return publishLoadPromise;
 }
 
+export function buildFullPublishBundle(collectLocalEntries) {
+  const local = buildPublishedBundle(collectLocalEntries);
+  return {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    certificates: {
+      ...getMergedPublishedMap(),
+      ...local.certificates,
+    },
+  };
+}
+
 export function buildPublishedBundle(collectEntries) {
   const certificates = {};
   for (const { token, payload } of collectEntries()) {
@@ -111,16 +124,21 @@ export function downloadPublishedBundle(bundle) {
 
 export async function syncPublishedCertificates(bundle) {
   const normalized = normalizeBundle(bundle);
-  setPublishedOverlay(normalized);
+  const overlay = getPublishedOverlay();
+  const mergedOverlay = {
+    version: 1,
+    certificates: { ...overlay.certificates, ...normalized.certificates },
+  };
+  setPublishedOverlay(mergedOverlay);
   remotePublished = {
     ...normalizeBundle(remotePublished),
     certificates: {
       ...normalizeBundle(remotePublished).certificates,
-      ...normalized.certificates,
+      ...mergedOverlay.certificates,
     },
   };
 
-  const syncKey = import.meta.env.VITE_ADMIN_PASSWORD;
+  const syncKey = getAdminSyncKey();
   if (!syncKey) return { ok: false, reason: "no-key" };
 
   try {

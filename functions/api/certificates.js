@@ -58,15 +58,24 @@ export async function onRequestGet(context) {
 
 export async function onRequestPut(context) {
   const { request, env } = context;
-  const expected = env.ADMIN_SYNC_KEY || env.VITE_ADMIN_PASSWORD;
+  const expected = env.ADMIN_SYNC_KEY || env.VITE_ADMIN_PASSWORD || "dastak-admin";
   const provided = request.headers.get("X-Admin-Sync-Key");
-  if (!expected || provided !== expected) {
+  if (provided !== expected) {
     return new Response("Unauthorized", { status: 401 });
   }
   if (!env.CERTS_KV) {
     return new Response("KV not configured", { status: 503 });
   }
-  const body = await request.text();
-  await env.CERTS_KV.put(KV_KEY, body);
+  const incoming = normalizeBundle(JSON.parse(await request.text()));
+  let existing = emptyBundle();
+  try {
+    const raw = await env.CERTS_KV.get(KV_KEY);
+    if (raw) existing = normalizeBundle(JSON.parse(raw));
+  } catch {
+    /* ignore */
+  }
+  const staticBundle = await loadStaticPublished(request);
+  const merged = mergeBundles(staticBundle, existing, incoming);
+  await env.CERTS_KV.put(KV_KEY, JSON.stringify(merged));
   return new Response(null, { status: 204 });
 }

@@ -21,6 +21,7 @@ import {
   findTokenByField,
   listSavedTokens,
   isCertificateSaved,
+  buildFullPublishBundle,
   buildPublishedBundle,
   downloadPublishedBundle,
   ensurePublishedLoaded,
@@ -1223,8 +1224,8 @@ async function saveFromEditor(previewAfter) {
   } else {
     showToast(
       isCreateMode()
-        ? "Certificate created — export public QR registry and redeploy for phone scans"
-        : "Certificate saved — export public QR registry and redeploy for phone scans"
+        ? "Certificate created — download a new PDF so the QR includes this certificate"
+        : "Certificate saved — download a new PDF so the QR includes this certificate"
     );
   }
   if (previewAfter) {
@@ -1286,7 +1287,7 @@ function bindActions() {
       }
       if (action === "save-preview") void saveFromEditor(true);
       if (action === "export-public-registry") {
-        const bundle = buildPublishedBundle(() =>
+        const bundle = buildFullPublishBundle(() =>
           listSavedTokens().map((t) => {
             const { status, values } = getCertificateForEdit(t);
             return { token: t, payload: { status, values } };

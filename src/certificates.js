@@ -1,5 +1,11 @@
 import {
+  certificatePayloadMatchesSlug,
+  decodeCertificateUrlHash,
+  encodeCertificateUrlHash,
+} from "./cert-url-hash.js";
+import {
   buildPublishedBundle,
+  buildFullPublishBundle,
   findPublishedEntry,
   getMergedPublishedMap,
   registerBuiltInCertificates,
@@ -7,6 +13,7 @@ import {
 } from "./publish.js";
 
 export {
+  buildFullPublishBundle,
   buildPublishedBundle,
   downloadPublishedBundle,
   ensurePublishedLoaded,
@@ -131,7 +138,10 @@ export function followPathPublic(token = FOLLOW_TOKEN) {
 }
 
 export function followLinkPublic(origin = publicSiteOrigin(), token = FOLLOW_TOKEN) {
-  return `${origin || publicSiteOrigin()}${followPathPublic(token)}`;
+  const { status, values } = getCertificateForEdit(token);
+  const base = `${origin || publicSiteOrigin()}${followPathPublic(token)}`;
+  const hash = encodeCertificateUrlHash({ token, status, values });
+  return `${base}#${hash}`;
 }
 
 export function resolveCertificateToken(slug) {
@@ -222,8 +232,16 @@ export function certificateFromStored(stored) {
   };
 }
 
+function certificateFromUrlHash(slug) {
+  const payload = decodeCertificateUrlHash();
+  if (!payload || !certificatePayloadMatchesSlug(payload, slug)) return null;
+  return certificateFromStored({ status: payload.status, values: payload.values });
+}
+
 export function getCertificate(tokenOrSlug) {
   if (!tokenOrSlug) return null;
+  const fromHash = certificateFromUrlHash(tokenOrSlug);
+  if (fromHash) return fromHash;
   const resolved = resolveCertificateToken(tokenOrSlug) || tokenOrSlug;
   return certificateFromTokenKey(resolved) || certificateFromTokenKey(tokenOrSlug);
 }
@@ -233,7 +251,7 @@ export function saveCertificate(token, { status, values }) {
     `${STORAGE_PREFIX}${token}`,
     JSON.stringify({ status, values })
   );
-  const bundle = buildPublishedBundle(() =>
+  const bundle = buildFullPublishBundle(() =>
     listSavedTokens().map((t) => {
       const { status, values } = getCertificateForEdit(t);
       return { token: t, payload: { status, values } };
