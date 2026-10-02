@@ -2,10 +2,16 @@ import {
   buildPublishedBundle,
   findPublishedEntry,
   getMergedPublishedMap,
+  registerBuiltInCertificates,
   syncPublishedCertificates,
 } from "./publish.js";
 
-export { loadPublishedCertificates } from "./publish.js";
+export {
+  buildPublishedBundle,
+  downloadPublishedBundle,
+  ensurePublishedLoaded,
+  loadPublishedCertificates,
+} from "./publish.js";
 
 export const FOLLOW_TOKEN = "TvALy858l8Oc";
 
@@ -218,13 +224,8 @@ export function certificateFromStored(stored) {
 
 export function getCertificate(tokenOrSlug) {
   if (!tokenOrSlug) return null;
-  const direct = certificateFromTokenKey(tokenOrSlug);
-  if (direct) return direct;
-  const resolved = resolveCertificateToken(tokenOrSlug);
-  if (resolved && resolved !== tokenOrSlug) {
-    return certificateFromTokenKey(resolved);
-  }
-  return null;
+  const resolved = resolveCertificateToken(tokenOrSlug) || tokenOrSlug;
+  return certificateFromTokenKey(resolved) || certificateFromTokenKey(tokenOrSlug);
 }
 
 export function saveCertificate(token, { status, values }) {
@@ -234,11 +235,11 @@ export function saveCertificate(token, { status, values }) {
   );
   const bundle = buildPublishedBundle(() =>
     listSavedTokens().map((t) => {
-      const payload = readStoredPayload(t) || readBuiltInPayload(t);
-      return payload ? { token: t, payload } : null;
-    }).filter(Boolean)
+      const { status, values } = getCertificateForEdit(t);
+      return { token: t, payload: { status, values } };
+    })
   );
-  void syncPublishedCertificates(bundle);
+  return syncPublishedCertificates(bundle);
 }
 
 export function deleteCertificate(token) {
@@ -456,3 +457,12 @@ export function followPath(token = FOLLOW_TOKEN) {
 export function followLink(origin = window.location.origin, token = FOLLOW_TOKEN) {
   return `${origin}${followPath(token)}`;
 }
+
+registerBuiltInCertificates(
+  Object.fromEntries(
+    Object.entries(certificates).map(([token, cert]) => [
+      token,
+      { status: cert.status, values: Object.fromEntries(cert.fields) },
+    ])
+  )
+);

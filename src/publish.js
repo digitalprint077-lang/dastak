@@ -1,11 +1,19 @@
+import publishedSeed from "../public/published-certificates.json";
+
 const OVERLAY_KEY = "dastak:published-overlay";
 
-let remotePublished = null;
+let remotePublished = normalizeBundle(publishedSeed);
+let builtInPublished = {};
+let publishLoadPromise = null;
 
 function normalizeBundle(raw) {
   if (!raw || typeof raw !== "object") return { version: 1, certificates: {} };
   const certificates = raw.certificates && typeof raw.certificates === "object" ? raw.certificates : {};
   return { version: 1, certificates };
+}
+
+export function registerBuiltInCertificates(entries) {
+  builtInPublished = entries && typeof entries === "object" ? entries : {};
 }
 
 export function getPublishedOverlay() {
@@ -24,7 +32,7 @@ function setPublishedOverlay(bundle) {
 export function getMergedPublishedMap() {
   const remote = normalizeBundle(remotePublished);
   const overlay = getPublishedOverlay();
-  return { ...remote.certificates, ...overlay.certificates };
+  return { ...builtInPublished, ...remote.certificates, ...overlay.certificates };
 }
 
 export function findPublishedEntry(slugOrToken) {
@@ -59,11 +67,23 @@ export async function loadPublishedCertificates() {
     tryFetchJson("/api/certificates"),
     tryFetchJson("/published-certificates.json"),
   ]);
-  const merged = normalizeBundle(fromStatic);
+
+  const merged = normalizeBundle(remotePublished);
   const api = normalizeBundle(fromApi);
-  merged.certificates = { ...merged.certificates, ...api.certificates };
-  remotePublished =
-    Object.keys(merged.certificates).length > 0 ? merged : fromStatic || fromApi || null;
+  const stat = normalizeBundle(fromStatic);
+  merged.certificates = {
+    ...merged.certificates,
+    ...stat.certificates,
+    ...api.certificates,
+  };
+  remotePublished = merged;
+}
+
+export function ensurePublishedLoaded() {
+  if (!publishLoadPromise) {
+    publishLoadPromise = loadPublishedCertificates();
+  }
+  return publishLoadPromise;
 }
 
 export function buildPublishedBundle(collectEntries) {
@@ -78,16 +98,33 @@ export function buildPublishedBundle(collectEntries) {
   return { version: 1, updatedAt: new Date().toISOString(), certificates };
 }
 
+export function downloadPublishedBundle(bundle) {
+  const normalized = normalizeBundle(bundle);
+  const blob = new Blob([JSON.stringify(normalized, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "published-certificates.json";
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function syncPublishedCertificates(bundle) {
   const normalized = normalizeBundle(bundle);
   setPublishedOverlay(normalized);
-  remotePublished = normalized;
+  remotePublished = {
+    ...normalizeBundle(remotePublished),
+    certificates: {
+      ...normalizeBundle(remotePublished).certificates,
+      ...normalized.certificates,
+    },
+  };
 
   const syncKey = import.meta.env.VITE_ADMIN_PASSWORD;
-  if (!syncKey) return;
+  if (!syncKey) return { ok: false, reason: "no-key" };
 
   try {
-    await fetch("/api/certificates", {
+    const res = await fetch("/api/certificates", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -95,7 +132,9 @@ export async function syncPublishedCertificates(bundle) {
       },
       body: JSON.stringify(normalized),
     });
+    if (res.ok || res.status === 204) return { ok: true };
+    return { ok: false, reason: res.status === 503 ? "no-kv" : "unauthorized" };
   } catch {
-    /* offline or KV not configured */
+    return { ok: false, reason: "network" };
   }
 }

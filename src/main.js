@@ -4,13 +4,15 @@ import { hideAppLoader, showAppLoader } from "./loader.js";
 import { applyTheme, syncThemeToggleUI, themeToggleButton, toggleTheme } from "./theme.js";
 import { isAdminLoggedIn, loginAdmin, logoutAdmin, requireAdmin } from "./admin.js";
 import {
+  ALL_FIELD_LABELS,
   FIELD_LABELS,
   FOLLOW_TOKEN,
   defaultCertificate,
   deleteCertificate,
   fillForm,
-  followLink,
+  followLinkPublic,
   followPath,
+  followPathPublic,
   generateLinkId,
   newCertificateTemplate,
   getCertificate,
@@ -19,7 +21,9 @@ import {
   findTokenByField,
   listSavedTokens,
   isCertificateSaved,
-  loadPublishedCertificates,
+  buildPublishedBundle,
+  downloadPublishedBundle,
+  ensurePublishedLoaded,
   resolveCertificateToken,
   printPath,
   readFormValues,
@@ -861,7 +865,7 @@ function renderCertEditor(token, data, isCreate) {
           </div>
           <div class="admin-head-actions">
             <button class="btn btn-ghost admin-pill-btn" type="button" data-action="copy">${iconCopy()} Copy link</button>
-            <a class="btn btn-ghost admin-pill-btn" id="open-cert-link" href="${followPath(token)}" target="_blank" rel="noreferrer">${iconPreview()} Preview</a>
+            <a class="btn btn-ghost admin-pill-btn" id="open-cert-link" href="${followPathPublic(token)}" target="_blank" rel="noreferrer">${iconPreview()} Preview</a>
             <a class="btn btn-ghost admin-pill-btn" id="open-print-link" href="${printPath(token)}" target="_blank" rel="noreferrer">${iconPrint()} Print</a>
             <button class="btn btn-teal admin-pill-btn" type="button" data-action="download-pdf" data-token="${escapeHtml(token)}">${iconDownload()} Download PDF</button>
           </div>
@@ -917,6 +921,9 @@ function renderCertEditor(token, data, isCreate) {
                 </button>
                 <button class="btn btn-teal admin-pill-btn" type="button" data-action="save-preview">
                   ${iconPreview()} Save &amp; preview
+                </button>
+                <button class="btn btn-ghost admin-pill-btn" type="button" data-action="export-public-registry">
+                  ${iconDownload()} Export public QR registry
                 </button>
               </div>
             </div>
@@ -1128,7 +1135,8 @@ function adminDashboardPage() {
 }
 
 function certificatePage(token) {
-  const cert = getCertificate(token);
+  const resolved = resolveCertificateToken(token) || token;
+  const cert = getCertificate(resolved);
   if (!cert) {
     return layout(`
       <h1 class="page-title">${t("certTitle")}</h1>
@@ -1139,8 +1147,8 @@ function certificatePage(token) {
     `);
   }
 
-  const values = Object.fromEntries(cert.fields);
-  const fields = FIELD_LABELS.map(
+  const { values } = getCertificateForEdit(resolved);
+  const fields = ALL_FIELD_LABELS.map(
     (label) => `
         <div class="field">
           <dt>${label}</dt>
@@ -1185,7 +1193,7 @@ function showToast(message) {
   window.setTimeout(() => toast.classList.remove("show"), 2200);
 }
 
-function saveFromEditor(previewAfter) {
+async function saveFromEditor(previewAfter) {
   const form = document.getElementById("cert-editor");
   if (!form) return;
   const tokenInput = form.querySelector('[name="linkToken"]');
@@ -1196,7 +1204,7 @@ function saveFromEditor(previewAfter) {
   }
   const before = getCertificateForEdit(token);
   const payload = readFormValues(form);
-  saveCertificate(token, payload);
+  const syncResult = await saveCertificate(token, payload);
   sessionStorage.setItem("dastak:editor-token", token);
   const valueChanges = diffCertificateValues(before.values, payload.values);
   const statusChanged = before.status !== payload.status;
@@ -1210,9 +1218,17 @@ function saveFromEditor(previewAfter) {
     ],
   });
   recordAnalyticsEvent(EVENT_TYPES.ADMIN_SAVE, { token, trackingId: payload.values["Tracking ID"] });
-  showToast(isCreateMode() ? "Certificate created" : "Certificate saved");
+  if (syncResult?.ok) {
+    showToast(isCreateMode() ? "Certificate created — public QR updated" : "Certificate saved — public QR updated");
+  } else {
+    showToast(
+      isCreateMode()
+        ? "Certificate created — export public QR registry and redeploy for phone scans"
+        : "Certificate saved — export public QR registry and redeploy for phone scans"
+    );
+  }
   if (previewAfter) {
-    window.open(followPath(token), "_blank", "noopener,noreferrer");
+    window.open(followPathPublic(token), "_blank", "noopener,noreferrer");
   }
   navigate(`/admin/dashboard?token=${encodeURIComponent(token)}`);
 }
@@ -1221,7 +1237,7 @@ function updateFollowLinkPreview() {
   const form = document.getElementById("cert-editor");
   if (!form) return;
   const token = form.querySelector('[name="linkToken"]')?.value?.trim() || FOLLOW_TOKEN;
-  const path = followPath(token);
+  const path = followPathPublic(token);
   const openLink = document.getElementById("open-cert-link");
   const printLink = document.getElementById("open-print-link");
   if (openLink) openLink.setAttribute("href", path);
@@ -1230,7 +1246,7 @@ function updateFollowLinkPreview() {
 
 function navigate(path) {
   window.history.pushState({}, "", path);
-  render();
+  void render();
 }
 
 function bindActions() {
@@ -1241,7 +1257,7 @@ function bindActions() {
         const token =
           document.querySelector('[name="linkToken"]')?.value?.trim() ||
           getEditorToken();
-        const link = followLink(window.location.origin, token);
+        const link = followLinkPublic(window.location.origin, token);
         try {
           await navigator.clipboard.writeText(link);
           showToast("Follow link copied");
@@ -1268,7 +1284,17 @@ function bindActions() {
         updateFollowLinkPreview();
         showToast(isCreateMode() ? "New IDs generated (not saved)" : "Form reset (not saved)");
       }
-      if (action === "save-preview") saveFromEditor(true);
+      if (action === "save-preview") void saveFromEditor(true);
+      if (action === "export-public-registry") {
+        const bundle = buildPublishedBundle(() =>
+          listSavedTokens().map((t) => {
+            const { status, values } = getCertificateForEdit(t);
+            return { token: t, payload: { status, values } };
+          })
+        );
+        downloadPublishedBundle(bundle);
+        showToast("Downloaded published-certificates.json — replace public/ file and redeploy");
+      }
       if (action === "download-pdf") {
         const pdfToken =
           el.getAttribute("data-token") ||
@@ -1377,7 +1403,7 @@ function bindActions() {
   if (form) {
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      saveFromEditor(false);
+      void saveFromEditor(false);
     });
     form.addEventListener("input", () => updateFollowLinkPreview());
     form.addEventListener("change", (event) => {
@@ -1440,7 +1466,7 @@ function bindActions() {
           kind === "csv" ? importCertificatesCsv(text) : importCertificatesJson(text);
         showToast(`Imported ${count} certificate(s)`);
         input.value = "";
-        render();
+        void render();
       } catch {
         showToast("Import failed — check file format");
         input.value = "";
@@ -1449,7 +1475,8 @@ function bindActions() {
   });
 }
 
-function render() {
+async function render() {
+  await ensurePublishedLoaded();
   let path = window.location.pathname.replace(/\/$/, "") || "/";
 
   const redirect = requireAdmin(path);
@@ -1532,15 +1559,17 @@ function scheduleHideAppLoader() {
   });
 }
 
-window.addEventListener("popstate", render);
+window.addEventListener("popstate", () => {
+  void render();
+});
 document.addEventListener("click", (event) => {
   const link = event.target.closest("a[href^='/']");
   if (!link || link.getAttribute("target") === "_blank") return;
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   event.preventDefault();
   window.history.pushState({}, "", link.getAttribute("href"));
-  render();
+  void render();
 });
 
 applyTheme();
-loadPublishedCertificates().finally(() => render());
+void ensurePublishedLoaded().then(() => render());

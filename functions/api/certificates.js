@@ -1,24 +1,57 @@
 const KV_KEY = "published";
 
 function emptyBundle() {
-  return JSON.stringify({ version: 1, certificates: {} });
+  return { version: 1, certificates: {} };
+}
+
+function normalizeBundle(raw) {
+  if (!raw || typeof raw !== "object") return emptyBundle();
+  const certificates =
+    raw.certificates && typeof raw.certificates === "object" ? raw.certificates : {};
+  return { version: 1, certificates };
+}
+
+function mergeBundles(...bundles) {
+  const merged = emptyBundle();
+  for (const bundle of bundles) {
+    const normalized = normalizeBundle(bundle);
+    merged.certificates = { ...merged.certificates, ...normalized.certificates };
+  }
+  return merged;
+}
+
+async function loadStaticPublished(request) {
+  try {
+    const res = await fetch(new URL("/published-certificates.json", request.url), {
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) return null;
+    const type = res.headers.get("content-type") ?? "";
+    if (type.includes("text/html")) return null;
+    return normalizeBundle(await res.json());
+  } catch {
+    return null;
+  }
 }
 
 export async function onRequestGet(context) {
-  const { env } = context;
+  const { env, request } = context;
+  const parts = [];
+
+  const staticBundle = await loadStaticPublished(request);
+  if (staticBundle) parts.push(staticBundle);
+
   try {
     if (env.CERTS_KV) {
       const raw = await env.CERTS_KV.get(KV_KEY);
-      if (raw) {
-        return new Response(raw, {
-          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-        });
-      }
+      if (raw) parts.push(normalizeBundle(JSON.parse(raw)));
     }
   } catch {
-    /* fall through */
+    /* ignore KV read errors */
   }
-  return new Response(emptyBundle(), {
+
+  const body = mergeBundles(...parts);
+  return new Response(JSON.stringify(body), {
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 }
