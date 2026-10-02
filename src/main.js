@@ -13,6 +13,7 @@ import {
   followLinkPublic,
   followPath,
   followPathPublic,
+  publicSiteOrigin,
   generateLinkId,
   newCertificateTemplate,
   getCertificate,
@@ -864,7 +865,7 @@ function renderCertEditor(token, data, isCreate) {
           </div>
           <div class="admin-head-actions">
             <button class="btn btn-ghost admin-pill-btn" type="button" data-action="copy">${iconCopy()} Copy link</button>
-            <a class="btn btn-ghost admin-pill-btn" id="open-cert-link" href="${followPathPublic(token)}" target="_blank" rel="noreferrer">${iconPreview()} Preview</a>
+            <a class="btn btn-ghost admin-pill-btn" id="open-cert-link" href="${followLinkPublic(publicSiteOrigin(), token)}" target="_blank" rel="noreferrer">${iconPreview()} Preview</a>
             <a class="btn btn-ghost admin-pill-btn" id="open-print-link" href="${printPath(token)}" target="_blank" rel="noreferrer">${iconPrint()} Print</a>
             <button class="btn btn-teal admin-pill-btn" type="button" data-action="download-pdf" data-token="${escapeHtml(token)}">${iconDownload()} Download PDF</button>
           </div>
@@ -1207,7 +1208,7 @@ async function saveFromEditor(previewAfter) {
     );
   }
   if (previewAfter) {
-    window.open(followPathPublic(token), "_blank", "noopener,noreferrer");
+    window.open(followLinkPublic(publicSiteOrigin(), token), "_blank", "noopener,noreferrer");
   }
   navigate(`/admin/dashboard?token=${encodeURIComponent(token)}`);
 }
@@ -1216,10 +1217,10 @@ function updateFollowLinkPreview() {
   const form = document.getElementById("cert-editor");
   if (!form) return;
   const token = form.querySelector('[name="linkToken"]')?.value?.trim() || FOLLOW_TOKEN;
-  const path = followPathPublic(token);
+  const verifyLink = followLinkPublic(publicSiteOrigin(), token);
   const openLink = document.getElementById("open-cert-link");
   const printLink = document.getElementById("open-print-link");
-  if (openLink) openLink.setAttribute("href", path);
+  if (openLink) openLink.setAttribute("href", verifyLink);
   if (printLink) printLink.setAttribute("href", printPath(token));
 }
 
@@ -1236,7 +1237,7 @@ function bindActions() {
         const token =
           document.querySelector('[name="linkToken"]')?.value?.trim() ||
           getEditorToken();
-        const link = followLinkPublic(window.location.origin, token);
+        const link = followLinkPublic(publicSiteOrigin(), token);
         try {
           await navigator.clipboard.writeText(link);
           showToast("Follow link copied");

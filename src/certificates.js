@@ -140,15 +140,15 @@ export function followPathPublic(token = FOLLOW_TOKEN) {
   return `/vehiclefitness/${encodeURIComponent(publicQrSlug(token))}`;
 }
 
-/** Short URL for QR codes (must stay small so phones can scan reliably). */
-export function followLinkPublicShort(origin = publicSiteOrigin(), token = FOLLOW_TOKEN) {
-  const base = `${origin || publicSiteOrigin()}${followPathPublic(token)}`;
-  return `${base}?t=${encodeURIComponent(token)}`;
+/** Full public verify URL — used for Preview, Copy link, and QR (must match). */
+export function followLinkPublic(origin = publicSiteOrigin(), token = FOLLOW_TOKEN) {
+  const site = (origin || publicSiteOrigin()).replace(/\/$/, "");
+  return `${site}${followPathPublic(token)}`;
 }
 
-/** Public verify link — same short URL as QR; optional hash only for legacy links. */
-export function followLinkPublic(origin = publicSiteOrigin(), token = FOLLOW_TOKEN) {
-  return followLinkPublicShort(origin, token);
+/** @deprecated alias */
+export function followLinkPublicShort(origin = publicSiteOrigin(), token = FOLLOW_TOKEN) {
+  return followLinkPublic(origin, token);
 }
 
 export function resolveCertificateToken(slug) {
@@ -482,7 +482,7 @@ export function getPrintData(token, origin = publicSiteOrigin()) {
     district,
     districtOffice: district,
     printedDate: formatPrintDate(new Date().toISOString().slice(0, 10)),
-    previewUrl: followLinkPublicShort(origin, token),
+    previewUrl: followLinkPublic(origin, token),
     previewPath: followPathPublic(token),
   };
 }
