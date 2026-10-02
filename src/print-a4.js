@@ -1,5 +1,7 @@
 import { getPrintData } from "./certificates.js";
 
+export const A4_CERT_BACKGROUND = "/images/a4-certificate-background.jpg";
+
 function escapeHtml(text) {
   return String(text)
     .replace(/&/g, "&amp;")
@@ -11,18 +13,14 @@ function u(text) {
   return `<u>${escapeHtml(text)}</u>`;
 }
 
-export function renderA4PrintPage(token) {
+/** Form-I body for browser print, PDF capture, etc. */
+export function renderA4CertificateArticle(token, { qrElementId = "cert-qr" } = {}) {
   const d = getPrintData(token);
 
   return `
-    <div class="print-shell">
-      <div class="print-toolbar no-print">
-        <button class="btn btn-primary" type="button" data-action="print-a4">Print A4</button>
-        <a class="btn btn-outline" href="${d.previewPath}">Online preview</a>
-        <a class="btn btn-outline" href="/admin/dashboard?token=${encodeURIComponent(token)}">Admin</a>
-      </div>
-
-      <article class="a4-cert">
+    <article class="a4-cert">
+      <img class="a4-cert-bg" src="${A4_CERT_BACKGROUND}" alt="" />
+      <div class="a4-cert-content">
         <header class="a4-header">
           <h1>Transport &amp; Mass Transit Department</h1>
           <h2>Govt. of Khyber Pakhtunkhwa</h2>
@@ -31,15 +29,21 @@ export function renderA4PrintPage(token) {
         </header>
 
         <div class="a4-meta">
-          <div><strong>Application ID</strong> ${escapeHtml(d.applicationId)}</div>
-          <div><strong>Certificate No.</strong> ${escapeHtml(d.certificateNo)}</div>
+          <div class="a4-meta-stacked">
+            <strong class="a4-meta-label">Application ID</strong>
+            <span class="a4-meta-value">${escapeHtml(d.applicationId)}</span>
+          </div>
+          <div class="a4-meta-stacked">
+            <strong class="a4-meta-label">Certificate No.</strong>
+            <span class="a4-meta-value">${escapeHtml(d.certificateNo)}</span>
+          </div>
         </div>
 
         <div class="a4-title-block">
           <h3>FORM-I</h3>
           <p>[ See Section 39(1) &amp; 40(2) ]</p>
           <p class="a4-title-main">CERTIFICATE OF FITNESS</p>
-          <p>(APPLICABLE IN THE CASE OF TRANSPORT VEHICLES)</p>
+          <p class="a4-title-applicable">(APPLICABLE IN THE CASE OF TRANSPORT VEHICLES)</p>
         </div>
 
         <p class="a4-statement">
@@ -69,7 +73,7 @@ export function renderA4PrintPage(token) {
           </dl>
 
           <div class="a4-qr-wrap">
-            <img id="cert-qr" width="120" height="120" alt="Scan for verification" data-url="${escapeHtml(d.previewUrl)}" />
+            <img id="${escapeHtml(qrElementId)}" width="120" height="120" alt="" data-url="${escapeHtml(d.previewUrl)}" />
             <p class="a4-qr-caption">Scan for Verification</p>
           </div>
         </div>
@@ -81,7 +85,32 @@ export function renderA4PrintPage(token) {
             <p class="a4-sign-district">District ${escapeHtml(d.district)}</p>
           </div>
         </footer>
-      </article>
+      </div>
+    </article>
+  `;
+}
+
+export function renderA4PrintPage(token) {
+  const d = getPrintData(token);
+
+  return `
+    <div class="print-shell">
+      <div class="print-toolbar no-print">
+        <button class="btn btn-primary" type="button" data-action="print-a4">Print A4</button>
+        <a class="btn btn-outline" href="${d.previewPath}">Online preview</a>
+        <a class="btn btn-outline" href="/admin/dashboard?token=${encodeURIComponent(token)}">Admin</a>
+      </div>
+
+      ${renderA4CertificateArticle(token)}
     </div>
   `;
+}
+
+export function preloadA4Background() {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = A4_CERT_BACKGROUND;
+  });
 }

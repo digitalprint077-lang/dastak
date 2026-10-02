@@ -1,5 +1,6 @@
 import "./style.css";
 import "./print-a4.css";
+import { hideAppLoader, showAppLoader } from "./loader.js";
 import { applyTheme, syncThemeToggleUI, themeToggleButton, toggleTheme } from "./theme.js";
 import { isAdminLoggedIn, loginAdmin, logoutAdmin, requireAdmin } from "./admin.js";
 import {
@@ -1166,9 +1167,11 @@ async function mountPrintQr() {
   const url = img.getAttribute("data-url");
   if (!url) return;
   try {
+    img.removeAttribute("src");
     img.src = await qrDataUrlWithLogo(url, { size: 240 });
+    img.classList.add("is-ready");
   } catch {
-    /* QR render failed */
+    img.classList.add("is-ready");
   }
 }
 
@@ -1269,13 +1272,15 @@ function bindActions() {
           el.getAttribute("data-token") ||
           document.querySelector('[name="linkToken"]')?.value?.trim();
         if (!pdfToken) return;
-        showToast("Preparing PDF…");
+        showAppLoader();
         try {
           const { downloadCertificatePdf } = await import("./pdf-download.js");
           await downloadCertificatePdf(pdfToken);
           showToast("PDF downloaded");
         } catch {
           showToast("PDF download failed");
+        } finally {
+          hideAppLoader();
         }
       }
       if (action === "toggle-lang") {
@@ -1448,11 +1453,13 @@ function render() {
   const redirect = requireAdmin(path);
   if (redirect) {
     navigate(redirect);
+    scheduleHideAppLoader();
     return;
   }
 
   if (path === "/edit") {
     navigate(isAdminLoggedIn() ? "/admin/dashboard" : "/admin");
+    scheduleHideAppLoader();
     return;
   }
 
@@ -1469,12 +1476,14 @@ function render() {
         </div>
       `);
       bindActions();
+      hideAppLoader(true);
       return;
     }
     recordAnalyticsEvent(EVENT_TYPES.CERT_PRINT, { token: printToken, success: true });
     app.innerHTML = renderA4PrintPage(printToken);
     bindActions();
     mountPrintQr();
+    hideAppLoader(true);
     return;
   }
 
@@ -1511,6 +1520,14 @@ function render() {
   if (path === "/admin/dashboard" && isAdminLoggedIn()) {
     window.setTimeout(() => maybeShowAdminExpiryReminder(), 300);
   }
+
+  scheduleHideAppLoader();
+}
+
+function scheduleHideAppLoader() {
+  requestAnimationFrame(() => {
+    window.setTimeout(hideAppLoader, 220);
+  });
 }
 
 window.addEventListener("popstate", render);

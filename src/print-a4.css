@@ -13,6 +13,7 @@
 }
 
 .a4-cert {
+  position: relative;
   width: 210mm;
   min-height: 297mm;
   margin: 0 auto;
@@ -21,9 +22,32 @@
   font-family: "Times New Roman", Times, serif;
   font-size: 11pt;
   line-height: 1.35;
-  padding: 14mm 16mm 16mm;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   box-sizing: border-box;
+  overflow: hidden;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.a4-cert-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  object-position: center top;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.a4-cert-content {
+  position: relative;
+  z-index: 1;
+  min-height: 297mm;
+  box-sizing: border-box;
+  /* Top offset clears template header art; tune if background changes */
+  padding: 26mm 16mm 16mm;
 }
 
 .a4-header {
@@ -33,13 +57,13 @@
 
 .a4-header h1 {
   margin: 0;
-  font-size: 14pt;
+  font-size: 20pt;
   font-weight: 700;
 }
 
 .a4-header h2 {
   margin: 2px 0 0;
-  font-size: 12pt;
+  font-size: 17pt;
   font-weight: 700;
 }
 
@@ -65,6 +89,21 @@
   font-size: 10.5pt;
 }
 
+.a4-meta-stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 1mm;
+  line-height: 1.25;
+}
+
+.a4-meta-stacked .a4-meta-label {
+  font-weight: 700;
+}
+
+.a4-meta-stacked .a4-meta-value {
+  font-weight: 700;
+}
+
 .a4-title-block {
   text-align: center;
   margin-bottom: 6mm;
@@ -88,10 +127,16 @@
   text-decoration: underline;
 }
 
+.a4-title-applicable {
+  font-size: 11.5pt !important;
+  font-weight: 700 !important;
+}
+
 .a4-statement {
-  margin: 0 0 4mm;
+  margin: 0 0 7mm;
   text-align: justify;
-  font-size: 10.5pt;
+  font-size: 11.25pt;
+  line-height: 1.4;
 }
 
 .a4-statement u {
@@ -100,8 +145,8 @@
 
 .a4-body {
   display: grid;
-  grid-template-columns: 1fr 34mm;
-  gap: 8mm;
+  grid-template-columns: 1fr 42mm;
+  gap: 6mm;
   align-items: start;
   margin-top: 4mm;
 }
@@ -116,11 +161,12 @@
   gap: 4mm;
   margin-bottom: 2.5mm;
   font-size: 10.5pt;
+  font-weight: 700;
 }
 
 .a4-spec-row dt {
   margin: 0;
-  font-weight: 400;
+  font-weight: 700;
 }
 
 .a4-spec-row dd {
@@ -133,22 +179,50 @@
 }
 
 .a4-qr-wrap {
+  box-sizing: border-box;
+  width: 38mm;
+  margin: 0 auto;
+  padding: 4.5mm 4mm 3.5mm;
   text-align: center;
-  padding-top: 2mm;
+  border: 0.2mm solid #b4b9c5;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .a4-qr-wrap img {
-  width: 30mm;
-  height: 30mm;
+  width: 27mm;
+  height: 27mm;
   display: block;
-  margin: 0 auto;
+  margin: 0;
+  flex-shrink: 0;
+  background: transparent;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.a4-qr-wrap img.is-ready {
+  opacity: 1;
+}
+
+/* PDF capture (off-screen) must not hide QR before html2canvas */
+.pdf-capture-root .a4-qr-wrap img {
+  opacity: 1;
+  transition: none;
 }
 
 .a4-qr-caption {
-  margin: 2mm 0 0;
-  font-size: 9pt;
+  margin: 2.5mm 0 0;
+  padding: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 7.5pt;
+  font-weight: 600;
+  color: #1a1a1a;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .a4-footer {
@@ -157,6 +231,7 @@
   align-items: flex-end;
   margin-top: 14mm;
   font-size: 10.5pt;
+  font-weight: 700;
 }
 
 .a4-sign {
@@ -199,5 +274,10 @@
     width: 210mm;
     min-height: 297mm;
     margin: 0;
+  }
+
+  .a4-cert-bg {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 }
