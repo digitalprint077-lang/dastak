@@ -1,10 +1,22 @@
 import { onRequestGet as certificatesGet, onRequestPut as certificatesPut } from "../functions/api/certificates.js";
 import { onRequestGet as certificateGet, onRequestPut as certificatePut } from "../functions/api/certificate/[slug].js";
+import { githubPublishConfigured } from "../functions/_lib/github.js";
 
 export default {
   async fetch(request, env, _ctx) {
     const url = new URL(request.url);
     const { pathname } = url;
+
+    if (pathname === "/api/publish-health" && request.method === "GET") {
+      const github = githubPublishConfigured(env);
+      return new Response(
+        JSON.stringify({
+          github,
+          authConfigured: Boolean(env.ADMIN_SYNC_KEY || env.VITE_ADMIN_PASSWORD),
+        }),
+        { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+      );
+    }
 
     if (pathname === "/api/certificates") {
       const context = { env, request };

@@ -133,7 +133,10 @@ export async function onRequestPut(context) {
       return new Response(null, { status: 204, headers: { "X-Publish-Via": "github" } });
     }
     if (result.reason === "no-github") {
-      return new Response("Publish not configured", { status: 503 });
+      return new Response(JSON.stringify({ error: "no_github_token" }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      });
     }
     return new Response("Publish failed", { status: 502 });
   } catch (err) {

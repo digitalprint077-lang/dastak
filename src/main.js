@@ -465,6 +465,7 @@ function adminDashboardShell(mainHtml, activeView = "certificates") {
       </header>
       <main class="admin-page">
         <div class="admin-container-wide">
+          <div id="publish-health-banner" class="admin-alert-banner" hidden role="status"></div>
           ${mainHtml}
         </div>
       </main>
@@ -1176,6 +1177,32 @@ function showToast(message) {
   window.setTimeout(() => toast.classList.remove("show"), 2200);
 }
 
+async function refreshPublishHealthBanner() {
+  const el = document.getElementById("publish-health-banner");
+  if (!el || !isAdminLoggedIn()) return;
+  try {
+    const res = await fetch("/api/publish-health", { cache: "no-store" });
+    const type = res.headers.get("content-type") ?? "";
+    if (!res.ok || type.includes("text/html")) {
+      el.hidden = false;
+      el.innerHTML =
+        "<strong>Publish API not running.</strong> Set Cloudflare build command to <code>npm run deploy</code> and redeploy.";
+      return;
+    }
+    const data = await res.json();
+    if (data.github) {
+      el.hidden = true;
+      return;
+    }
+    el.hidden = false;
+    el.innerHTML =
+      "<strong>Mobile QR will not work until this is fixed.</strong> Cloudflare → Workers &amp; Pages → <strong>dastak</strong> → Settings → Variables → add encrypted secret <code>GITHUB_TOKEN</code> (GitHub Contents write on repo dastak), then redeploy.";
+  } catch {
+    el.hidden = false;
+    el.textContent = "Could not check publish status — try again after redeploy.";
+  }
+}
+
 async function saveFromEditor(previewAfter) {
   const form = document.getElementById("cert-editor");
   if (!form) return;
@@ -1492,6 +1519,9 @@ async function render() {
   bindActions();
   syncThemeToggleUI();
   applyDocumentLang();
+  if (isAdminLoggedIn() && path.startsWith("/admin")) {
+    void refreshPublishHealthBanner();
+  }
 
   const certReminder = document.getElementById("cert-expiry-reminder");
   if (certReminder) {
