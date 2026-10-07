@@ -1236,9 +1236,16 @@ async function saveFromEditor(previewAfter) {
       showToast(isCreateMode() ? "Certificate created — live QR updated" : "Certificate saved — live QR updated");
     }
   } else if (saveResult?.saved) {
-    showToast(
-      "Saved here only — use npm run publish:import on your PC, or set GitHub publish in Cloudflare (see .env.example)"
-    );
+    const why = saveResult.upsertResult?.reason || saveResult.syncResult?.reason;
+    if (why === "no-api") {
+      showToast("Saved locally — site API not active: set Cloudflare build to npm run deploy");
+    } else if (why === "no-github") {
+      showToast("Saved locally — add GITHUB_TOKEN (+ owner/repo) in Cloudflare env vars");
+    } else if (why === "unauthorized") {
+      showToast("Saved locally — log out and into admin again (sync key mismatch)");
+    } else {
+      showToast("Saved locally — publish failed; use npm run publish:import or fix Cloudflare deploy");
+    }
   } else {
     showToast("Could not save certificate");
   }

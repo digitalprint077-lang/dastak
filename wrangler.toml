@@ -1,9 +1,11 @@
 name = "dastak"
+main = "worker/index.js"
 compatibility_date = "2024-09-30"
-pages_build_output_dir = "dist"
 
 [assets]
 directory = "./dist"
+binding = "ASSETS"
 not_found_handling = "single-page-application"
 
-# Server API (/api/certificates) is optional. Public QR uses static files in public/ — no KV required.
+# Deploy: npm run build && npx wrangler deploy
+# Cloudflare Pages → Build command must include wrangler deploy (see .env.example).

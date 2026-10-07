@@ -334,11 +334,19 @@ export async function upsertPublishedCertificate(token, payload) {
         values: payload.values || {},
       }),
     });
+    const type = res.headers.get("content-type") ?? "";
+    if (type.includes("text/html")) {
+      return { ok: false, reason: "no-api" };
+    }
     if (res.ok || res.status === 204) {
       const via = res.headers.get("X-Publish-Via") || "remote";
       return { ok: true, reason: via };
     }
-    return { ok: false, reason: res.status === 503 ? "no-backend" : "unauthorized" };
+    if (res.status === 503) {
+      const detail = (await res.text()).trim();
+      return { ok: false, reason: detail.includes("Publish not configured") ? "no-github" : "no-backend" };
+    }
+    return { ok: false, reason: res.status === 401 ? "unauthorized" : "publish-failed" };
   } catch {
     return { ok: false, reason: "network" };
   }
