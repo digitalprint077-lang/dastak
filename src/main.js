@@ -24,7 +24,9 @@ import {
   isCertificateSaved,
   buildFullPublishBundle,
   buildPublishedBundle,
+  downloadIndividualCertFile,
   downloadPublishedBundle,
+  findDeployedPublishedEntry,
   ensurePublishedLoaded,
   hydratePublicCertificate,
   resolvePublicCertificateToken,
@@ -840,7 +842,17 @@ function renderFormSections(data) {
 
 function renderCertEditor(token, data, isCreate) {
   const certNo = escapeHtml(data.values["Certificate Number"] || "—");
-  const tracking = escapeHtml(data.values["Tracking ID"] || "—");
+  const trackingRaw = String(data.values["Tracking ID"] ?? "").trim();
+  const tracking = escapeHtml(trackingRaw || "—");
+  const publicVerifyUrl = followLinkPublic(publicSiteOrigin(), token);
+  const mobileLive =
+    !isCreate &&
+    !!(findDeployedPublishedEntry(trackingRaw) || findDeployedPublishedEntry(token));
+  const mobileBannerHtml = isCreate
+    ? `<div class="admin-banner"><strong>Mobile QR:</strong> After you save, download the JSON files and add <code>public/certs/${escapeHtml(trackingRaw || "TrackingID")}.json</code> to the project, then redeploy so phone scans work.</div>`
+    : mobileLive
+      ? `<div class="admin-banner admin-banner-readonly"><strong>Mobile QR:</strong> Live on the public site — <span class="admin-mobile-url">${escapeHtml(publicVerifyUrl)}</span></div>`
+      : `<div class="admin-banner"><strong>Mobile QR:</strong> Not deployed yet (Preview on this device still works). Use <strong>Download for mobile</strong> below, commit <code>public/certs/${escapeHtml(trackingRaw || token)}.json</code>, update the registry, and redeploy.</div>`;
   const expiringCount = countExpiringWithin(30);
   const alertsHtml =
     expiringCount > 0
@@ -870,6 +882,7 @@ function renderCertEditor(token, data, isCreate) {
         </div>
 
         ${isCreate ? `<div class="admin-banner"><strong>Draft</strong> — fill the form and save to publish this follow link.</div>` : ""}
+        ${mobileBannerHtml}
 
         <form id="cert-editor" class="admin-editor-card" autocomplete="off">
           <section class="admin-form-panel admin-form-panel-accent">
@@ -914,6 +927,9 @@ function renderCertEditor(token, data, isCreate) {
                 </button>
                 <button class="btn btn-ghost admin-pill-btn" type="button" data-action="export-public-registry">
                   ${iconDownload()} Export public QR registry
+                </button>
+                <button class="btn btn-ghost admin-pill-btn" type="button" data-action="download-mobile-files">
+                  ${iconDownload()} Download for mobile
                 </button>
               </div>
             </div>
@@ -1142,6 +1158,8 @@ function certificatePage(token) {
       <h1 class="page-title">${t("certTitle")}</h1>
       <div class="not-found">
         <p class="alert">Certificate Status: <strong>Not Found</strong></p>
+        <p class="muted cert-not-found-hint">If you opened this from a new QR code, the certificate may not be on the website yet. Ask the issuer to deploy the certificate files, or try again after redeploy.</p>
+        <p class="muted cert-not-found-ref">Reference: ${escapeHtml(String(token ?? ""))}</p>
         <a class="btn btn-primary" href="/">${t("backHome")}</a>
       </div>
     `);
@@ -1284,6 +1302,25 @@ function bindActions() {
         );
         downloadPublishedBundle(bundle);
         showToast("Downloaded registry JSON — replace public/published-certificates.json and redeploy");
+      }
+      if (action === "download-mobile-files") {
+        const form = document.getElementById("cert-editor");
+        const token =
+          form?.querySelector('[name="linkToken"]')?.value?.trim() || getEditorToken();
+        if (!token) {
+          showToast("Save the certificate first");
+          return;
+        }
+        const { status, values } = getCertificateForEdit(token);
+        downloadIndividualCertFile(token, { status, values });
+        const bundle = buildFullPublishBundle(() =>
+          listSavedTokens().map((t) => {
+            const row = getCertificateForEdit(t);
+            return { token: t, payload: { status: row.status, values: row.values } };
+          })
+        );
+        downloadPublishedBundle(bundle);
+        showToast("Downloaded cert + registry — add to public/certs/ and redeploy");
       }
       if (action === "download-pdf") {
         const pdfToken =

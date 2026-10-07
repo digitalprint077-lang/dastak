@@ -100,7 +100,22 @@ export function findPublishedEntry(slugOrToken) {
 }
 
 export function findPublishedEntryPublic(slugOrToken) {
+  applyHtmlBootstrapPublished();
   return findEntryInMap(getMergedPublishedMapForPublic(), slugOrToken);
+}
+
+/** Deployed static publish only (no admin localStorage overlay) — use for mobile QR readiness. */
+export function getDeployedPublishedMap() {
+  const merged = bundleFromRepoStaticFiles();
+  const boot = readHtmlBootstrapPublished();
+  if (boot?.certificates) {
+    merged.certificates = { ...merged.certificates, ...boot.certificates };
+  }
+  return { ...builtInPublished, ...merged.certificates };
+}
+
+export function findDeployedPublishedEntry(slugOrToken) {
+  return findEntryInMap(getDeployedPublishedMap(), slugOrToken);
 }
 
 export async function loadPublishedCertificates() {
@@ -255,17 +270,27 @@ async function tryIngestCertJson(url) {
   }
 }
 
-export async function hydrateCertificateFromStatic(slug) {
-  const needle = decodeURIComponent(String(slug ?? "").trim());
-  if (!needle || findPublishedEntry(needle)) return;
-
+function slugCandidates(slug) {
+  const raw = String(slug ?? "").trim();
+  if (!raw) return [];
+  let decoded = raw;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    decoded = raw;
+  }
+  const normalized = decoded.replace(/\u2212/g, "-").replace(/\s+/g, "");
   const queryToken =
     typeof window !== "undefined"
       ? new URLSearchParams(window.location.search).get("t")?.trim()
       : "";
-  const candidates = [
-    ...new Set([needle, queryToken, encodeURIComponent(needle)].filter(Boolean)),
-  ];
+  return [...new Set([raw, decoded, normalized, queryToken].filter(Boolean))];
+}
+
+export async function hydrateCertificateFromStatic(slug) {
+  const candidates = slugCandidates(slug);
+  if (!candidates.length) return;
+  if (candidates.some((id) => findPublishedEntryPublic(id))) return;
 
   for (const id of candidates) {
     const safe = encodeURIComponent(id);

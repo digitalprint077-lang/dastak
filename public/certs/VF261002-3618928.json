@@ -1,0 +1,28 @@
+{
+  "token": "VFkgy3u5eecvoy",
+  "status": "Issued",
+  "values": {
+    "Certificate Number": "PES001VF16899207",
+    "Tracking ID": "VF261002-3618928",
+    "Applicant Name": "Asad Jamal",
+    "Father Name": "Sher Khan",
+    "Registration Number": "TAS-347",
+    "Chassis Number": "977461",
+    "Engine Number": "8465874",
+    "Vehicle Kind": "HTV",
+    "Issue Date": "2026-10-02",
+    "Expiry Date": "2027-04-02",
+    "Service": "Renewal",
+    "District": "Peshawar",
+    "Application Status": "Certificate Ready - Available for Download",
+    "Certificate Type": "RENEWAL",
+    "Vehicle Model": "2012",
+    "Registered Laden Weight": "0.00",
+    "Seating Capacity": "16",
+    "Vehicle Fuel Type": "PETROL",
+    "Amount": "1500",
+    "Amount In Words": "ONE THOUSAND FIVE HUNDRED ONLY",
+    "Renewal From": "",
+    "Renewal To": ""
+  }
+}
