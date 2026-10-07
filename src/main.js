@@ -22,10 +22,6 @@ import {
   findTokenByField,
   listSavedTokens,
   isCertificateSaved,
-  buildFullPublishBundle,
-  buildPublishedBundle,
-  downloadIndividualCertFile,
-  downloadPublishedBundle,
   findDeployedPublishedEntry,
   ensurePublishedLoaded,
   hydratePublicCertificate,
@@ -151,10 +147,6 @@ function iconSave() {
   );
 }
 
-function iconLoad() {
-  return iconSvg(`<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>`);
-}
-
 function iconPlus() {
   return iconSvg(`<path d="M12 5v14"/><path d="M5 12h14"/>`);
 }
@@ -163,10 +155,6 @@ function iconTrash() {
   return iconSvg(
     `<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6"/><path d="M14 11v6"/>`
   );
-}
-
-function iconReset() {
-  return iconSvg(`<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>`);
 }
 
 function iconPreview() {
@@ -849,10 +837,10 @@ function renderCertEditor(token, data, isCreate) {
     !isCreate &&
     !!(findDeployedPublishedEntry(trackingRaw) || findDeployedPublishedEntry(token));
   const mobileBannerHtml = isCreate
-    ? `<div class="admin-banner"><strong>Mobile QR:</strong> Click <strong>Save certificate</strong> — with GitHub publish enabled it goes live automatically (~2 min). Otherwise run <code>npm run publish:import -- your-export.json --push</code> once on your PC.</div>`
+    ? ""
     : mobileLive
-      ? `<div class="admin-banner admin-banner-readonly"><strong>Mobile QR:</strong> Live — <span class="admin-mobile-url">${escapeHtml(publicVerifyUrl)}</span></div>`
-      : `<div class="admin-banner"><strong>Mobile QR:</strong> Not on the live site yet. Click <strong>Save</strong> again after GitHub publish is set up, or run <code>npm run publish:import -- export.json --push</code>.</div>`;
+      ? `<div class="admin-banner admin-banner-readonly"><strong>Public link:</strong> <span class="admin-mobile-url">${escapeHtml(publicVerifyUrl)}</span></div>`
+      : `<div class="admin-banner"><strong>Public link:</strong> Not live yet — save to publish to the website.</div>`;
   const expiringCount = countExpiringWithin(30);
   const alertsHtml =
     expiringCount > 0
@@ -915,40 +903,17 @@ function renderCertEditor(token, data, isCreate) {
 
           <div class="admin-form-stack">${renderFormSections(data)}</div>
 
-          <footer class="editor-toolbar">
-            <div class="editor-toolbar-section editor-toolbar-section-primary">
-              <p class="editor-toolbar-title">Publish</p>
-              <div class="editor-toolbar-actions">
-                <button class="btn btn-primary admin-pill-btn editor-btn-main" type="submit">
-                  ${iconSave()} ${isCreate ? "Create &amp; save" : "Save certificate"}
-                </button>
-                <button class="btn btn-teal admin-pill-btn" type="button" data-action="save-preview">
-                  ${iconPreview()} Save &amp; preview
-                </button>
-                <button class="btn btn-ghost admin-pill-btn" type="button" data-action="export-public-registry">
-                  ${iconDownload()} Export public QR registry
-                </button>
-                <button class="btn btn-ghost admin-pill-btn" type="button" data-action="download-mobile-files">
-                  ${iconDownload()} Download for mobile
-                </button>
-              </div>
-            </div>
-            <div class="editor-toolbar-section">
-              <p class="editor-toolbar-title">Form</p>
-              <div class="editor-toolbar-actions">
-                <button class="btn btn-ghost admin-pill-btn btn-compact" type="button" data-action="load-cert">
-                  ${iconLoad()} Reload
-                </button>
-                <button class="btn btn-ghost admin-pill-btn btn-compact" type="button" data-action="reset-form">
-                  ${iconReset()} Reset
-                </button>
-              </div>
-            </div>
-            <div class="editor-toolbar-section editor-toolbar-section-danger">
-              <button class="btn btn-danger admin-pill-btn btn-compact" type="button" data-action="delete-cert">
-                ${iconTrash()} Delete
-              </button>
-            </div>
+          <footer class="editor-toolbar editor-toolbar-minimal">
+            <button class="btn btn-primary admin-pill-btn editor-btn-main" type="submit">
+              ${iconSave()} ${isCreate ? "Create certificate" : "Save certificate"}
+            </button>
+            ${
+              isCreate
+                ? ""
+                : `<button class="btn btn-danger admin-pill-btn" type="button" data-action="delete-cert">
+              ${iconTrash()} Delete
+            </button>`
+            }
           </footer>
         </form>
       </div>
@@ -1286,55 +1251,6 @@ function bindActions() {
         } catch {
           showToast(link);
         }
-      }
-      if (action === "load-cert") {
-        const form = document.getElementById("cert-editor");
-        if (!form) return;
-        const token = form.querySelector('[name="linkToken"]')?.value?.trim();
-        if (!token) {
-          showToast("Enter a link ID to load");
-          return;
-        }
-        fillForm(form, getCertificateForEdit(token));
-        updateFollowLinkPreview();
-        showToast("Certificate loaded from storage");
-      }
-      if (action === "reset-form") {
-        const form = document.getElementById("cert-editor");
-        if (!form) return;
-        fillForm(form, isCreateMode() ? newCertificateTemplate() : defaultCertificate());
-        updateFollowLinkPreview();
-        showToast(isCreateMode() ? "New IDs generated (not saved)" : "Form reset (not saved)");
-      }
-      if (action === "save-preview") void saveFromEditor(true);
-      if (action === "export-public-registry") {
-        const bundle = buildFullPublishBundle(() =>
-          listSavedTokens().map((t) => {
-            const { status, values } = getCertificateForEdit(t);
-            return { token: t, payload: { status, values } };
-          })
-        );
-        downloadPublishedBundle(bundle);
-        showToast("Downloaded registry JSON — replace public/published-certificates.json and redeploy");
-      }
-      if (action === "download-mobile-files") {
-        const form = document.getElementById("cert-editor");
-        const token =
-          form?.querySelector('[name="linkToken"]')?.value?.trim() || getEditorToken();
-        if (!token) {
-          showToast("Save the certificate first");
-          return;
-        }
-        const { status, values } = getCertificateForEdit(token);
-        downloadIndividualCertFile(token, { status, values });
-        const bundle = buildFullPublishBundle(() =>
-          listSavedTokens().map((t) => {
-            const row = getCertificateForEdit(t);
-            return { token: t, payload: { status: row.status, values: row.values } };
-          })
-        );
-        downloadPublishedBundle(bundle);
-        showToast("Downloaded cert + registry — add to public/certs/ and redeploy");
       }
       if (action === "download-pdf") {
         const pdfToken =
