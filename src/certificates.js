@@ -347,10 +347,6 @@ export async function saveCertificate(token, { status, values }) {
     : await syncPublishedCertificates(bundle);
   const publishedOk = Boolean(upsertResult?.ok || syncResult?.ok);
   const publishVia = upsertResult?.ok ? upsertResult.reason : syncResult?.reason;
-  if (!publishedOk) {
-    downloadIndividualCertFile(token, { status, values });
-    downloadPublishedBundle(bundle);
-  }
   return {
     saved: true,
     publishedOnline: publishedOk,

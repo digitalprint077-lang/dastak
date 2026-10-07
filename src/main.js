@@ -1205,7 +1205,7 @@ async function saveFromEditor(previewAfter) {
     if (why === "no-api") {
       showToast("Saved locally — site API not active: set Cloudflare build to npm run deploy");
     } else if (why === "no-github") {
-      showToast("Saved locally — add GITHUB_TOKEN (+ owner/repo) in Cloudflare env vars");
+      showToast("Saved on this device — add GITHUB_TOKEN secret in Cloudflare (Worker → Variables)");
     } else if (why === "unauthorized") {
       showToast("Saved locally — log out and into admin again (sync key mismatch)");
     } else {

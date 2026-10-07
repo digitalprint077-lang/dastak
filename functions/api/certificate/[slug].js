@@ -20,11 +20,11 @@ function mergeBundles(...bundles) {
   return merged;
 }
 
-async function loadStaticPublished(request) {
+async function loadStaticPublished(request, assets) {
   try {
-    const res = await fetch(new URL("/published-certificates.json", request.url), {
-      headers: { Accept: "application/json" },
-    });
+    const url = new URL("/published-certificates.json", request.url);
+    const req = new Request(url, { headers: { Accept: "application/json" } });
+    const res = assets ? await assets.fetch(req) : await fetch(req);
     if (!res.ok) return null;
     const type = res.headers.get("content-type") ?? "";
     if (type.includes("text/html")) return null;
@@ -63,7 +63,7 @@ function findEntry(bundle, slug) {
 
 async function loadMerged(env, request) {
   const parts = [];
-  const staticBundle = await loadStaticPublished(request);
+  const staticBundle = await loadStaticPublished(request, env.ASSETS);
   if (staticBundle) parts.push(staticBundle);
   const kvBundle = await loadKvBundle(env);
   if (kvBundle) parts.push(kvBundle);

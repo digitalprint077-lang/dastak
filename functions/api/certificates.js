@@ -20,11 +20,11 @@ function mergeBundles(...bundles) {
   return merged;
 }
 
-async function loadStaticPublished(request) {
+async function loadStaticPublished(request, assets) {
   try {
-    const res = await fetch(new URL("/published-certificates.json", request.url), {
-      headers: { Accept: "application/json" },
-    });
+    const url = new URL("/published-certificates.json", request.url);
+    const req = new Request(url, { headers: { Accept: "application/json" } });
+    const res = assets ? await assets.fetch(req) : await fetch(req);
     if (!res.ok) return null;
     const type = res.headers.get("content-type") ?? "";
     if (type.includes("text/html")) return null;
@@ -38,7 +38,7 @@ export async function onRequestGet(context) {
   const { env, request } = context;
   const parts = [];
 
-  const staticBundle = await loadStaticPublished(request);
+  const staticBundle = await loadStaticPublished(request, env.ASSETS);
   if (staticBundle) parts.push(staticBundle);
 
   try {
@@ -74,7 +74,7 @@ export async function onRequestPut(context) {
   } catch {
     /* ignore */
   }
-  const staticBundle = await loadStaticPublished(request);
+  const staticBundle = await loadStaticPublished(request, env.ASSETS);
   const merged = mergeBundles(staticBundle, existing, incoming);
   await env.CERTS_KV.put(KV_KEY, JSON.stringify(merged));
   return new Response(null, { status: 204 });

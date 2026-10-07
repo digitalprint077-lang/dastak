@@ -2,6 +2,11 @@ name = "dastak"
 main = "worker/index.js"
 compatibility_date = "2024-09-30"
 
+[vars]
+GITHUB_OWNER = "digitalprint077-lang"
+GITHUB_REPO = "dastak"
+GITHUB_BRANCH = "main"
+
 [assets]
 directory = "./dist"
 binding = "ASSETS"
