@@ -259,19 +259,33 @@ function certificateFromPublicTokenKey(token) {
   return null;
 }
 
-export function resolvePublicCertificateToken(slug) {
-  const id = decodeURIComponent(String(slug ?? "").trim());
-  if (!id) return null;
-  if (readBuiltInPayload(id)) return id;
-  const published = findPublishedEntryPublic(id);
-  if (published) return published.token;
-  if (readStoredPayload(id)) return id;
-  for (const token of listSavedTokens()) {
-    const { values } = getCertificateForEdit(token);
-    if (String(values["Tracking ID"] ?? "").trim() === id) return token;
-    if (String(values["Certificate Number"] ?? "").trim() === id) return token;
+function publicSlugVariants(slug) {
+  const raw = String(slug ?? "").trim();
+  if (!raw) return [];
+  let decoded = raw;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    decoded = raw;
   }
-  return id;
+  const normalized = decoded.replace(/\u2212/g, "-").replace(/\s+/g, "");
+  return [...new Set([raw, decoded, normalized].filter(Boolean))];
+}
+
+export function resolvePublicCertificateToken(slug) {
+  for (const id of publicSlugVariants(slug)) {
+    if (readBuiltInPayload(id)) return id;
+    const published = findPublishedEntryPublic(id);
+    if (published) return published.token;
+    if (readStoredPayload(id)) return id;
+    for (const token of listSavedTokens()) {
+      const { values } = getCertificateForEdit(token);
+      if (String(values["Tracking ID"] ?? "").trim() === id) return token;
+      if (String(values["Certificate Number"] ?? "").trim() === id) return token;
+    }
+  }
+  const last = publicSlugVariants(slug).pop();
+  return last ?? null;
 }
 
 /** Verify / QR — published bundle, static files, then saved cert on this device. */
@@ -288,10 +302,13 @@ export function getPublicCertificate(tokenOrSlug) {
     }
   }
 
-  const resolved = resolvePublicCertificateToken(tokenOrSlug) || tokenOrSlug;
-  return (
-    certificateFromPublicTokenKey(resolved) || certificateFromPublicTokenKey(tokenOrSlug)
-  );
+  for (const variant of publicSlugVariants(tokenOrSlug)) {
+    const resolved = resolvePublicCertificateToken(variant) || variant;
+    const cert =
+      certificateFromPublicTokenKey(resolved) || certificateFromPublicTokenKey(variant);
+    if (cert) return cert;
+  }
+  return null;
 }
 
 export function getCertificate(tokenOrSlug) {

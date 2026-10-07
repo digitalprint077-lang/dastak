@@ -4,7 +4,6 @@ import { hideAppLoader, showAppLoader } from "./loader.js";
 import { applyTheme, syncThemeToggleUI, themeToggleButton, toggleTheme } from "./theme.js";
 import { isAdminLoggedIn, loginAdmin, logoutAdmin, requireAdmin } from "./admin.js";
 import {
-  ALL_FIELD_LABELS,
   FIELD_LABELS,
   FOLLOW_TOKEN,
   defaultCertificate,
@@ -1125,6 +1124,16 @@ function adminDashboardPage() {
   return adminDashboardShell(renderCertEditor(token, data, isCreate), "certificates");
 }
 
+function safePathSlug(segment) {
+  const raw = String(segment ?? "").trim();
+  if (!raw) return raw;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
 function certificatePage(token) {
   const resolved = resolvePublicCertificateToken(token) || token;
   const cert = getPublicCertificate(resolved);
@@ -1139,7 +1148,7 @@ function certificatePage(token) {
   }
 
   const values = Object.fromEntries(cert.fields);
-  const fields = ALL_FIELD_LABELS.map(
+  const fields = FIELD_LABELS.map(
     (label) => `
         <div class="field">
           <dt>${label}</dt>
@@ -1469,8 +1478,9 @@ async function render() {
 
   const printMatch = path.match(/^\/vehiclefitness\/([^/]+)\/print$/);
   if (printMatch) {
-    await hydratePublicCertificate(printMatch[1]);
-    const printToken = resolvePublicCertificateToken(printMatch[1]) || printMatch[1];
+    const printSlug = safePathSlug(printMatch[1]);
+    await hydratePublicCertificate(printSlug);
+    const printToken = resolvePublicCertificateToken(printSlug) || printSlug;
     if (!getPublicCertificate(printToken)) {
       recordAnalyticsEvent(EVENT_TYPES.CERT_PRINT, { token: printToken, success: false });
       app.innerHTML = layout(`
@@ -1494,14 +1504,15 @@ async function render() {
 
   const certMatch = path.match(/^\/vehiclefitness\/([^/]+)$/);
   if (certMatch) {
-    await hydratePublicCertificate(certMatch[1]);
-    const certToken = resolvePublicCertificateToken(certMatch[1]) || certMatch[1];
-    const cert = getPublicCertificate(certToken);
+    const verifySlug = safePathSlug(certMatch[1]);
+    await hydratePublicCertificate(verifySlug);
+    const certToken = resolvePublicCertificateToken(verifySlug) || verifySlug;
+    const cert = getPublicCertificate(verifySlug) || getPublicCertificate(certToken);
     recordAnalyticsEvent(EVENT_TYPES.CERT_VIEW, {
       token: certToken,
       success: !!cert,
     });
-    app.innerHTML = certificatePage(certMatch[1]);
+    app.innerHTML = certificatePage(verifySlug);
   } else if (path === "/admin/dashboard") {
     app.innerHTML = adminDashboardPage();
   } else if (path === "/admin") {

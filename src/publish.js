@@ -22,7 +22,27 @@ function bundleFromRepoStaticFiles() {
   return merged;
 }
 
+function readHtmlBootstrapPublished() {
+  if (typeof document === "undefined") return null;
+  try {
+    const el = document.getElementById("dastak-published-bootstrap");
+    if (!el?.textContent?.trim()) return null;
+    return normalizeBundle(JSON.parse(el.textContent));
+  } catch {
+    return null;
+  }
+}
+
+function applyHtmlBootstrapPublished() {
+  const boot = readHtmlBootstrapPublished();
+  if (!boot) return;
+  const merged = normalizeBundle(remotePublished);
+  merged.certificates = { ...merged.certificates, ...boot.certificates };
+  remotePublished = merged;
+}
+
 let remotePublished = bundleFromRepoStaticFiles();
+applyHtmlBootstrapPublished();
 let builtInPublished = {};
 let publishLoadPromise = null;
 
@@ -84,9 +104,10 @@ export function findPublishedEntryPublic(slugOrToken) {
 }
 
 export async function loadPublishedCertificates() {
+  applyHtmlBootstrapPublished();
   const tryFetchJson = async (url) => {
     try {
-      const res = await fetch(url, { cache: "no-store" });
+      const res = await fetch(url, { cache: "no-store", credentials: "same-origin" });
       if (!res.ok) return null;
       const type = res.headers.get("content-type") ?? "";
       if (type.includes("text/html")) return null;
@@ -215,7 +236,10 @@ function absoluteAssetUrl(path) {
 
 async function tryIngestCertJson(url) {
   try {
-    const res = await fetch(absoluteAssetUrl(url), { cache: "no-store" });
+    const res = await fetch(absoluteAssetUrl(url), {
+      cache: "no-store",
+      credentials: "same-origin",
+    });
     if (!res.ok) return false;
     const type = res.headers.get("content-type") ?? "";
     if (type.includes("text/html")) return false;
@@ -239,7 +263,9 @@ export async function hydrateCertificateFromStatic(slug) {
     typeof window !== "undefined"
       ? new URLSearchParams(window.location.search).get("t")?.trim()
       : "";
-  const candidates = [...new Set([needle, queryToken].filter(Boolean))];
+  const candidates = [
+    ...new Set([needle, queryToken, encodeURIComponent(needle)].filter(Boolean)),
+  ];
 
   for (const id of candidates) {
     const safe = encodeURIComponent(id);
