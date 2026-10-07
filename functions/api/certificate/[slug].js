@@ -101,9 +101,6 @@ export async function onRequestPut(context) {
   if (!authorizePut(request, env)) {
     return new Response("Unauthorized", { status: 401 });
   }
-  if (!env.CERTS_KV) {
-    return new Response("KV not configured", { status: 503 });
-  }
 
   const token = decodeURIComponent(String(params.slug ?? "").trim());
   if (!token) {
@@ -117,12 +114,29 @@ export async function onRequestPut(context) {
     return new Response("Bad request", { status: 400 });
   }
 
-  const merged = await loadMerged(env, request);
-  merged.certificates[token] = {
+  const payload = {
     status: incoming.status || "Issued",
     values: incoming.values && typeof incoming.values === "object" ? incoming.values : {},
   };
 
-  await env.CERTS_KV.put(KV_KEY, JSON.stringify(merged));
-  return new Response(null, { status: 204 });
+  if (env.CERTS_KV) {
+    const merged = await loadMerged(env, request);
+    merged.certificates[token] = payload;
+    await env.CERTS_KV.put(KV_KEY, JSON.stringify(merged));
+    return new Response(null, { status: 204, headers: { "X-Publish-Via": "kv" } });
+  }
+
+  try {
+    const { publishCertificateToGitHub } = await import("../../_lib/publish-certificate.js");
+    const result = await publishCertificateToGitHub(env, token, payload);
+    if (result.ok) {
+      return new Response(null, { status: 204, headers: { "X-Publish-Via": "github" } });
+    }
+    if (result.reason === "no-github") {
+      return new Response("Publish not configured", { status: 503 });
+    }
+    return new Response("Publish failed", { status: 502 });
+  } catch (err) {
+    return new Response(String(err?.message || err), { status: 502 });
+  }
 }

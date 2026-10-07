@@ -849,10 +849,10 @@ function renderCertEditor(token, data, isCreate) {
     !isCreate &&
     !!(findDeployedPublishedEntry(trackingRaw) || findDeployedPublishedEntry(token));
   const mobileBannerHtml = isCreate
-    ? `<div class="admin-banner"><strong>Mobile QR:</strong> After you save, download the JSON files and add <code>public/certs/${escapeHtml(trackingRaw || "TrackingID")}.json</code> to the project, then redeploy so phone scans work.</div>`
+    ? `<div class="admin-banner"><strong>Mobile QR:</strong> Click <strong>Save certificate</strong> — with GitHub publish enabled it goes live automatically (~2 min). Otherwise run <code>npm run publish:import -- your-export.json --push</code> once on your PC.</div>`
     : mobileLive
-      ? `<div class="admin-banner admin-banner-readonly"><strong>Mobile QR:</strong> Live on the public site — <span class="admin-mobile-url">${escapeHtml(publicVerifyUrl)}</span></div>`
-      : `<div class="admin-banner"><strong>Mobile QR:</strong> Not deployed yet (Preview on this device still works). Use <strong>Download for mobile</strong> below, commit <code>public/certs/${escapeHtml(trackingRaw || token)}.json</code>, update the registry, and redeploy.</div>`;
+      ? `<div class="admin-banner admin-banner-readonly"><strong>Mobile QR:</strong> Live — <span class="admin-mobile-url">${escapeHtml(publicVerifyUrl)}</span></div>`
+      : `<div class="admin-banner"><strong>Mobile QR:</strong> Not on the live site yet. Click <strong>Save</strong> again after GitHub publish is set up, or run <code>npm run publish:import -- export.json --push</code>.</div>`;
   const expiringCount = countExpiringWithin(30);
   const alertsHtml =
     expiringCount > 0
@@ -1225,12 +1225,19 @@ async function saveFromEditor(previewAfter) {
   sessionStorage.setItem("dastak:editor-token", token);
   recordAnalyticsEvent(EVENT_TYPES.ADMIN_SAVE, { token, trackingId: payload.values["Tracking ID"] });
   if (saveResult?.publishedOnline) {
-    showToast(isCreateMode() ? "Certificate created — live QR updated" : "Certificate saved — live QR updated");
+    const via = saveResult.publishVia;
+    if (via === "github") {
+      showToast("Saved — site is redeploying; mobile QR works in ~2 minutes");
+    } else if (via === "local") {
+      showToast("Saved to public/certs — run git push to update the live site");
+    } else if (via === "kv") {
+      showToast(isCreateMode() ? "Certificate created — live QR updated" : "Certificate saved — live QR updated");
+    } else {
+      showToast(isCreateMode() ? "Certificate created — live QR updated" : "Certificate saved — live QR updated");
+    }
   } else if (saveResult?.saved) {
     showToast(
-      isCreateMode()
-        ? "Certificate created — Preview works here; for phone QR, deploy the downloaded JSON files"
-        : "Certificate saved — Preview works here; for phone QR, deploy the downloaded JSON files"
+      "Saved here only — use npm run publish:import on your PC, or set GitHub publish in Cloudflare (see .env.example)"
     );
   } else {
     showToast("Could not save certificate");

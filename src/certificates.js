@@ -341,9 +341,12 @@ export async function saveCertificate(token, { status, values }) {
       return { token: t, payload: { status, values } };
     })
   );
-  const syncResult = await syncPublishedCertificates(bundle);
   const upsertResult = await upsertPublishedCertificate(token, { status, values });
-  const publishedOk = syncResult?.ok || upsertResult?.ok;
+  const syncResult = upsertResult?.ok
+    ? upsertResult
+    : await syncPublishedCertificates(bundle);
+  const publishedOk = Boolean(upsertResult?.ok || syncResult?.ok);
+  const publishVia = upsertResult?.ok ? upsertResult.reason : syncResult?.reason;
   if (!publishedOk) {
     downloadIndividualCertFile(token, { status, values });
     downloadPublishedBundle(bundle);
@@ -351,6 +354,7 @@ export async function saveCertificate(token, { status, values }) {
   return {
     saved: true,
     publishedOnline: publishedOk,
+    publishVia,
     syncResult,
     upsertResult,
   };

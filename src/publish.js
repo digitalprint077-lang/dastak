@@ -334,8 +334,11 @@ export async function upsertPublishedCertificate(token, payload) {
         values: payload.values || {},
       }),
     });
-    if (res.ok || res.status === 204) return { ok: true };
-    return { ok: false, reason: res.status === 503 ? "no-kv" : "unauthorized" };
+    if (res.ok || res.status === 204) {
+      const via = res.headers.get("X-Publish-Via") || "remote";
+      return { ok: true, reason: via };
+    }
+    return { ok: false, reason: res.status === 503 ? "no-backend" : "unauthorized" };
   } catch {
     return { ok: false, reason: "network" };
   }

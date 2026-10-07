@@ -1,42 +1,7 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import fs from "node:fs";
 import path from "node:path";
-
-function readMergedPublishedBundle(root = process.cwd()) {
-  const pubPath = path.join(root, "public", "published-certificates.json");
-  const certsDir = path.join(root, "public", "certs");
-  let certificates = {};
-  if (fs.existsSync(pubPath)) {
-    try {
-      const raw = JSON.parse(fs.readFileSync(pubPath, "utf8"));
-      certificates =
-        raw.certificates && typeof raw.certificates === "object" ? { ...raw.certificates } : {};
-    } catch {
-      /* keep empty */
-    }
-  }
-  if (fs.existsSync(certsDir)) {
-    for (const name of fs.readdirSync(certsDir)) {
-      if (!name.endsWith(".json")) continue;
-      try {
-        const data = JSON.parse(fs.readFileSync(path.join(certsDir, name), "utf8"));
-        const token = String(data?.token ?? "").trim();
-        if (!token || !data?.values) continue;
-        certificates[token] = {
-          status: data.status || "Issued",
-          values: { ...data.values },
-        };
-      } catch {
-        /* skip bad file */
-      }
-    }
-  }
-  return {
-    version: 1,
-    updatedAt: new Date().toISOString(),
-    certificates,
-  };
-}
+import { readMergedPublishedBundle, writeCertificateToPublic } from "./scripts/lib/publish-files.mjs";
 
 function mergePublishedCertificatesPlugin() {
   return {
@@ -52,6 +17,49 @@ function mergePublishedCertificatesPlugin() {
       const bundle = readMergedPublishedBundle();
       fs.mkdirSync(path.dirname(outPath), { recursive: true });
       fs.writeFileSync(outPath, `${JSON.stringify(bundle, null, 2)}\n`);
+    },
+    configureServer(server) {
+      const env = loadEnv(server.config.mode, process.cwd(), "");
+      const adminKey = env.VITE_ADMIN_PASSWORD || "dastak-admin";
+
+      const readBody = (req) =>
+        new Promise((resolve, reject) => {
+          const chunks = [];
+          req.on("data", (chunk) => chunks.push(chunk));
+          req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+          req.on("error", reject);
+        });
+
+      server.middlewares.use(async (req, res, next) => {
+        if (req.method !== "PUT" || !req.url?.startsWith("/api/certificate/")) {
+          next();
+          return;
+        }
+        if (req.headers["x-admin-sync-key"] !== adminKey) {
+          res.statusCode = 401;
+          res.end("Unauthorized");
+          return;
+        }
+        const slug = decodeURIComponent(req.url.replace(/^\/api\/certificate\//, "").split("?")[0]);
+        if (!slug) {
+          res.statusCode = 400;
+          res.end("Bad request");
+          return;
+        }
+        try {
+          const incoming = JSON.parse(await readBody(req));
+          writeCertificateToPublic(process.cwd(), slug, {
+            status: incoming.status || "Issued",
+            values: incoming.values || {},
+          });
+          res.statusCode = 204;
+          res.setHeader("X-Publish-Via", "local");
+          res.end();
+        } catch (err) {
+          res.statusCode = 500;
+          res.end(String(err?.message || err));
+        }
+      });
     },
   };
 }
