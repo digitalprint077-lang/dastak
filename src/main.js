@@ -1196,7 +1196,7 @@ async function refreshPublishHealthBanner() {
     }
     el.hidden = false;
     el.innerHTML =
-      "<strong>Mobile QR will not work until this is fixed.</strong> Cloudflare → Workers &amp; Pages → <strong>dastak</strong> → Settings → Variables → add encrypted secret <code>GITHUB_TOKEN</code> (GitHub Contents write on repo dastak), then redeploy.";
+      "<strong>Mobile QR will not work until Cloudflare is wired correctly.</strong> Production variables: encrypted <code>GITHUB_TOKEN</code> + <code>ADMIN_SYNC_KEY</code> (same as admin login password). Build command must be <code>npm run deploy</code>, then retry deployment. Plain build-only vars do not reach the server API.";
   } catch {
     el.hidden = false;
     el.textContent = "Could not check publish status — try again after redeploy.";

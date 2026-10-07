@@ -12,7 +12,9 @@ export default {
       return new Response(
         JSON.stringify({
           github,
-          authConfigured: Boolean(env.ADMIN_SYNC_KEY || env.VITE_ADMIN_PASSWORD),
+          authConfigured: Boolean(
+            env.ADMIN_SYNC_KEY || env.VITE_ADMIN_PASSWORD || env.PUBLISH_ADMIN_PASSWORD
+          ),
         }),
         { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
       );
