@@ -1,6 +1,15 @@
+import {
+  resolveGithubBranch,
+  resolveGithubOwner,
+  resolveGithubRepo,
+  resolveGithubToken,
+} from "./env-bindings.js";
+
+export { githubPublishConfigured } from "./env-bindings.js";
+
 function githubHeaders(env) {
   return {
-    Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+    Authorization: `Bearer ${resolveGithubToken(env)}`,
     Accept: "application/vnd.github+json",
     "User-Agent": "dastak-publish",
     "X-GitHub-Api-Version": "2022-11-28",
@@ -14,14 +23,10 @@ function utf8ToBase64(str) {
   return btoa(binary);
 }
 
-export function githubPublishConfigured(env) {
-  return Boolean(env.GITHUB_TOKEN && env.GITHUB_OWNER && env.GITHUB_REPO);
-}
-
 export async function githubGetJsonFile(env, filePath) {
-  const branch = env.GITHUB_BRANCH || "main";
-  const owner = env.GITHUB_OWNER;
-  const repo = env.GITHUB_REPO;
+  const branch = resolveGithubBranch(env);
+  const owner = resolveGithubOwner(env);
+  const repo = resolveGithubRepo(env);
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${encodeURIComponent(branch)}`;
   const res = await fetch(url, { headers: githubHeaders(env) });
   if (res.status === 404) return null;
@@ -35,9 +40,9 @@ export async function githubGetJsonFile(env, filePath) {
 }
 
 export async function githubPutJsonFile(env, filePath, obj, message, sha) {
-  const branch = env.GITHUB_BRANCH || "main";
-  const owner = env.GITHUB_OWNER;
-  const repo = env.GITHUB_REPO;
+  const branch = resolveGithubBranch(env);
+  const owner = resolveGithubOwner(env);
+  const repo = resolveGithubRepo(env);
   const content = utf8ToBase64(`${JSON.stringify(obj, null, 2)}\n`);
   const body = { message, content, branch };
   if (sha) body.sha = sha;

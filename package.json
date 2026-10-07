@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/generate-runtime-secrets.mjs && vite build",
     "deploy": "node scripts/wrangler-deploy.mjs",
     "preview": "vite preview",
     "publish:import": "node scripts/publish-import.mjs"

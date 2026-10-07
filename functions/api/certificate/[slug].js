@@ -1,3 +1,5 @@
+import { resolveAdminSyncKey } from "../../_lib/env-bindings.js";
+
 const KV_KEY = "published";
 
 function emptyBundle() {
@@ -71,11 +73,7 @@ async function loadMerged(env, request) {
 }
 
 function authorizePut(request, env) {
-  const expected =
-    env.ADMIN_SYNC_KEY ||
-    env.VITE_ADMIN_PASSWORD ||
-    env.PUBLISH_ADMIN_PASSWORD ||
-    "dastak-admin";
+  const expected = resolveAdminSyncKey(env) || "dastak-admin";
   const provided = request.headers.get("X-Admin-Sync-Key");
   return provided === expected;
 }

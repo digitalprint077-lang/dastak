@@ -35,6 +35,7 @@ function syncBuildSecretsToWorker() {
   }
 }
 
+run("node", ["scripts/generate-runtime-secrets.mjs"]);
 run("npm", ["run", "build"]);
 syncBuildSecretsToWorker();
 run("npx", ["wrangler", "deploy"]);

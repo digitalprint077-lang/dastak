@@ -1,6 +1,9 @@
 import { onRequestGet as certificatesGet, onRequestPut as certificatesPut } from "../functions/api/certificates.js";
 import { onRequestGet as certificateGet, onRequestPut as certificatePut } from "../functions/api/certificate/[slug].js";
-import { githubPublishConfigured } from "../functions/_lib/github.js";
+import {
+  adminPublishConfigured,
+  githubPublishConfigured,
+} from "../functions/_lib/env-bindings.js";
 
 export default {
   async fetch(request, env, _ctx) {
@@ -9,15 +12,14 @@ export default {
 
     if (pathname === "/api/publish-health" && request.method === "GET") {
       const github = githubPublishConfigured(env);
+      const authConfigured = adminPublishConfigured(env);
       return new Response(
         JSON.stringify({
           github,
-          authConfigured: Boolean(
-            env.ADMIN_SYNC_KEY || env.VITE_ADMIN_PASSWORD || env.PUBLISH_ADMIN_PASSWORD
-          ),
+          authConfigured,
           hint: github
             ? "ok"
-            : "Set GITHUB_TOKEN in Cloudflare build env; deploy runs wrangler secret bulk",
+            : "Set GITHUB_TOKEN in Cloudflare build env and use build command npm run deploy",
         }),
         { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
       );

@@ -1,3 +1,5 @@
+import { resolveAdminSyncKey } from "../../_lib/env-bindings.js";
+
 const KV_KEY = "published";
 
 function emptyBundle() {
@@ -58,8 +60,7 @@ export async function onRequestGet(context) {
 
 export async function onRequestPut(context) {
   const { request, env } = context;
-  const expected =
-    env.ADMIN_SYNC_KEY || env.VITE_ADMIN_PASSWORD || env.PUBLISH_ADMIN_PASSWORD || "dastak-admin";
+  const expected = resolveAdminSyncKey(env) || "dastak-admin";
   const provided = request.headers.get("X-Admin-Sync-Key");
   if (provided !== expected) {
     return new Response("Unauthorized", { status: 401 });
