@@ -15,6 +15,9 @@ export default {
           authConfigured: Boolean(
             env.ADMIN_SYNC_KEY || env.VITE_ADMIN_PASSWORD || env.PUBLISH_ADMIN_PASSWORD
           ),
+          hint: github
+            ? "ok"
+            : "Set GITHUB_TOKEN in Cloudflare build env; deploy runs wrangler secret bulk",
         }),
         { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
       );
