@@ -1,4 +1,4 @@
-import { resolveAdminSyncKey } from "../../_lib/env-bindings.js";
+import { resolveAdminSyncKey } from "../_lib/env-bindings.js";
 
 const KV_KEY = "published";
 
