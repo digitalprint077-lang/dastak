@@ -33,6 +33,7 @@ import {
   toDateInputValue,
   CERTIFICATE_STATUS_OPTIONS,
   APPLICATION_STATUS_OPTIONS,
+  DISTRICT_OPTIONS,
   expiryFromIssueDate,
   cssEscape,
 } from "./certificates.js";
@@ -512,6 +513,23 @@ function fieldInput(label, value, iconKey = label, readonly = false) {
             name,
             value: displayValue || APPLICATION_STATUS_OPTIONS[0],
             options: APPLICATION_STATUS_OPTIONS,
+            readonly,
+          })}
+        </div>
+      </label>
+    `;
+  }
+  if (label === "District") {
+    return `
+      <label class="form-field" for="${id}">
+        <span class="form-label">${label}</span>
+        <div class="form-input-wrap">
+          <span class="form-field-icon">${fieldIcon(iconKey)}</span>
+          ${fieldSelect({
+            id,
+            name,
+            value: displayValue || DISTRICT_OPTIONS[0],
+            options: DISTRICT_OPTIONS,
             readonly,
           })}
         </div>

@@ -73,6 +73,8 @@ export const APPLICATION_STATUS_OPTIONS = [
   "On Hold",
 ];
 
+export const DISTRICT_OPTIONS = ["Peshawar", "Nowshera", "Mardan"];
+
 /** Vehicle fitness certificates are valid for six months from issue date. */
 export const CERTIFICATE_VALIDITY_MONTHS = 6;
 
