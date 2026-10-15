@@ -129,10 +129,10 @@ function readStoredPayload(token) {
 }
 
 function readBuiltInPayload(token) {
-  if (!certificates[token]) return null;
+  if (token !== FOLLOW_TOKEN) return null;
   return {
-    status: certificates[token].status,
-    values: Object.fromEntries(certificates[token].fields),
+    status: certificates[FOLLOW_TOKEN].status,
+    values: { ...DEFAULT_VALUES },
   };
 }
 
@@ -181,7 +181,9 @@ export function resolveCertificateToken(slug) {
 function certificateFromTokenKey(token) {
   const stored = readStoredPayload(token);
   if (stored) return certificateFromStored(stored);
-  if (certificates[token]) return certificates[token];
+  if (token === FOLLOW_TOKEN) {
+    return certificateFromStored(readBuiltInPayload(token));
+  }
   const published = findPublishedEntry(token);
   if (published?.payload) return certificateFromStored(published.payload);
   return null;
@@ -238,6 +240,7 @@ export function newCertificateTemplate() {
   const issue = todayIsoDate();
   values["Issue Date"] = issue;
   values["Expiry Date"] = expiryFromIssueDate(issue);
+  values["Seating Capacity"] = DEFAULT_SEATING_CAPACITY;
   return {
     status: "Issued",
     values,
@@ -261,7 +264,6 @@ function certificateFromUrlHash(slug) {
 function certificateFromPublicTokenKey(token) {
   const builtIn = readBuiltInPayload(token);
   if (builtIn) return certificateFromStored(builtIn);
-  if (certificates[token]) return certificates[token];
   const published = findPublishedEntryPublic(token);
   if (published?.payload) return certificateFromStored(published.payload);
   const stored = readStoredPayload(token);
@@ -415,9 +417,13 @@ export function getCertificateSummary(token) {
 export function getCertificateForEdit(token) {
   const cert = getCertificate(token);
   if (cert) {
+    const values = Object.fromEntries(cert.fields);
+    if (!String(values["Seating Capacity"] ?? "").trim()) {
+      values["Seating Capacity"] = DEFAULT_SEATING_CAPACITY;
+    }
     return {
       status: cert.status,
-      values: Object.fromEntries(cert.fields),
+      values,
     };
   }
   return defaultCertificate();
