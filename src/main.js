@@ -35,6 +35,7 @@ import {
   APPLICATION_STATUS_OPTIONS,
   DISTRICT_OPTIONS,
   FUEL_TYPE_OPTIONS,
+  SEATING_CAPACITY_OPTIONS,
   expiryFromIssueDate,
   cssEscape,
 } from "./certificates.js";
@@ -549,6 +550,23 @@ function fieldInput(label, value, iconKey = label, readonly = false) {
             name,
             value: (displayValue || FUEL_TYPE_OPTIONS[0]).toUpperCase(),
             options: FUEL_TYPE_OPTIONS,
+            readonly,
+          })}
+        </div>
+      </label>
+    `;
+  }
+  if (label === "Seating Capacity") {
+    return `
+      <label class="form-field" for="${id}">
+        <span class="form-label">${label}</span>
+        <div class="form-input-wrap">
+          <span class="form-field-icon">${fieldIcon(iconKey)}</span>
+          ${fieldSelect({
+            id,
+            name,
+            value: displayValue || SEATING_CAPACITY_OPTIONS[0],
+            options: SEATING_CAPACITY_OPTIONS,
             readonly,
           })}
         </div>

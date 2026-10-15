@@ -77,6 +77,8 @@ export const DISTRICT_OPTIONS = ["Peshawar", "Nowshera", "Mardan"];
 
 export const FUEL_TYPE_OPTIONS = ["PETROL", "DIESEL", "CNG", "LPG"];
 
+export const SEATING_CAPACITY_OPTIONS = Array.from({ length: 70 }, (_, i) => String(i + 1));
+
 /** Vehicle fitness certificates are valid for six months from issue date. */
 export const CERTIFICATE_VALIDITY_MONTHS = 6;
 
