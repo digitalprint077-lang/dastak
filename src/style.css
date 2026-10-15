@@ -1126,6 +1126,27 @@ html[data-theme="dark"] .login-card {
   color: #9aa0b8;
 }
 
+.admin-sidebar-search {
+  position: relative;
+  padding: 0 12px 10px;
+  border-bottom: 1px solid #eef0f6;
+}
+
+.admin-sidebar-search-icon {
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9aa0b8;
+  pointer-events: none;
+}
+
+.admin-sidebar-search-input {
+  padding-left: 36px;
+  min-height: 38px;
+  font-size: 13px;
+}
+
 .cert-list {
   max-height: calc(100vh - 220px);
   overflow: auto;

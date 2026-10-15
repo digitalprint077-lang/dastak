@@ -204,6 +204,10 @@ function iconActivity() {
   return iconSvg(`<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`);
 }
 
+function iconSearch() {
+  return iconSvg(`<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>`, 16);
+}
+
 const FIELD_ICONS = {
   linkToken: `<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>`,
   status: `<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m22 4-10 10-3-3"/>`,
@@ -816,8 +820,14 @@ function renderCertSidebar(activeToken) {
     .map((token) => {
       const summary = getCertificateSummary(token);
       const { values } = getCertificateForEdit(token);
+      const trackingId = String(values["Tracking ID"] ?? "").trim();
+      const searchBlob = [summary.applicant, summary.certificateNumber, summary.token, trackingId]
+        .join(" ")
+        .toLowerCase();
       return {
         ...summary,
+        trackingId,
+        searchBlob,
         daysLeft: daysUntilExpiry(values["Expiry Date"]),
       };
     })
@@ -829,6 +839,7 @@ function renderCertSidebar(activeToken) {
         <a
           class="cert-list-item${item.token === activeToken ? " active" : ""}"
           href="/admin/dashboard?token=${encodeURIComponent(item.token)}"
+          data-cert-search="${escapeHtml(item.searchBlob)}"
         >
           <div class="cert-list-top">
             <strong class="cert-list-name">${escapeHtml(item.applicant)}</strong>
@@ -840,7 +851,7 @@ function renderCertSidebar(activeToken) {
             </span>
           </div>
           <p class="cert-list-number">${escapeHtml(item.certificateNumber)}</p>
-          <p class="cert-list-id">${escapeHtml(item.token)}</p>
+          <p class="cert-list-id">${escapeHtml(item.trackingId || item.token)}</p>
         </a>
       `
     )
@@ -851,9 +862,19 @@ function renderCertSidebar(activeToken) {
       <div class="admin-sidebar-head">
         <div>
           <h2 class="admin-sidebar-title">Certificates</h2>
-          <p class="admin-sidebar-count">${summaries.length} total</p>
+          <p class="admin-sidebar-count" id="cert-list-count">${summaries.length} total</p>
         </div>
         <button class="btn btn-primary btn-sm" type="button" data-action="admin-create-new">${iconPlus()} New</button>
+      </div>
+      <div class="admin-sidebar-search">
+        <span class="form-field-icon admin-sidebar-search-icon">${iconSearch()}</span>
+        <input
+          id="cert-list-search"
+          class="form-control admin-sidebar-search-input"
+          type="search"
+          placeholder="Search name, cert #, tracking ID…"
+          autocomplete="off"
+        />
       </div>
       <div class="admin-sidebar-tools">
         <button class="btn btn-ghost btn-sm admin-pill-btn" type="button" data-action="export-json">Export JSON</button>
@@ -1471,6 +1492,27 @@ function bindActions() {
       navigate(`${url.pathname}${url.search}`);
     });
   });
+
+  const certListSearch = document.getElementById("cert-list-search");
+  const certListCount = document.getElementById("cert-list-count");
+  const certList = document.querySelector(".cert-list");
+  if (certListSearch && certList) {
+    const totalCerts = certList.querySelectorAll(".cert-list-item").length;
+    const applyCertListSearch = () => {
+      const q = certListSearch.value.trim().toLowerCase();
+      let visible = 0;
+      certList.querySelectorAll(".cert-list-item").forEach((row) => {
+        const hay = row.getAttribute("data-cert-search") || "";
+        const show = !q || hay.includes(q);
+        row.hidden = !show;
+        if (show) visible += 1;
+      });
+      if (certListCount) {
+        certListCount.textContent = q ? `${visible} of ${totalCerts} shown` : `${totalCerts} total`;
+      }
+    };
+    certListSearch.addEventListener("input", applyCertListSearch);
+  }
 
   const trackFilter = document.getElementById("analytics-track-filter");
   const trackBody = document.getElementById("analytics-track-body");
