@@ -79,6 +79,8 @@ export const FUEL_TYPE_OPTIONS = ["PETROL", "DIESEL", "CNG", "LPG"];
 
 export const SEATING_CAPACITY_OPTIONS = Array.from({ length: 70 }, (_, i) => String(i + 1));
 
+export const DEFAULT_SEATING_CAPACITY = "3";
+
 /** Vehicle fitness certificates are valid for six months from issue date. */
 export const CERTIFICATE_VALIDITY_MONTHS = 6;
 
@@ -99,7 +101,7 @@ const DEFAULT_VALUES = {
   "Certificate Type": "RENEWAL",
   "Vehicle Model": "2012",
   "Registered Laden Weight": "0.00",
-  "Seating Capacity": "16",
+  "Seating Capacity": "3",
   "Vehicle Fuel Type": "PETROL",
   Amount: "1500",
   "Amount In Words": "ONE THOUSAND FIVE HUNDRED ONLY",

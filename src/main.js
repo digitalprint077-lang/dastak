@@ -36,6 +36,7 @@ import {
   DISTRICT_OPTIONS,
   FUEL_TYPE_OPTIONS,
   SEATING_CAPACITY_OPTIONS,
+  DEFAULT_SEATING_CAPACITY,
   expiryFromIssueDate,
   cssEscape,
 } from "./certificates.js";
@@ -565,7 +566,7 @@ function fieldInput(label, value, iconKey = label, readonly = false) {
           ${fieldSelect({
             id,
             name,
-            value: displayValue || SEATING_CAPACITY_OPTIONS[0],
+            value: displayValue || DEFAULT_SEATING_CAPACITY,
             options: SEATING_CAPACITY_OPTIONS,
             readonly,
           })}
