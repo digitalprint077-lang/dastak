@@ -37,6 +37,7 @@ import {
   expiryFromIssueDate,
   cssEscape,
 } from "./certificates.js";
+import { amountToWords } from "./amount-words.js";
 import { renderA4PrintPage } from "./print-a4.js";
 import { qrDataUrlWithLogo } from "./qr-with-logo.js";
 import {
@@ -1265,6 +1266,12 @@ async function saveFromEditor(previewAfter) {
   navigate(`/admin/dashboard?token=${encodeURIComponent(token)}`);
 }
 
+function syncAmountInWords(form, amountRaw) {
+  const wordsInput = form.querySelector(`[name="${cssEscape("Amount In Words")}"]`);
+  if (!wordsInput) return;
+  wordsInput.value = amountToWords(amountRaw);
+}
+
 function updateFollowLinkPreview() {
   const form = document.getElementById("cert-editor");
   if (!form) return;
@@ -1401,8 +1408,16 @@ function bindActions() {
       event.preventDefault();
       void saveFromEditor(false);
     });
-    form.addEventListener("input", () => updateFollowLinkPreview());
+    form.addEventListener("input", (event) => {
+      updateFollowLinkPreview();
+      if (event.target.getAttribute("name") === "Amount") {
+        syncAmountInWords(form, event.target.value);
+      }
+    });
     form.addEventListener("change", (event) => {
+      if (event.target.getAttribute("name") === "Amount") {
+        syncAmountInWords(form, event.target.value);
+      }
       if (event.target.getAttribute("name") !== "Issue Date") return;
       const expiryInput = form.querySelector(`[name="${cssEscape("Expiry Date")}"]`);
       if (expiryInput) {
