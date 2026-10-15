@@ -815,13 +815,54 @@ function adminLoginPage() {
   `;
 }
 
+const CERT_LIST_SEARCH_KEY = "dastak:cert-list-search";
+
+function filterCertList(query) {
+  const certList = document.querySelector(".admin-sidebar .cert-list");
+  const certListCount = document.getElementById("cert-list-count");
+  if (!certList) return;
+  const q = String(query ?? "")
+    .trim()
+    .toLowerCase();
+  const terms = q.split(/\s+/).filter(Boolean);
+  const rows = certList.querySelectorAll(".cert-list-item");
+  let visible = 0;
+  rows.forEach((row) => {
+    const hay = (row.getAttribute("data-cert-search") || row.textContent || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+    const show = !terms.length || terms.every((term) => hay.includes(term));
+    row.classList.toggle("cert-list-item-hidden", !show);
+    row.hidden = !show;
+    if (show) visible += 1;
+  });
+  if (certListCount) {
+    const total = rows.length;
+    certListCount.textContent = terms.length ? `${visible} of ${total} shown` : `${total} total`;
+  }
+}
+
 function renderCertSidebar(activeToken) {
+  const savedSearch = sessionStorage.getItem(CERT_LIST_SEARCH_KEY) || "";
   const summaries = listSavedTokens()
     .map((token) => {
       const summary = getCertificateSummary(token);
       const { values } = getCertificateForEdit(token);
       const trackingId = String(values["Tracking ID"] ?? "").trim();
-      const searchBlob = [summary.applicant, summary.certificateNumber, summary.token, trackingId]
+      const searchBlob = [
+        summary.applicant,
+        summary.certificateNumber,
+        summary.token,
+        trackingId,
+        values["Father Name"],
+        values["Registration Number"],
+        values["District"],
+        values["Chassis Number"],
+        values["Engine Number"],
+      ]
+        .map((part) => String(part ?? "").trim())
+        .filter(Boolean)
         .join(" ")
         .toLowerCase();
       return {
@@ -874,6 +915,7 @@ function renderCertSidebar(activeToken) {
           type="search"
           placeholder="Search name, cert #, tracking ID…"
           autocomplete="off"
+          value="${escapeHtml(savedSearch)}"
         />
       </div>
       <div class="admin-sidebar-tools">
@@ -1494,24 +1536,14 @@ function bindActions() {
   });
 
   const certListSearch = document.getElementById("cert-list-search");
-  const certListCount = document.getElementById("cert-list-count");
-  const certList = document.querySelector(".cert-list");
-  if (certListSearch && certList) {
-    const totalCerts = certList.querySelectorAll(".cert-list-item").length;
+  if (certListSearch) {
     const applyCertListSearch = () => {
-      const q = certListSearch.value.trim().toLowerCase();
-      let visible = 0;
-      certList.querySelectorAll(".cert-list-item").forEach((row) => {
-        const hay = row.getAttribute("data-cert-search") || "";
-        const show = !q || hay.includes(q);
-        row.hidden = !show;
-        if (show) visible += 1;
-      });
-      if (certListCount) {
-        certListCount.textContent = q ? `${visible} of ${totalCerts} shown` : `${totalCerts} total`;
-      }
+      sessionStorage.setItem(CERT_LIST_SEARCH_KEY, certListSearch.value);
+      filterCertList(certListSearch.value);
     };
     certListSearch.addEventListener("input", applyCertListSearch);
+    certListSearch.addEventListener("search", applyCertListSearch);
+    filterCertList(certListSearch.value);
   }
 
   const trackFilter = document.getElementById("analytics-track-filter");

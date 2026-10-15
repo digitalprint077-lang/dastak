@@ -1176,6 +1176,11 @@ html[data-theme="dark"] .login-card {
   box-shadow: 0 6px 16px rgba(0, 195, 217, 0.12);
 }
 
+.cert-list-item.cert-list-item-hidden,
+.cert-list-item[hidden] {
+  display: none !important;
+}
+
 .cert-list-top {
   display: flex;
   align-items: center;
