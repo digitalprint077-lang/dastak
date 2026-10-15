@@ -817,13 +817,28 @@ function adminLoginPage() {
 
 const CERT_LIST_SEARCH_KEY = "dastak:cert-list-search";
 
+function normalizeSearchKey(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[\s.\-_/]/g, "");
+}
+
+function certSearchTermMatches(term, hay, regNorm) {
+  const needle = term.toLowerCase().trim();
+  if (!needle) return true;
+  if (hay.includes(needle)) return true;
+  const compact = normalizeSearchKey(needle);
+  if (!compact) return true;
+  if (normalizeSearchKey(hay).includes(compact)) return true;
+  if (regNorm && regNorm.includes(compact)) return true;
+  return false;
+}
+
 function filterCertList(query) {
   const certList = document.querySelector(".admin-sidebar .cert-list");
   const certListCount = document.getElementById("cert-list-count");
   if (!certList) return;
-  const q = String(query ?? "")
-    .trim()
-    .toLowerCase();
+  const q = String(query ?? "").trim();
   const terms = q.split(/\s+/).filter(Boolean);
   const rows = certList.querySelectorAll(".cert-list-item");
   let visible = 0;
@@ -832,7 +847,8 @@ function filterCertList(query) {
       .replace(/\s+/g, " ")
       .trim()
       .toLowerCase();
-    const show = !terms.length || terms.every((term) => hay.includes(term));
+    const regNorm = row.getAttribute("data-reg-search") || "";
+    const show = !terms.length || terms.every((term) => certSearchTermMatches(term, hay, regNorm));
     row.classList.toggle("cert-list-item-hidden", !show);
     row.hidden = !show;
     if (show) visible += 1;
@@ -850,13 +866,15 @@ function renderCertSidebar(activeToken) {
       const summary = getCertificateSummary(token);
       const { values } = getCertificateForEdit(token);
       const trackingId = String(values["Tracking ID"] ?? "").trim();
+      const registrationNo = String(values["Registration Number"] ?? "").trim();
+      const regNorm = normalizeSearchKey(registrationNo);
       const searchBlob = [
         summary.applicant,
         summary.certificateNumber,
         summary.token,
         trackingId,
+        registrationNo,
         values["Father Name"],
-        values["Registration Number"],
         values["District"],
         values["Chassis Number"],
         values["Engine Number"],
@@ -868,6 +886,8 @@ function renderCertSidebar(activeToken) {
       return {
         ...summary,
         trackingId,
+        registrationNo,
+        regNorm,
         searchBlob,
         daysLeft: daysUntilExpiry(values["Expiry Date"]),
       };
@@ -881,6 +901,7 @@ function renderCertSidebar(activeToken) {
           class="cert-list-item${item.token === activeToken ? " active" : ""}"
           href="/admin/dashboard?token=${encodeURIComponent(item.token)}"
           data-cert-search="${escapeHtml(item.searchBlob)}"
+          data-reg-search="${escapeHtml(item.regNorm)}"
         >
           <div class="cert-list-top">
             <strong class="cert-list-name">${escapeHtml(item.applicant)}</strong>
@@ -891,6 +912,7 @@ function renderCertSidebar(activeToken) {
               </span>
             </span>
           </div>
+          <p class="cert-list-reg">Reg: ${escapeHtml(item.registrationNo || "—")}</p>
           <p class="cert-list-number">${escapeHtml(item.certificateNumber)}</p>
           <p class="cert-list-id">${escapeHtml(item.trackingId || item.token)}</p>
         </a>
@@ -913,7 +935,7 @@ function renderCertSidebar(activeToken) {
           id="cert-list-search"
           class="form-control admin-sidebar-search-input"
           type="search"
-          placeholder="Search name, cert #, tracking ID…"
+          placeholder="Search reg no, name, tracking ID…"
           autocomplete="off"
           value="${escapeHtml(savedSearch)}"
         />
