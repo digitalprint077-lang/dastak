@@ -86,7 +86,7 @@ export const DEFAULT_SEATING_CAPACITY = "3";
 export const CERTIFICATE_VALIDITY_MONTHS = 6;
 
 const DEFAULT_VALUES = {
-  "Serial Number": "1",
+  "Serial Number": "",
   "Certificate Number": "PES001VF00000236",
   "Tracking ID": "VF260921-0000885",
   "Applicant Name": "Fahad Jahanzaib Maqsood",
@@ -119,6 +119,7 @@ export const certificates = {
 };
 
 const STORAGE_PREFIX = "dastak:cert:";
+const SERIAL_COUNTER_KEY = "dastak:serial-counter";
 
 function readStoredPayload(token) {
   try {
@@ -228,37 +229,79 @@ function parseSerialNumberValue(value) {
   return digits ? parseInt(digits, 10) : 0;
 }
 
-/** Next unique serial: 1, 2, 3, … (highest in local + published certs, then +1). */
-export function allocateSerialNumber(excludeToken = null) {
+function readStoredCounter() {
+  try {
+    return parseSerialNumberValue(localStorage.getItem(SERIAL_COUNTER_KEY));
+  } catch {
+    return 0;
+  }
+}
+
+function writeStoredCounter(n) {
+  try {
+    localStorage.setItem(SERIAL_COUNTER_KEY, String(n));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+/** Serial only if it was saved (not the empty default merged into the form). */
+function explicitSerialNumberForToken(token) {
+  const stored = readStoredPayload(token);
+  if (stored?.values && Object.prototype.hasOwnProperty.call(stored.values, "Serial Number")) {
+    const v = String(stored.values["Serial Number"] ?? "").trim();
+    if (v) return parseSerialNumberValue(v);
+  }
+  const published = findPublishedEntry(token);
+  if (published?.payload?.values && "Serial Number" in published.payload.values) {
+    const v = String(published.payload.values["Serial Number"] ?? "").trim();
+    if (v) return parseSerialNumberValue(v);
+  }
+  return 0;
+}
+
+function maxExplicitSerialNumber(excludeToken = null) {
   let max = 0;
-  const bumpMax = (values, token) => {
-    if (excludeToken && token === excludeToken) return;
-    max = Math.max(max, parseSerialNumberValue(values?.["Serial Number"]));
-  };
-  for (const token of listSavedTokens()) {
-    bumpMax(getCertificateForEdit(token).values, token);
+  const tokens = new Set(listSavedTokens());
+  for (const token of Object.keys(getMergedPublishedMap())) tokens.add(token);
+  for (const token of tokens) {
+    if (excludeToken && token === excludeToken) continue;
+    max = Math.max(max, explicitSerialNumberForToken(token));
   }
-  for (const [token, payload] of Object.entries(getMergedPublishedMap())) {
-    bumpMax(payload?.values, token);
-  }
-  for (let n = max + 1; n < max + 100_000; n += 1) {
-    if (!isSerialNumberInUse(n, excludeToken)) return String(n);
-  }
-  return String(Date.now());
+  return max;
 }
 
 function isSerialNumberInUse(n, excludeToken = null) {
-  const matches = (values, token) => {
-    if (excludeToken && token === excludeToken) return false;
-    return parseSerialNumberValue(values?.["Serial Number"]) === n;
-  };
-  for (const token of listSavedTokens()) {
-    if (matches(getCertificateForEdit(token).values, token)) return true;
-  }
-  for (const [token, payload] of Object.entries(getMergedPublishedMap())) {
-    if (matches(payload?.values, token)) return true;
+  if (!Number.isFinite(n) || n < 1) return false;
+  const tokens = new Set(listSavedTokens());
+  for (const token of Object.keys(getMergedPublishedMap())) tokens.add(token);
+  for (const token of tokens) {
+    if (excludeToken && token === excludeToken) continue;
+    if (explicitSerialNumberForToken(token) === n) return true;
   }
   return false;
+}
+
+/** Next unique serial: 1, 2, 3, … */
+export function allocateSerialNumber(excludeToken = null) {
+  const maxSaved = maxExplicitSerialNumber(excludeToken);
+  const counter = readStoredCounter();
+  let n = Math.max(maxSaved, counter) + 1;
+  while (isSerialNumberInUse(n, excludeToken) && n < maxSaved + 100_000) n += 1;
+  writeStoredCounter(n);
+  return String(n);
+}
+
+export function ensureCertificateSerial(token, values) {
+  const next = { ...values };
+  let n = parseSerialNumberValue(next["Serial Number"]);
+  if (n < 1 || isSerialNumberInUse(n, token)) {
+    next["Serial Number"] = allocateSerialNumber(token);
+  } else {
+    next["Serial Number"] = String(n);
+    writeStoredCounter(Math.max(readStoredCounter(), n));
+  }
+  return next;
 }
 
 const NEW_CERT_EMPTY_FIELDS = [
@@ -385,13 +428,7 @@ export function getCertificate(tokenOrSlug) {
 }
 
 export async function saveCertificate(token, { status, values: rawValues }) {
-  const values = { ...rawValues };
-  if (!String(values["Serial Number"] ?? "").trim()) {
-    values["Serial Number"] = allocateSerialNumber(token);
-  } else {
-    const parsed = parseSerialNumberValue(values["Serial Number"]);
-    if (parsed > 0) values["Serial Number"] = String(parsed);
-  }
+  const values = ensureCertificateSerial(token, rawValues);
   localStorage.setItem(
     `${STORAGE_PREFIX}${token}`,
     JSON.stringify({ status, values })
