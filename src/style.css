@@ -1194,6 +1194,13 @@ html[data-theme="dark"] .login-card {
   color: var(--text-dark);
 }
 
+.cert-list-reg {
+  margin: 0 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
 .cert-list-number {
   margin: 0 0 2px;
   font-size: 12px;
