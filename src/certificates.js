@@ -86,7 +86,7 @@ export const DEFAULT_SEATING_CAPACITY = "3";
 export const CERTIFICATE_VALIDITY_MONTHS = 6;
 
 const DEFAULT_VALUES = {
-  "Serial Number": "000001",
+  "Serial Number": "1",
   "Certificate Number": "PES001VF00000236",
   "Tracking ID": "VF260921-0000885",
   "Applicant Name": "Fahad Jahanzaib Maqsood",
@@ -228,7 +228,7 @@ function parseSerialNumberValue(value) {
   return digits ? parseInt(digits, 10) : 0;
 }
 
-/** Next unique 6-digit office serial (local + published certs). */
+/** Next unique serial: 1, 2, 3, … (highest in local + published certs, then +1). */
 export function allocateSerialNumber(excludeToken = null) {
   let max = 0;
   const bumpMax = (values, token) => {
@@ -242,11 +242,23 @@ export function allocateSerialNumber(excludeToken = null) {
     bumpMax(payload?.values, token);
   }
   for (let n = max + 1; n < max + 100_000; n += 1) {
-    const candidate = String(n).padStart(6, "0");
-    const taken = findTokenByField("Serial Number", candidate);
-    if (!taken || taken === excludeToken) return candidate;
+    if (!isSerialNumberInUse(n, excludeToken)) return String(n);
   }
-  return String(Date.now()).slice(-6).padStart(6, "0");
+  return String(Date.now());
+}
+
+function isSerialNumberInUse(n, excludeToken = null) {
+  const matches = (values, token) => {
+    if (excludeToken && token === excludeToken) return false;
+    return parseSerialNumberValue(values?.["Serial Number"]) === n;
+  };
+  for (const token of listSavedTokens()) {
+    if (matches(getCertificateForEdit(token).values, token)) return true;
+  }
+  for (const [token, payload] of Object.entries(getMergedPublishedMap())) {
+    if (matches(payload?.values, token)) return true;
+  }
+  return false;
 }
 
 const NEW_CERT_EMPTY_FIELDS = [
@@ -376,6 +388,9 @@ export async function saveCertificate(token, { status, values: rawValues }) {
   const values = { ...rawValues };
   if (!String(values["Serial Number"] ?? "").trim()) {
     values["Serial Number"] = allocateSerialNumber(token);
+  } else {
+    const parsed = parseSerialNumberValue(values["Serial Number"]);
+    if (parsed > 0) values["Serial Number"] = String(parsed);
   }
   localStorage.setItem(
     `${STORAGE_PREFIX}${token}`,
