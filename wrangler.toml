@@ -7,6 +7,11 @@ GITHUB_OWNER = "digitalprint077-lang"
 GITHUB_REPO = "dastak"
 GITHUB_BRANCH = "main"
 
+[[d1_databases]]
+binding = "Dastak_binding"
+database_name = "dastak-certs"
+database_id = "826b4b2c-ac55-4b95-a2f1-9782f44c0dbe"
+
 [assets]
 directory = "./dist"
 binding = "ASSETS"

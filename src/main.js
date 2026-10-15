@@ -92,6 +92,7 @@ const FORM_SECTIONS = [
   {
     title: "Certificate",
     fields: [
+      "Serial Number",
       "Certificate Number",
       "Tracking ID",
       "Issue Date",
@@ -219,6 +220,7 @@ const FIELD_ICONS = {
   "Engine Number": `<circle cx="12" cy="12" r="3"/><path d="M12 2v3"/><path d="M12 19v3"/><path d="m4.93 4.93 2.12 2.12"/><path d="m16.95 16.95 2.12 2.12"/>`,
   "Vehicle Kind": `<path d="M19 17h2c.6 0 1-.4 1-1v-3l-2-5H5L3 13v3c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>`,
   Service: `<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 10h8"/><path d="M8 14h5"/>`,
+  "Serial Number": `<path d="M4 7h16"/><path d="M7 3v4"/><path d="M17 3v4"/><path d="M4 11h16"/><path d="M8 15h2"/><path d="M12 15h4"/>`,
   "Certificate Number": `<path d="M14 2H6a2 2 0 0 0-2 2v16l8-4 8 4V8z"/><path d="M14 2v6h6"/>`,
   "Tracking ID": `<path d="M4 9h16"/><path d="M4 15h16"/><path d="M10 9v6"/><path d="M14 9v6"/>`,
   "Issue Date": `<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>`,
@@ -866,11 +868,13 @@ function renderCertSidebar(activeToken) {
       const summary = getCertificateSummary(token);
       const { values } = getCertificateForEdit(token);
       const trackingId = String(values["Tracking ID"] ?? "").trim();
+      const serialNo = String(values["Serial Number"] ?? "").trim();
       const registrationNo = String(values["Registration Number"] ?? "").trim();
       const regNorm = normalizeSearchKey(registrationNo);
       const searchBlob = [
         summary.applicant,
         summary.certificateNumber,
+        serialNo,
         summary.token,
         trackingId,
         registrationNo,
@@ -885,6 +889,7 @@ function renderCertSidebar(activeToken) {
         .toLowerCase();
       return {
         ...summary,
+        serialNo,
         trackingId,
         registrationNo,
         regNorm,
@@ -913,6 +918,7 @@ function renderCertSidebar(activeToken) {
             </span>
           </div>
           <p class="cert-list-reg">Reg: ${escapeHtml(item.registrationNo || "—")}</p>
+          <p class="cert-list-serial">Serial: ${escapeHtml(item.serialNo || "—")}</p>
           <p class="cert-list-number">${escapeHtml(item.certificateNumber)}</p>
           <p class="cert-list-id">${escapeHtml(item.trackingId || item.token)}</p>
         </a>
@@ -971,6 +977,8 @@ function renderFormSections(data) {
 }
 
 function renderCertEditor(token, data, isCreate) {
+  const serialRaw = String(data.values["Serial Number"] ?? "").trim();
+  const serialDisplay = escapeHtml(serialRaw || "Assigned on save");
   const certNo = escapeHtml(data.values["Certificate Number"] || "—");
   const trackingRaw = String(data.values["Tracking ID"] ?? "").trim();
   const tracking = escapeHtml(trackingRaw || "—");
@@ -1001,7 +1009,7 @@ function renderCertEditor(token, data, isCreate) {
           <div class="admin-main-head-text">
             <p class="admin-breadcrumb">Dashboard · ${isCreate ? "New" : "Edit"}</p>
             <h2 class="admin-main-title">${isCreate ? "New certificate" : escapeHtml(data.values["Applicant Name"] || "Certificate")}</h2>
-            <p class="admin-main-meta"><span>${certNo}</span><span>${tracking}</span></p>
+            <p class="admin-main-meta"><span>Serial ${serialDisplay}</span><span>${certNo}</span><span>${tracking}</span></p>
           </div>
           <div class="admin-head-actions">
             <button class="btn btn-ghost admin-pill-btn" type="button" data-action="copy">${iconCopy()} Copy link</button>
@@ -1046,16 +1054,23 @@ function renderCertEditor(token, data, isCreate) {
           <div class="admin-form-stack">${renderFormSections(data)}</div>
 
           <footer class="editor-toolbar editor-toolbar-minimal">
-            <button class="btn btn-primary admin-pill-btn editor-btn-main" type="submit">
-              ${iconSave()} ${isCreate ? "Create certificate" : "Save certificate"}
-            </button>
-            ${
-              isCreate
-                ? ""
-                : `<button class="btn btn-danger admin-pill-btn" type="button" data-action="delete-cert">
-              ${iconTrash()} Delete
-            </button>`
-            }
+            <div class="editor-save-serial">
+              <span class="editor-save-serial-label">Serial number</span>
+              <strong id="editor-serial-display" class="editor-save-serial-value">${serialDisplay}</strong>
+              <span class="editor-save-serial-hint">${serialRaw ? "Saved with this certificate" : "Auto-assigned when you save"}</span>
+            </div>
+            <div class="editor-toolbar-actions">
+              <button class="btn btn-primary admin-pill-btn editor-btn-main" type="submit">
+                ${iconSave()} ${isCreate ? "Create certificate" : "Save certificate"}
+              </button>
+              ${
+                isCreate
+                  ? ""
+                  : `<button class="btn btn-danger admin-pill-btn" type="button" data-action="delete-cert">
+                ${iconTrash()} Delete
+              </button>`
+              }
+            </div>
           </footer>
         </form>
       </div>
@@ -1394,6 +1409,14 @@ function syncAmountInWords(form, amountRaw) {
   wordsInput.value = amountToWords(amountRaw);
 }
 
+function updateSerialDisplay() {
+  const form = document.getElementById("cert-editor");
+  const el = document.getElementById("editor-serial-display");
+  if (!form || !el) return;
+  const v = form.querySelector('[name="Serial Number"]')?.value?.trim();
+  el.textContent = v || "Assigned on save";
+}
+
 function updateFollowLinkPreview() {
   const form = document.getElementById("cert-editor");
   if (!form) return;
@@ -1403,6 +1426,7 @@ function updateFollowLinkPreview() {
   const printLink = document.getElementById("open-print-link");
   if (openLink) openLink.setAttribute("href", verifyLink);
   if (printLink) printLink.setAttribute("href", printPath(token));
+  updateSerialDisplay();
 }
 
 function navigate(path) {
@@ -1410,90 +1434,104 @@ function navigate(path) {
   void render();
 }
 
+let dataActionClickBound = false;
+let pdfDownloadInFlight = false;
+
+async function handleDataActionClick(el) {
+  const action = el.getAttribute("data-action");
+  if (action === "copy") {
+    const token =
+      document.querySelector('[name="linkToken"]')?.value?.trim() ||
+      getEditorToken();
+    const link = followLinkPublic(publicSiteOrigin(), token);
+    try {
+      await navigator.clipboard.writeText(link);
+      showToast("Follow link copied");
+    } catch {
+      showToast(link);
+    }
+  }
+  if (action === "download-pdf") {
+    const pdfToken =
+      el.getAttribute("data-token") ||
+      document.querySelector('[name="linkToken"]')?.value?.trim();
+    if (!pdfToken) return;
+    if (pdfDownloadInFlight) return;
+    pdfDownloadInFlight = true;
+    showAppLoader();
+    try {
+      const { downloadCertificatePdf } = await import("./pdf-download.js");
+      await downloadCertificatePdf(pdfToken);
+      showToast("PDF downloaded");
+    } catch (err) {
+      console.error("PDF download failed", err);
+      showToast("PDF download failed");
+    } finally {
+      pdfDownloadInFlight = false;
+      hideAppLoader(true);
+    }
+  }
+  if (action === "toggle-lang") {
+    setLang(getLang() === "ur" ? "en" : "ur");
+    render();
+  }
+  if (action === "scroll-verify") {
+    document.getElementById("home-verify")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  if (action === "scroll-track") {
+    document.getElementById("home-track")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  if (action === "export-json") {
+    downloadTextFile(`dastak-certificates-${Date.now()}.json`, exportCertificatesJson());
+    showToast("JSON exported");
+  }
+  if (action === "export-csv") {
+    downloadTextFile(`dastak-certificates-${Date.now()}.csv`, exportCertificatesCsv(), "text/csv");
+    showToast("CSV exported");
+  }
+  if (action === "delete-cert") {
+    const token = document.querySelector('[name="linkToken"]')?.value?.trim();
+    if (!token) return;
+    if (!window.confirm(`Delete saved data for link ID "${token}"?`)) return;
+    deleteCertificate(token);
+    showToast(
+      token === FOLLOW_TOKEN
+        ? "Default link reset to built-in values"
+        : "Certificate deleted"
+    );
+    navigate(`/admin/dashboard?token=${encodeURIComponent(FOLLOW_TOKEN)}`);
+  }
+  if (action === "admin-create-new") {
+    navigate("/admin/dashboard?create=1");
+  }
+  if (action === "analytics-clear") {
+    if (!window.confirm("Clear all locally stored analytics events? Certificate data is not affected.")) return;
+    clearAnalyticsEvents();
+    showToast("Activity log cleared");
+    navigate("/admin/dashboard?view=analytics");
+  }
+  if (action === "admin-logout") {
+    logoutAdmin();
+    navigate("/admin");
+  }
+  if (action === "print-a4") window.print();
+  if (action === "feedback") showToast("Feedback is not enabled in this app.");
+  if (action === "help") showToast("Use /admin to manage certificate data.");
+  if (action === "toggle-theme") {
+    toggleTheme();
+    showToast(document.documentElement.getAttribute("data-theme") === "dark" ? "Dark mode on" : "Light mode on");
+  }
+}
+
 function bindActions() {
-  document.querySelectorAll("[data-action]").forEach((el) => {
-    el.addEventListener("click", async () => {
-      const action = el.getAttribute("data-action");
-      if (action === "copy") {
-        const token =
-          document.querySelector('[name="linkToken"]')?.value?.trim() ||
-          getEditorToken();
-        const link = followLinkPublic(publicSiteOrigin(), token);
-        try {
-          await navigator.clipboard.writeText(link);
-          showToast("Follow link copied");
-        } catch {
-          showToast(link);
-        }
-      }
-      if (action === "download-pdf") {
-        const pdfToken =
-          el.getAttribute("data-token") ||
-          document.querySelector('[name="linkToken"]')?.value?.trim();
-        if (!pdfToken) return;
-        showAppLoader();
-        try {
-          const { downloadCertificatePdf } = await import("./pdf-download.js");
-          await downloadCertificatePdf(pdfToken);
-          showToast("PDF downloaded");
-        } catch {
-          showToast("PDF download failed");
-        } finally {
-          hideAppLoader();
-        }
-      }
-      if (action === "toggle-lang") {
-        setLang(getLang() === "ur" ? "en" : "ur");
-        render();
-      }
-      if (action === "scroll-verify") {
-        document.getElementById("home-verify")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-      if (action === "scroll-track") {
-        document.getElementById("home-track")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-      if (action === "export-json") {
-        downloadTextFile(`dastak-certificates-${Date.now()}.json`, exportCertificatesJson());
-        showToast("JSON exported");
-      }
-      if (action === "export-csv") {
-        downloadTextFile(`dastak-certificates-${Date.now()}.csv`, exportCertificatesCsv(), "text/csv");
-        showToast("CSV exported");
-      }
-      if (action === "delete-cert") {
-        const token = document.querySelector('[name="linkToken"]')?.value?.trim();
-        if (!token) return;
-        if (!window.confirm(`Delete saved data for link ID "${token}"?`)) return;
-        deleteCertificate(token);
-        showToast(
-          token === FOLLOW_TOKEN
-            ? "Default link reset to built-in values"
-            : "Certificate deleted"
-        );
-        navigate(`/admin/dashboard?token=${encodeURIComponent(FOLLOW_TOKEN)}`);
-      }
-      if (action === "admin-create-new") {
-        navigate("/admin/dashboard?create=1");
-      }
-      if (action === "analytics-clear") {
-        if (!window.confirm("Clear all locally stored analytics events? Certificate data is not affected.")) return;
-        clearAnalyticsEvents();
-        showToast("Activity log cleared");
-        navigate("/admin/dashboard?view=analytics");
-      }
-      if (action === "admin-logout") {
-        logoutAdmin();
-        navigate("/admin");
-      }
-      if (action === "print-a4") window.print();
-      if (action === "feedback") showToast("Feedback is not enabled in this app.");
-      if (action === "help") showToast("Use /admin to manage certificate data.");
-      if (action === "toggle-theme") {
-        toggleTheme();
-        showToast(document.documentElement.getAttribute("data-theme") === "dark" ? "Dark mode on" : "Light mode on");
-      }
+  if (!dataActionClickBound) {
+    dataActionClickBound = true;
+    document.addEventListener("click", (event) => {
+      const el = event.target.closest("[data-action]");
+      if (!el) return;
+      void handleDataActionClick(el);
     });
-  });
+  }
 
   const trackForm = document.getElementById("track-application-form");
   if (trackForm) {

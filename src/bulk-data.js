@@ -37,6 +37,7 @@ export async function importCertificatesJson(text) {
 const CSV_COLUMNS = [
   "token",
   "status",
+  "Serial Number",
   "Tracking ID",
   "Certificate Number",
   "Applicant Name",

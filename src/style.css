@@ -1413,6 +1413,46 @@ html[data-theme="dark"] .login-card {
   gap: 12px;
 }
 
+.editor-save-serial {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.editor-save-serial-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.editor-save-serial-value {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.editor-save-serial-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.editor-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cert-list-serial {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .editor-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) auto auto;

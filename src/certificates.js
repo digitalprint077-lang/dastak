@@ -31,6 +31,7 @@ export {
 export const FOLLOW_TOKEN = "TvALy858l8Oc";
 
 export const FIELD_LABELS = [
+  "Serial Number",
   "Certificate Number",
   "Tracking ID",
   "Applicant Name",
@@ -85,6 +86,7 @@ export const DEFAULT_SEATING_CAPACITY = "3";
 export const CERTIFICATE_VALIDITY_MONTHS = 6;
 
 const DEFAULT_VALUES = {
+  "Serial Number": "000001",
   "Certificate Number": "PES001VF00000236",
   "Tracking ID": "VF260921-0000885",
   "Applicant Name": "Fahad Jahanzaib Maqsood",
@@ -174,6 +176,7 @@ export function resolveCertificateToken(slug) {
     const { values } = getCertificateForEdit(token);
     if (String(values["Tracking ID"] ?? "").trim() === id) return token;
     if (String(values["Certificate Number"] ?? "").trim() === id) return token;
+    if (String(values["Serial Number"] ?? "").trim() === id) return token;
   }
   return id;
 }
@@ -218,6 +221,34 @@ export function generateTrackingId() {
   return `VF${Date.now()}`;
 }
 
+function parseSerialNumberValue(value) {
+  const digits = String(value ?? "")
+    .trim()
+    .replace(/\D/g, "");
+  return digits ? parseInt(digits, 10) : 0;
+}
+
+/** Next unique 6-digit office serial (local + published certs). */
+export function allocateSerialNumber(excludeToken = null) {
+  let max = 0;
+  const bumpMax = (values, token) => {
+    if (excludeToken && token === excludeToken) return;
+    max = Math.max(max, parseSerialNumberValue(values?.["Serial Number"]));
+  };
+  for (const token of listSavedTokens()) {
+    bumpMax(getCertificateForEdit(token).values, token);
+  }
+  for (const [token, payload] of Object.entries(getMergedPublishedMap())) {
+    bumpMax(payload?.values, token);
+  }
+  for (let n = max + 1; n < max + 100_000; n += 1) {
+    const candidate = String(n).padStart(6, "0");
+    const taken = findTokenByField("Serial Number", candidate);
+    if (!taken || taken === excludeToken) return candidate;
+  }
+  return String(Date.now()).slice(-6).padStart(6, "0");
+}
+
 const NEW_CERT_EMPTY_FIELDS = [
   "Applicant Name",
   "Father Name",
@@ -231,6 +262,7 @@ const NEW_CERT_EMPTY_FIELDS = [
 export function newCertificateTemplate() {
   const values = {
     ...DEFAULT_VALUES,
+    "Serial Number": allocateSerialNumber(),
     "Certificate Number": generateCertificateNumber(),
     "Tracking ID": generateTrackingId(),
   };
@@ -340,7 +372,11 @@ export function getCertificate(tokenOrSlug) {
   return certificateFromTokenKey(resolved) || certificateFromTokenKey(tokenOrSlug);
 }
 
-export async function saveCertificate(token, { status, values }) {
+export async function saveCertificate(token, { status, values: rawValues }) {
+  const values = { ...rawValues };
+  if (!String(values["Serial Number"] ?? "").trim()) {
+    values["Serial Number"] = allocateSerialNumber(token);
+  }
   localStorage.setItem(
     `${STORAGE_PREFIX}${token}`,
     JSON.stringify({ status, values })

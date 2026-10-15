@@ -19,7 +19,7 @@ export function renderA4CertificateArticle(token, { qrElementId = "cert-qr" } = 
 
   return `
     <article class="a4-cert">
-      <img class="a4-cert-bg" src="${A4_CERT_BACKGROUND}" alt="" />
+      <img class="a4-cert-bg" src="${A4_CERT_BACKGROUND}" alt="" crossorigin="anonymous" />
       <div class="a4-cert-content">
         <header class="a4-header">
           <h1>Transport &amp; Mass Transit Department</h1>
@@ -109,6 +109,7 @@ export function renderA4PrintPage(token) {
 export function preloadA4Background() {
   return new Promise((resolve) => {
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => resolve(true);
     img.onerror = () => resolve(false);
     img.src = A4_CERT_BACKGROUND;
