@@ -450,48 +450,73 @@ function getAdminView() {
   return view === "analytics" ? "analytics" : "certificates";
 }
 
-function adminSubnav(activeView) {
+function iconGlobe() {
+  return iconSvg(`<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>`);
+}
+
+function adminRailNav(activeView) {
   const certHref = "/admin/dashboard";
   const analyticsHref = "/admin/dashboard?view=analytics";
   return `
-    <nav class="admin-subnav" aria-label="Admin sections">
-      <a class="admin-subnav-link${activeView === "certificates" ? " active" : ""}" href="${certHref}">
-        ${iconSave()} Certificates
+    <nav class="admin-rail-nav" aria-label="Admin sections">
+      <a class="admin-rail-link${activeView === "certificates" ? " is-active" : ""}" href="${certHref}">
+        <span class="admin-rail-link-icon">${iconSave()}</span>
+        <span class="admin-rail-link-label">Certificates</span>
       </a>
-      <a class="admin-subnav-link${activeView === "analytics" ? " active" : ""}" href="${analyticsHref}">
-        ${iconChart()} Analytics &amp; tracking
+      <a class="admin-rail-link${activeView === "analytics" ? " is-active" : ""}" href="${analyticsHref}">
+        <span class="admin-rail-link-icon">${iconChart()}</span>
+        <span class="admin-rail-link-label">Analytics</span>
+      </a>
+      <a class="admin-rail-link" href="/" target="_blank" rel="noreferrer">
+        <span class="admin-rail-link-icon">${iconGlobe()}</span>
+        <span class="admin-rail-link-label">Public site</span>
       </a>
     </nav>
   `;
 }
 
 function adminDashboardShell(mainHtml, activeView = "certificates") {
-  const subtitle =
-    activeView === "analytics" ? "Fitness tracking &amp; usage analytics" : "Certificate management";
+  const pageTitle =
+    activeView === "analytics" ? "Analytics & tracking" : "Certificate workspace";
+  const pageLead =
+    activeView === "analytics"
+      ? "Expiry risk, district breakdown, and verify activity on this device."
+      : "Search, edit, publish, and print vehicle fitness certificates.";
   return `
-    <div class="app-shell admin-shell">
-      <header class="admin-topbar">
-        <div class="admin-topbar-inner">
-          <div class="admin-brand-block">
-            <img class="admin-brand-logo" src="/images/logo-dastak.png" alt="" height="36" />
-            <div>
-              <p class="admin-kicker">Dastak Admin</p>
-              <h1 class="admin-title">${subtitle}</h1>
-            </div>
-          </div>
-          <div class="admin-topbar-actions">
-            ${themeToggleButton()}
-            <button class="btn btn-ghost admin-pill-btn" type="button" data-action="admin-logout">${iconLogout()} Log out</button>
+    <div class="app-shell admin-shell admin-ui-v2">
+      <aside class="admin-rail" aria-label="Admin navigation">
+        <div class="admin-rail-brand">
+          <img class="admin-rail-logo" src="/images/logo-dastak.png" alt="Dastak" height="40" />
+          <div class="admin-rail-brand-text">
+            <span class="admin-rail-kicker">Control panel</span>
+            <strong class="admin-rail-title">Dastak Admin</strong>
           </div>
         </div>
-        ${adminSubnav(activeView)}
-      </header>
-      <main class="admin-page">
-        <div class="admin-container-wide">
+        ${adminRailNav(activeView)}
+        <div class="admin-rail-foot">
+          <div class="admin-rail-theme">${themeToggleButton()}</div>
+          <button class="admin-rail-logout" type="button" data-action="admin-logout">
+            ${iconLogout()} <span>Log out</span>
+          </button>
+        </div>
+      </aside>
+      <div class="admin-frame">
+        <header class="admin-context-bar">
+          <div class="admin-context-text">
+            <h1 class="admin-context-title">${pageTitle}</h1>
+            <p class="admin-context-lead">${pageLead}</p>
+          </div>
+          ${
+            activeView === "certificates"
+              ? `<button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-new">${iconPlus()} New certificate</button>`
+              : ""
+          }
+        </header>
+        <main class="admin-frame-body">
           <div id="publish-health-banner" class="admin-alert-banner" hidden role="status"></div>
           ${mainHtml}
-        </div>
-      </main>
+        </main>
+      </div>
       <div class="toast" id="toast"></div>
     </div>
   `;
@@ -785,44 +810,36 @@ function handleVerifyLicense(form) {
 
 function adminLoginPage() {
   return `
-    <div class="login-shell">
-      <div class="login-bg" aria-hidden="true">
-        <span class="login-orb login-orb-a"></span>
-        <span class="login-orb login-orb-b"></span>
-        <span class="login-orb login-orb-c"></span>
-        <span class="login-grid-pattern"></span>
-      </div>
-      <div class="login-card login-panel-enter">
-        <aside class="login-brand">
-          <img class="login-logo" src="/images/logo-dastak.png" alt="Dastak" height="52" />
-          <p class="login-brand-kicker">Dastak · Admin</p>
-          <h1 class="login-brand-title">Vehicle fitness certificates</h1>
-          <p class="login-brand-text">Create follow links, edit certificate data, and print official A4 forms with QR verification.</p>
-          <ul class="login-brand-list">
-            <li>Manage certificates &amp; tracking IDs</li>
-            <li>Preview &amp; print Form-I layout</li>
-            <li>Share secure public follow links</li>
-          </ul>
-        </aside>
-        <section class="login-form-side">
-          <div class="login-form-head login-enter login-enter-2">
-            <h2 class="login-title">Welcome back</h2>
-            <p class="login-subtitle">Sign in to open the admin dashboard.</p>
+    <div class="admin-login-v2">
+      <div class="admin-login-v2-bg" aria-hidden="true"></div>
+      <div class="admin-login-v2-card">
+        <header class="admin-login-v2-head">
+          <img class="admin-login-v2-logo" src="/images/logo-dastak.png" alt="Dastak" height="48" />
+          <div>
+            <p class="admin-login-v2-kicker">Staff access</p>
+            <h1 class="admin-login-v2-title">Admin dashboard</h1>
           </div>
-          <form id="admin-login-form" class="admin-login-form login-enter login-enter-4" autocomplete="off">
-            <label class="form-field login-field" for="admin-password">
-              <span class="form-label">Admin password</span>
-              <div class="form-input-wrap login-input-wrap">
-                <span class="form-field-icon">${iconLock()}</span>
-                <input id="admin-password" class="form-control" name="password" type="password" placeholder="Enter your password" required />
-              </div>
-            </label>
-            <button class="btn btn-teal btn-block login-submit-btn admin-pill-btn" type="submit">
-              Continue to dashboard ${iconArrowRight()}
-            </button>
-          </form>
-          <p class="login-footnote login-enter login-enter-4">Authorized staff only. Session stays on this device.</p>
-        </section>
+        </header>
+        <p class="admin-login-v2-lead">Manage vehicle fitness certificates, publish follow links, and print Form-I with QR verification.</p>
+        <ul class="admin-login-v2-features">
+          <li>${iconSave()} Certificate registry &amp; search</li>
+          <li>${iconPrint()} A4 print &amp; PDF export</li>
+          <li>${iconChart()} Expiry &amp; activity insights</li>
+        </ul>
+        <form id="admin-login-form" class="admin-login-v2-form" autocomplete="off">
+          <label class="form-field" for="admin-password">
+            <span class="form-label">Admin password</span>
+            <div class="form-input-wrap">
+              <span class="form-field-icon">${iconLock()}</span>
+              <input id="admin-password" class="form-control" name="password" type="password" placeholder="Enter password" required />
+            </div>
+          </label>
+          <button class="btn btn-primary btn-block admin-login-v2-submit" type="submit">
+            Sign in ${iconArrowRight()}
+          </button>
+        </form>
+        <p class="admin-login-v2-foot">Authorized personnel only. Session is stored on this device.</p>
+        <a class="admin-login-v2-back" href="/">${iconGlobe()} Back to public site</a>
       </div>
       <div class="toast" id="toast"></div>
     </div>
@@ -903,26 +920,41 @@ function localOnlyCertRows(filters) {
     .sort((a, b) => a.applicant.localeCompare(b.applicant));
 }
 
+function certListInitials(name) {
+  const parts = String(name ?? "—")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+  if (!parts.length) return "?";
+  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("");
+}
+
 function renderCertListItemHtml(item, activeToken) {
   const daysLeft = item.daysLeft ?? daysUntilExpiry(item.expiryDate);
   const localBadge = item.localOnly
-    ? `<span class="cert-badge cert-badge-local">Local only</span>`
-    : `<span class="cert-badge ${isCertificateSaved(item.token) ? "cert-badge-saved" : "cert-badge-default"}">${isCertificateSaved(item.token) ? "Saved" : "Published"}</span>`;
+    ? `<span class="cert-badge cert-badge-local">Local</span>`
+    : `<span class="cert-badge ${isCertificateSaved(item.token) ? "cert-badge-saved" : "cert-badge-default"}">${isCertificateSaved(item.token) ? "Saved" : "Live"}</span>`;
   return `
     <a
       class="cert-list-item${item.token === activeToken ? " active" : ""}${item.localOnly ? " cert-list-item-local" : ""}"
       href="/admin/dashboard?token=${encodeURIComponent(item.token)}"
     >
-      <div class="cert-list-top">
-        <strong class="cert-list-name">${escapeHtml(item.applicant || "—")}</strong>
-        <span class="cert-list-badges">
-          ${certSidebarExpiryBadge(daysLeft)}
-          ${localBadge}
+      <span class="cert-list-avatar" aria-hidden="true">${escapeHtml(certListInitials(item.applicant))}</span>
+      <span class="cert-list-body">
+        <span class="cert-list-top">
+          <strong class="cert-list-name">${escapeHtml(item.applicant || "—")}</strong>
+          <span class="cert-list-badges">
+            ${certSidebarExpiryBadge(daysLeft)}
+            ${localBadge}
+          </span>
         </span>
-      </div>
-      <p class="cert-list-reg">Reg: ${escapeHtml(item.registrationNumber || "—")}</p>
-      <p class="cert-list-number">${escapeHtml(item.certificateNumber || "—")}</p>
-      <p class="cert-list-id">${escapeHtml(item.trackingId || item.token)}</p>
+        <span class="cert-list-reg">${escapeHtml(item.registrationNumber || "No registration")}</span>
+        <span class="cert-list-meta">
+          <span>${escapeHtml(item.certificateNumber || "—")}</span>
+          <span class="cert-list-id">${escapeHtml(item.trackingId || item.token)}</span>
+        </span>
+      </span>
     </a>
   `;
 }
@@ -931,26 +963,25 @@ function renderCertSidebar(activeToken) {
   const filters = readCertListFilters();
 
   return `
-    <aside class="admin-sidebar card">
-      <div class="admin-sidebar-head">
+    <aside class="admin-list-panel">
+      <div class="admin-list-panel-head">
         <div>
-          <h2 class="admin-sidebar-title">Certificates</h2>
-          <p class="admin-sidebar-count" id="cert-list-count">Loading…</p>
+          <h2 class="admin-list-panel-title">Registry</h2>
+          <p class="admin-list-panel-count" id="cert-list-count">Loading…</p>
         </div>
-        <button class="btn btn-primary btn-sm" type="button" data-action="admin-create-new">${iconPlus()} New</button>
       </div>
-      <div class="admin-sidebar-search">
-        <span class="form-field-icon admin-sidebar-search-icon">${iconSearch()}</span>
+      <div class="admin-list-search">
+        <span class="admin-list-search-icon">${iconSearch()}</span>
         <input
           id="cert-list-search"
-          class="form-control admin-sidebar-search-input"
+          class="form-control admin-list-search-input"
           type="search"
-          placeholder="Search reg no, name, tracking ID…"
+          placeholder="Search name, reg, tracking…"
           autocomplete="off"
           value="${escapeHtml(filters.q)}"
         />
       </div>
-      <div class="admin-sidebar-filters">
+      <div class="admin-list-filters">
         <select id="cert-list-district" class="form-control form-control-sm" aria-label="District filter">
           ${districtFilterOptionsHtml(filters.district)}
         </select>
@@ -959,18 +990,18 @@ function renderCertSidebar(activeToken) {
         </select>
         <select id="cert-list-expiring" class="form-control form-control-sm" aria-label="Expiry filter">
           <option value=""${filters.expiring === "" ? " selected" : ""}>Any expiry</option>
-          <option value="30"${filters.expiring === "30" ? " selected" : ""}>Expiring in 30 days</option>
+          <option value="30"${filters.expiring === "30" ? " selected" : ""}>Expiring ≤ 30 days</option>
         </select>
       </div>
-      <div class="admin-sidebar-tools">
-        <button class="btn btn-ghost btn-sm admin-pill-btn" type="button" data-action="export-json">Export JSON</button>
-        <button class="btn btn-ghost btn-sm admin-pill-btn" type="button" data-action="export-csv">Export CSV</button>
-        <label class="btn btn-ghost btn-sm admin-pill-btn import-label">
-          Import JSON
+      <div class="admin-list-tools">
+        <button class="admin-list-tool" type="button" data-action="export-json">JSON</button>
+        <button class="admin-list-tool" type="button" data-action="export-csv">CSV</button>
+        <label class="admin-list-tool import-label">
+          Import
           <input type="file" accept="application/json,.json" data-import="json" hidden />
         </label>
-        <label class="btn btn-ghost btn-sm admin-pill-btn import-label">
-          Import CSV
+        <label class="admin-list-tool import-label">
+          CSV in
           <input type="file" accept=".csv,text/csv" data-import="csv" hidden />
         </label>
       </div>
@@ -1106,48 +1137,57 @@ function renderCertEditor(token, data, isCreate) {
     !isCreate &&
     !!(findDeployedPublishedEntry(trackingRaw) || findDeployedPublishedEntry(token));
   const savedLocally = !isCreate && isCertificateSaved(token);
-  const mobileBannerHtml = isCreate
-    ? ""
+  const statusChip = isCreate
+    ? `<span class="admin-hero-chip admin-hero-chip-draft">Draft</span>`
     : onLiveSite
-      ? `<div class="admin-banner admin-banner-readonly admin-banner-live"><strong>Live on site</strong> — public verify works. <span class="admin-mobile-url">${escapeHtml(publicVerifyUrl)}</span></div>`
+      ? `<span class="admin-hero-chip admin-hero-chip-live">Live on site</span>`
       : savedLocally
-        ? `<div class="admin-banner admin-banner-warn"><strong>Saved locally only</strong> — not on the live site yet. Fix publish settings and save again, or wait for deploy.</div>`
-        : `<div class="admin-banner"><strong>Not published</strong> — save to push this certificate to the website.</div>`;
+        ? `<span class="admin-hero-chip admin-hero-chip-local">Saved locally</span>`
+        : `<span class="admin-hero-chip admin-hero-chip-draft">Not published</span>`;
+  const statusDetail = isCreate
+    ? "Complete the form and save to generate a public follow link."
+    : onLiveSite
+      ? `<span class="admin-hero-url">${escapeHtml(publicVerifyUrl)}</span>`
+      : savedLocally
+        ? "Publish settings or deploy may still be pending — save again after Cloudflare is wired."
+        : "Save this record to push it to the live website.";
   const expiringCount = countExpiringWithin(30);
   const alertsHtml =
     expiringCount > 0
-      ? `<a class="admin-alert-banner" href="/admin/dashboard?view=analytics&amp;filter=expiring">
-          <strong>${expiringCount}</strong> certificate${expiringCount === 1 ? "" : "s"} expiring within 30 days — view in analytics
+      ? `<a class="admin-inline-alert" href="/admin/dashboard?view=analytics&amp;filter=expiring">
+          ${iconActivity()} <strong>${expiringCount}</strong> expiring within 30 days
         </a>`
       : "";
 
   return `
-    <div class="admin-layout">
+    <div class="admin-cert-workspace">
       ${renderCertSidebar(token)}
-      <div class="admin-main">
+      <div class="admin-editor-pane">
         ${alertsHtml}
         ${expiryReminderHtml(data.values["Expiry Date"])}
-        <div class="admin-main-head">
-          <div class="admin-main-head-text">
-            <p class="admin-breadcrumb">Dashboard · ${isCreate ? "New" : "Edit"}</p>
-            <h2 class="admin-main-title">${isCreate ? "New certificate" : escapeHtml(data.values["Applicant Name"] || "Certificate")}</h2>
-            <p class="admin-main-meta"><span>${certNo}</span><span>${tracking}</span></p>
+        <section class="admin-editor-hero">
+          <div class="admin-editor-hero-main">
+            <p class="admin-editor-kicker">${isCreate ? "New record" : "Editing"}</p>
+            <h2 class="admin-editor-title">${isCreate ? "New certificate" : escapeHtml(data.values["Applicant Name"] || "Certificate")}</h2>
+            <div class="admin-editor-tags">
+              ${statusChip}
+              <span class="admin-editor-tag">${certNo}</span>
+              <span class="admin-editor-tag">${tracking}</span>
+            </div>
+            <p class="admin-editor-status-detail">${statusDetail}</p>
           </div>
-          <div class="admin-head-actions">
-            <button class="btn btn-ghost admin-pill-btn" type="button" data-action="copy">${iconCopy()} Copy link</button>
-            <a class="btn btn-ghost admin-pill-btn" id="open-cert-link" href="${followLinkPublic(publicSiteOrigin(), token)}" target="_blank" rel="noreferrer">${iconPreview()} Preview</a>
-            <a class="btn btn-ghost admin-pill-btn" id="open-print-link" href="${printPath(token)}" target="_blank" rel="noreferrer">${iconPrint()} Print</a>
-            <button class="btn btn-teal admin-pill-btn" type="button" data-action="download-pdf" data-token="${escapeHtml(token)}">${iconDownload()} Download PDF</button>
+          <div class="admin-action-bar">
+            <button class="admin-action-btn" type="button" data-action="copy" title="Copy public link">${iconCopy()}<span>Copy</span></button>
+            <a class="admin-action-btn" id="open-cert-link" href="${followLinkPublic(publicSiteOrigin(), token)}" target="_blank" rel="noreferrer" title="Preview">${iconPreview()}<span>Preview</span></a>
+            <a class="admin-action-btn" id="open-print-link" href="${printPath(token)}" target="_blank" rel="noreferrer" title="Print A4">${iconPrint()}<span>Print</span></a>
+            <button class="admin-action-btn admin-action-btn-accent" type="button" data-action="download-pdf" data-token="${escapeHtml(token)}" title="Download PDF">${iconDownload()}<span>PDF</span></button>
             ${
               isCreate
                 ? ""
-                : `<button class="btn btn-ghost admin-pill-btn" type="button" data-action="renew-cert" title="Copy vehicle details with new tracking ID and dates">${iconPlus()} Renew</button>`
+                : `<button class="admin-action-btn" type="button" data-action="renew-cert" title="Renew with new tracking ID">${iconPlus()}<span>Renew</span></button>`
             }
           </div>
-        </div>
-
-        ${isCreate ? `<div class="admin-banner"><strong>Draft</strong> — fill the form and save to publish this follow link.</div>` : ""}
-        ${mobileBannerHtml}
+        </section>
 
         <form id="cert-editor" class="admin-editor-card" autocomplete="off">
           <section class="admin-form-panel admin-form-panel-accent">
@@ -1180,20 +1220,20 @@ function renderCertEditor(token, data, isCreate) {
 
           <div class="admin-form-stack">${renderFormSections(data)}</div>
 
-          <footer class="editor-toolbar editor-toolbar-minimal">
+          <footer class="admin-editor-footer">
             <div class="editor-save-serial">
               <span class="editor-save-serial-label">Save record</span>
               <strong class="editor-save-serial-value">${serialDisplay}</strong>
-              <span class="editor-save-serial-hint">${serialRaw ? "Internal save number for this record" : "Number assigned when you save"}</span>
+              <span class="editor-save-serial-hint">${serialRaw ? "Internal ordering on this device" : "Assigned when you save"}</span>
             </div>
-            <div class="editor-toolbar-actions">
-              <button class="btn btn-primary admin-pill-btn editor-btn-main" type="submit">
-                ${iconSave()} ${isCreate ? "Create certificate" : "Save certificate"}
+            <div class="admin-editor-footer-actions">
+              <button class="btn btn-primary admin-save-btn" type="submit">
+                ${iconSave()} ${isCreate ? "Create certificate" : "Save changes"}
               </button>
               ${
                 isCreate
                   ? ""
-                  : `<button class="btn btn-danger admin-pill-btn" type="button" data-action="delete-cert">
+                  : `<button class="btn btn-danger admin-delete-btn" type="button" data-action="delete-cert">
                 ${iconTrash()} Delete
               </button>`
               }
@@ -1314,20 +1354,14 @@ function renderAnalyticsDashboard() {
     .join("");
 
   return `
-    <div class="analytics-page">
-      <div class="analytics-page-head">
-        <div>
-          <p class="admin-breadcrumb">Dashboard · Analytics</p>
-          <h2 class="admin-main-title">Vehicle fitness tracking</h2>
-          <p class="admin-main-meta analytics-page-lead">Monitor certificate lifecycle, expiry risk, and how citizens use verify &amp; track on this device.</p>
-        </div>
-        <div class="analytics-page-actions">
-          <label class="analytics-search-wrap">
-            <span class="visually-hidden">Filter tracking table</span>
-            <input id="analytics-track-filter" class="form-control" type="search" placeholder="Search tracking ID, name, district…" autocomplete="off" />
-          </label>
-          <button class="btn btn-ghost admin-pill-btn btn-compact" type="button" data-action="analytics-clear">Clear activity log</button>
-        </div>
+    <div class="analytics-page admin-analytics-page">
+      <div class="analytics-page-toolbar">
+        <label class="analytics-search-wrap">
+          <span class="admin-list-search-icon">${iconSearch()}</span>
+          <span class="visually-hidden">Filter tracking table</span>
+          <input id="analytics-track-filter" class="form-control analytics-search-input" type="search" placeholder="Filter by tracking ID, name, district…" autocomplete="off" />
+        </label>
+        <button class="btn btn-ghost btn-compact" type="button" data-action="analytics-clear">Clear activity log</button>
       </div>
 
       <div class="analytics-kpi-grid">
