@@ -24,8 +24,11 @@ import {
   isCertificateSaved,
   isDefaultDemoLocalSave,
   findDeployedPublishedEntry,
+  findPublishedEntry,
+  isPublishedSuppressed,
   ensurePublishedLoaded,
   refreshPublishedCertificates,
+  resetPublishedLoadCache,
   hydrateCertificateFromApi,
   hydratePublicCertificate,
   waitForCertificateLive,
@@ -1066,7 +1069,12 @@ async function populateAdminCertList(activeToken) {
     data = null;
   }
 
-  const serverItems = (data?.items ?? []).filter((item) => item.token !== FOLLOW_TOKEN);
+  const serverItems = (data?.items ?? []).filter(
+    (item) =>
+      item.token !== FOLLOW_TOKEN &&
+      !isPublishedSuppressed(item.token) &&
+      !isPublishedSuppressed(item.trackingId)
+  );
   const deployedTracking = new Set(
     serverItems.map((item) => String(item.trackingId ?? "").trim()).filter(Boolean)
   );
@@ -1212,14 +1220,14 @@ function renderCertEditor(token, data, isCreate) {
             <p class="admin-editor-status-detail">${statusDetail}</p>
           </div>
           <div class="admin-action-bar">
-            <button class="admin-action-btn" type="button" data-action="copy" title="Copy public link">${iconCopy()}<span>Copy</span></button>
-            <a class="admin-action-btn" id="open-cert-link" href="${followLinkPublic(publicSiteOrigin(), token)}" target="_blank" rel="noreferrer" title="Preview">${iconPreview()}<span>Preview</span></a>
-            <a class="admin-action-btn" id="open-print-link" href="${printPath(token)}" target="_blank" rel="noreferrer" title="Print A4">${iconPrint()}<span>Print</span></a>
-            <button class="admin-action-btn admin-action-btn-accent" type="button" data-action="download-pdf" data-token="${escapeHtml(token)}" title="Download PDF">${iconDownload()}<span>PDF</span></button>
+            <button class="admin-btn-pill" type="button" data-action="copy">${iconCopy()} Copy link</button>
+            <a class="admin-btn-pill" id="open-cert-link" href="${followLinkPublic(publicSiteOrigin(), token)}" target="_blank" rel="noreferrer">${iconPreview()} Preview</a>
+            <a class="admin-btn-pill" id="open-print-link" href="${printPath(token)}" target="_blank" rel="noreferrer">${iconPrint()} Print A4</a>
+            <button class="admin-btn-pill admin-btn-pill-teal" type="button" data-action="download-pdf" data-token="${escapeHtml(token)}">${iconDownload()} PDF</button>
             ${
               isCreate
                 ? ""
-                : `<button class="admin-action-btn" type="button" data-action="renew-cert" title="Renew with new tracking ID">${iconPlus()}<span>Renew</span></button>`
+                : `<button class="admin-btn-pill" type="button" data-action="renew-cert">${iconPlus()} Renew</button>`
             }
           </div>
         </section>
@@ -1262,14 +1270,14 @@ function renderCertEditor(token, data, isCreate) {
               <span class="editor-save-serial-hint">${serialRaw ? "Internal ordering on this device" : "Assigned when you save"}</span>
             </div>
             <div class="admin-editor-footer-actions">
-              <button class="btn btn-primary admin-save-btn" type="submit">
+              <button class="admin-btn-pill admin-btn-pill-primary" type="submit">
                 ${iconSave()} ${isCreate ? "Create certificate" : "Save changes"}
               </button>
               ${
                 isCreate
                   ? ""
-                  : `<button class="btn btn-danger admin-delete-btn" type="button" data-action="delete-cert">
-                ${iconTrash()} Delete
+                  : `<button class="admin-btn-pill admin-btn-pill-danger" type="button" data-action="delete-cert" data-delete-token="${escapeHtml(token)}">
+                ${iconTrash()} Delete certificate
               </button>`
               }
             </div>
@@ -1670,8 +1678,12 @@ function navigate(path) {
 let dataActionClickBound = false;
 let pdfDownloadInFlight = false;
 
-async function handleDataActionClick(el) {
+async function handleDataActionClick(el, event) {
   const action = el.getAttribute("data-action");
+  if (action === "delete-cert") {
+    event?.preventDefault();
+    event?.stopPropagation();
+  }
   if (action === "copy") {
     const token =
       document.querySelector('[name="linkToken"]')?.value?.trim() ||
@@ -1723,8 +1735,15 @@ async function handleDataActionClick(el) {
     showToast("CSV exported");
   }
   if (action === "delete-cert") {
-    const token = document.querySelector('[name="linkToken"]')?.value?.trim();
-    if (!token) return;
+    const formSlug =
+      el.getAttribute("data-delete-token")?.trim() ||
+      document.querySelector('[name="linkToken"]')?.value?.trim();
+    if (!formSlug) {
+      showToast("Could not find certificate to delete");
+      return;
+    }
+    const entry = findPublishedEntry(formSlug);
+    const token = entry?.token || formSlug;
     if (
       !window.confirm(
         `Delete certificate "${token}"? This removes local data and unpublishes from the live site when connected.`
@@ -1735,6 +1754,7 @@ async function handleDataActionClick(el) {
     showAppLoader();
     try {
       const result = await deleteCertificate(token);
+      resetPublishedLoadCache();
       await refreshPublishedCertificates();
       if (token === FOLLOW_TOKEN) {
         showToast("Default link reset to built-in values");
@@ -1751,6 +1771,9 @@ async function handleDataActionClick(el) {
       }
       sessionStorage.removeItem("dastak:editor-token");
       navigate(`/admin/dashboard?token=${encodeURIComponent(FOLLOW_TOKEN)}`);
+    } catch (err) {
+      console.error("Delete failed", err);
+      showToast("Delete failed — try again");
     } finally {
       hideAppLoader(true);
     }
@@ -1795,7 +1818,7 @@ function bindActions() {
       if (action === "delete-cert" || action === "renew-cert") {
         event.preventDefault();
       }
-      void handleDataActionClick(el);
+      void handleDataActionClick(el, event);
     });
   }
 

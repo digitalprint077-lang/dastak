@@ -29,6 +29,9 @@ export {
   loadPublishedCertificates,
   refreshPublishedCertificates,
   waitForCertificateLive,
+  findPublishedEntry,
+  isPublishedSuppressed,
+  resetPublishedLoadCache,
 } from "./publish.js";
 
 export const FOLLOW_TOKEN = "TvALy858l8Oc";

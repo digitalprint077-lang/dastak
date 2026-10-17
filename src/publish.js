@@ -7,6 +7,93 @@ const staticCertFiles = import.meta.glob("../public/certs/*.json", {
 });
 
 const OVERLAY_KEY = "dastak:published-overlay";
+const SUPPRESS_KEY = "dastak:published-suppressed";
+
+function readSuppressedPublished() {
+  try {
+    const raw = localStorage.getItem(SUPPRESS_KEY);
+    if (!raw) return { tokens: [], trackingIds: [], certNumbers: [] };
+    const parsed = JSON.parse(raw);
+    return {
+      tokens: Array.isArray(parsed.tokens) ? parsed.tokens : [],
+      trackingIds: Array.isArray(parsed.trackingIds) ? parsed.trackingIds : [],
+      certNumbers: Array.isArray(parsed.certNumbers) ? parsed.certNumbers : [],
+    };
+  } catch {
+    return { tokens: [], trackingIds: [], certNumbers: [] };
+  }
+}
+
+function writeSuppressedPublished(data) {
+  try {
+    localStorage.setItem(SUPPRESS_KEY, JSON.stringify(data));
+  } catch {
+    /* private mode */
+  }
+}
+
+function payloadMatchesSuppressed(payload, suppressed) {
+  if (!payload?.values) return false;
+  const tracking = String(payload.values["Tracking ID"] ?? "").trim();
+  const certNo = String(payload.values["Certificate Number"] ?? "").trim();
+  if (tracking && suppressed.trackingIds.includes(tracking)) return true;
+  if (certNo && suppressed.certNumbers.includes(certNo)) return true;
+  return false;
+}
+
+export function isPublishedSuppressed(slugOrToken, payload = null) {
+  const needle = String(slugOrToken ?? "").trim();
+  if (!needle) return false;
+  const suppressed = readSuppressedPublished();
+  if (suppressed.tokens.includes(needle)) return true;
+  if (suppressed.trackingIds.includes(needle)) return true;
+  if (suppressed.certNumbers.includes(needle)) return true;
+  if (payload && payloadMatchesSuppressed(payload, suppressed)) return true;
+  return false;
+}
+
+/** Hide deleted certs until redeploy removes them from static/API bundles. */
+export function suppressPublishedCertificate(slugOrToken) {
+  const entry = findEntryInMap(getMergedPublishedMapWithoutSuppress(), slugOrToken);
+  const suppressed = readSuppressedPublished();
+  const tokens = new Set(suppressed.tokens);
+  const trackingIds = new Set(suppressed.trackingIds);
+  const certNumbers = new Set(suppressed.certNumbers);
+
+  const needle = String(slugOrToken ?? "").trim();
+  if (needle) tokens.add(needle);
+
+  if (entry) {
+    tokens.add(entry.token);
+    const tracking = String(entry.payload?.values?.["Tracking ID"] ?? "").trim();
+    const certNo = String(entry.payload?.values?.["Certificate Number"] ?? "").trim();
+    if (tracking) trackingIds.add(tracking);
+    if (certNo) certNumbers.add(certNo);
+  }
+
+  writeSuppressedPublished({
+    tokens: [...tokens],
+    trackingIds: [...trackingIds],
+    certNumbers: [...certNumbers],
+  });
+}
+
+function filterSuppressedMap(map) {
+  const suppressed = readSuppressedPublished();
+  const out = {};
+  for (const [token, payload] of Object.entries(map)) {
+    if (suppressed.tokens.includes(token)) continue;
+    if (payloadMatchesSuppressed(payload, suppressed)) continue;
+    out[token] = payload;
+  }
+  return out;
+}
+
+function getMergedPublishedMapWithoutSuppress() {
+  const remote = normalizeBundle(remotePublished);
+  const overlay = getPublishedOverlay();
+  return { ...builtInPublished, ...remote.certificates, ...overlay.certificates };
+}
 
 function bundleFromRepoStaticFiles() {
   const merged = normalizeBundle(publishedSeed);
@@ -70,15 +157,13 @@ function setPublishedOverlay(bundle) {
 }
 
 export function getMergedPublishedMap() {
-  const remote = normalizeBundle(remotePublished);
-  const overlay = getPublishedOverlay();
-  return { ...builtInPublished, ...remote.certificates, ...overlay.certificates };
+  return filterSuppressedMap(getMergedPublishedMapWithoutSuppress());
 }
 
 /** Published data for phones / public verify (no admin localStorage overlay). */
 export function getMergedPublishedMapForPublic() {
   const remote = normalizeBundle(remotePublished);
-  return { ...builtInPublished, ...remote.certificates };
+  return filterSuppressedMap({ ...builtInPublished, ...remote.certificates });
 }
 
 function findEntryInMap(map, slugOrToken) {
@@ -111,7 +196,7 @@ export function getDeployedPublishedMap() {
   if (boot?.certificates) {
     merged.certificates = { ...merged.certificates, ...boot.certificates };
   }
-  return { ...builtInPublished, ...merged.certificates };
+  return filterSuppressedMap({ ...builtInPublished, ...merged.certificates });
 }
 
 export function findDeployedPublishedEntry(slugOrToken) {
@@ -137,6 +222,10 @@ export async function loadPublishedCertificates() {
     remotePublished = normalizeBundle(remotePublished);
     remotePublished.updatedAt = fromApi.updatedAt || remotePublished.updatedAt;
   }
+}
+
+export function resetPublishedLoadCache() {
+  publishLoadPromise = null;
 }
 
 export function ensurePublishedLoaded() {
@@ -209,7 +298,7 @@ export function downloadPublishedBundle(bundle) {
 }
 
 export function removePublishedCertificate(slugOrToken) {
-  const entry = findPublishedEntry(slugOrToken);
+  const entry = findEntryInMap(getMergedPublishedMapWithoutSuppress(), slugOrToken);
   if (!entry) return null;
 
   remotePublished = normalizeBundle(remotePublished);
@@ -228,35 +317,53 @@ export function removePublishedCertificate(slugOrToken) {
   return entry.token;
 }
 
+async function tryDeletePublishedApi(slug, syncKey) {
+  const res = await fetch(`/api/certificate/${encodeURIComponent(slug)}`, {
+    method: "DELETE",
+    headers: { "X-Admin-Sync-Key": syncKey },
+  });
+  const type = res.headers.get("content-type") ?? "";
+  if (type.includes("text/html")) {
+    return { ok: false, reason: "no-api" };
+  }
+  if (res.ok || res.status === 204) {
+    const via = res.headers.get("X-Publish-Via") || "remote";
+    return { ok: true, reason: via };
+  }
+  if (res.status === 404) {
+    return { ok: true, reason: "not-on-server" };
+  }
+  if (res.status === 503) {
+    return { ok: false, reason: "no-github" };
+  }
+  return { ok: false, reason: res.status === 401 ? "unauthorized" : "delete-failed" };
+}
+
 export async function deletePublishedCertificate(slugOrToken) {
   const needle = decodeURIComponent(String(slugOrToken ?? "").trim());
   if (!needle) return { ok: false, reason: "bad-token" };
 
+  const entry = findEntryInMap(getMergedPublishedMapWithoutSuppress(), needle);
+  const candidates = new Set([needle]);
+  if (entry) {
+    candidates.add(entry.token);
+    const tracking = String(entry.payload?.values?.["Tracking ID"] ?? "").trim();
+    if (tracking) candidates.add(tracking);
+  }
+
+  suppressPublishedCertificate(needle);
   removePublishedCertificate(needle);
 
   const syncKey = getAdminSyncKey();
   if (!syncKey) return { ok: false, reason: "no-key" };
 
   try {
-    const res = await fetch(`/api/certificate/${encodeURIComponent(needle)}`, {
-      method: "DELETE",
-      headers: { "X-Admin-Sync-Key": syncKey },
-    });
-    const type = res.headers.get("content-type") ?? "";
-    if (type.includes("text/html")) {
-      return { ok: false, reason: "no-api" };
+    let last = { ok: false, reason: "delete-failed" };
+    for (const slug of candidates) {
+      last = await tryDeletePublishedApi(slug, syncKey);
+      if (last.ok) return last;
     }
-    if (res.ok || res.status === 204) {
-      const via = res.headers.get("X-Publish-Via") || "remote";
-      return { ok: true, reason: via };
-    }
-    if (res.status === 404) {
-      return { ok: true, reason: "not-on-server" };
-    }
-    if (res.status === 503) {
-      return { ok: false, reason: "no-github" };
-    }
-    return { ok: false, reason: res.status === 401 ? "unauthorized" : "delete-failed" };
+    return last;
   } catch {
     return { ok: false, reason: "network" };
   }
