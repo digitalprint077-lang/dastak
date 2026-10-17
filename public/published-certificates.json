@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-17T12:53:31.078Z",
+  "updatedAt": "2026-10-17T12:53:41.062Z",
   "certificates": {
     "TvALy858l8Oc": {
       "status": "Issued",
@@ -385,34 +385,6 @@
         "Amount In Words": "ONE THOUSAND FIVE HUNDRED ONLY",
         "Renewal From": "",
         "Renewal To": ""
-      }
-    },
-    "VFx1syw71tbk0e": {
-      "status": "Issued",
-      "values": {
-        "Certificate Number": "PES001VF52161969",
-        "Tracking ID": "VF261017-9920614",
-        "Applicant Name": "Asd",
-        "Father Name": "khan",
-        "Registration Number": "TAS-347",
-        "Chassis Number": "SDASDAS",
-        "Engine Number": "SDFEFWEFAS",
-        "Vehicle Kind": "HTV",
-        "Issue Date": "2026-10-17",
-        "Expiry Date": "2027-04-17",
-        "Service": "Renewal",
-        "District": "Peshawar",
-        "Application Status": "Certificate Ready - Available for Download",
-        "Certificate Type": "RENEWAL",
-        "Vehicle Model": "2012",
-        "Registered Laden Weight": "24577.00",
-        "Seating Capacity": "3",
-        "Vehicle Fuel Type": "DIESEL",
-        "Amount": "1500",
-        "Amount In Words": "ONE THOUSAND FIVE HUNDRED ONLY",
-        "Renewal From": "",
-        "Renewal To": "",
-        "Serial Number": "12"
       }
     }
   }
