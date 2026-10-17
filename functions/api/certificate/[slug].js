@@ -50,6 +50,17 @@ export async function onRequestPut(context) {
     values: incoming.values && typeof incoming.values === "object" ? incoming.values : {},
   };
 
+  try {
+    const { d1Configured, d1UpsertCertificate } = await import("../../_lib/d1-certificates.js");
+    if (d1Configured(env)) {
+      const db = env.Dastak_binding ?? env.DB;
+      await d1UpsertCertificate(db, token, payload);
+      return new Response(null, { status: 204, headers: { "X-Publish-Via": "d1" } });
+    }
+  } catch (err) {
+    return new Response(String(err?.message || err), { status: 502 });
+  }
+
   if (env.CERTS_KV) {
     const merged = await loadMerged(env, request);
     merged.certificates[token] = payload;
@@ -84,6 +95,23 @@ export async function onRequestDelete(context) {
   const slug = decodeURIComponent(String(params.slug ?? "").trim());
   if (!slug) {
     return new Response("Bad request", { status: 400 });
+  }
+
+  try {
+    const { d1Configured, d1DeleteCertificate } = await import("../../_lib/d1-certificates.js");
+    if (d1Configured(env)) {
+      const db = env.Dastak_binding ?? env.DB;
+      const removed = await d1DeleteCertificate(db, slug);
+      if (!removed) {
+        return new Response(JSON.stringify({ error: "not_found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(null, { status: 204, headers: { "X-Publish-Via": "d1" } });
+    }
+  } catch (err) {
+    return new Response(String(err?.message || err), { status: 502 });
   }
 
   if (env.CERTS_KV) {

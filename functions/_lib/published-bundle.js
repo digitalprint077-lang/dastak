@@ -50,12 +50,35 @@ export async function loadKvBundle(env) {
   }
 }
 
+export async function loadD1Bundle(env) {
+  try {
+    const { d1Configured, d1LoadBundle } = await import("./d1-certificates.js");
+    if (!d1Configured(env)) return null;
+    return await d1LoadBundle(getD1FromEnv(env));
+  } catch {
+    return null;
+  }
+}
+
+function getD1FromEnv(env) {
+  return env?.Dastak_binding ?? env?.DB ?? null;
+}
+
 export async function loadMerged(env, request) {
+  const kvBundle = await loadKvBundle(env);
+  const d1Bundle = await loadD1Bundle(env);
+  const d1Count = d1Bundle ? Object.keys(d1Bundle.certificates).length : 0;
+
+  // D1 is live source once it has rows — ignore static JSON so deletes stay gone.
+  if (d1Count > 0) {
+    return mergeBundles(kvBundle, d1Bundle);
+  }
+
   const parts = [];
   const staticBundle = await loadStaticPublished(request, env.ASSETS);
   if (staticBundle) parts.push(staticBundle);
-  const kvBundle = await loadKvBundle(env);
   if (kvBundle) parts.push(kvBundle);
+  if (d1Bundle) parts.push(d1Bundle);
   return mergeBundles(...parts);
 }
 

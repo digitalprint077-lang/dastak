@@ -5,6 +5,7 @@ import {
   mergeBundles,
   loadMerged,
   loadStaticPublished,
+  loadKvBundle,
   listCertificates,
 } from "../_lib/published-bundle.js";
 
@@ -56,4 +57,41 @@ export async function onRequestPut(context) {
   const merged = mergeBundles(staticBundle, existing, incoming);
   await env.CERTS_KV.put(KV_KEY, JSON.stringify(merged));
   return new Response(null, { status: 204 });
+}
+
+/** One-time: copy static/KV published certs into D1 (admin auth). */
+export async function onRequestPost(context) {
+  const { request, env } = context;
+  const url = new URL(request.url);
+  if (url.searchParams.get("migrate") !== "d1") {
+    return new Response("Not Found", { status: 404 });
+  }
+
+  const expected = resolveAdminSyncKey(env) || "dastak-admin";
+  const provided = request.headers.get("X-Admin-Sync-Key");
+  if (provided !== expected) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const { d1Configured, d1UpsertCertificate } = await import("../_lib/d1-certificates.js");
+  if (!d1Configured(env)) {
+    return new Response(JSON.stringify({ error: "no_d1" }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const db = env.Dastak_binding ?? env.DB;
+  const staticBundle = await loadStaticPublished(request, env.ASSETS);
+  const kvBundle = await loadKvBundle(env);
+  const merged = mergeBundles(staticBundle, kvBundle);
+  let imported = 0;
+  for (const [token, payload] of Object.entries(merged.certificates)) {
+    await d1UpsertCertificate(db, token, payload);
+    imported += 1;
+  }
+
+  return new Response(JSON.stringify({ ok: true, imported }), {
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+  });
 }

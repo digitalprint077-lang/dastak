@@ -1601,13 +1601,13 @@ async function refreshPublishHealthBanner() {
       return;
     }
     const data = await res.json();
-    if (data.github) {
+    if (data.d1 || data.github) {
       el.hidden = true;
       return;
     }
     el.hidden = false;
     el.innerHTML =
-      "<strong>Mobile QR will not work until Cloudflare is wired correctly.</strong> Production variables: encrypted <code>GITHUB_TOKEN</code> + <code>ADMIN_SYNC_KEY</code> (same as admin login password). Build command must be <code>npm run deploy</code>, then retry deployment. Plain build-only vars do not reach the server API.";
+      "<strong>Live publish is off.</strong> Bind D1 (<code>Dastak_binding</code>) or set <code>GITHUB_TOKEN</code> + <code>ADMIN_SYNC_KEY</code>. Build command: <code>npm run deploy</code>.";
   } catch {
     el.hidden = false;
     el.textContent = "Could not check publish status — try again after redeploy.";
@@ -1668,9 +1668,13 @@ async function saveFromEditor(previewAfter) {
     } else if (via === "local") {
       showAdminProgress("save", "Saved to project files", 85);
       showToast("Saved to public/certs — run git push to update the live site");
-    } else if (via === "kv") {
+    } else if (via === "kv" || via === "d1") {
       showAdminProgress("save", "Published to live site", 90);
-      showToast("Live on site — certificate updated immediately");
+      showToast(
+        via === "d1"
+          ? "Live on site — saved to database (QR works immediately)"
+          : "Live on site — certificate updated immediately"
+      );
     } else {
       showAdminProgress("save", "Published to live site", 90);
       showToast("Live on site — certificate published");
