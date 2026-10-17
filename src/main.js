@@ -48,6 +48,9 @@ import {
   SEATING_CAPACITY_OPTIONS,
   DEFAULT_SEATING_CAPACITY,
   VEHICLE_MODEL_OPTIONS,
+  REGISTERED_LADEN_WEIGHT_OPTIONS,
+  LADEN_WEIGHT_CUSTOM_VALUE,
+  LADEN_WEIGHT_CUSTOM_FIELD,
   expiryFromIssueDate,
   cssEscape,
 } from "./certificates.js";
@@ -661,6 +664,43 @@ function fieldInput(label, value, iconKey = label, readonly = false) {
             readonly,
             placeholder: "Select model year",
           })}
+        </div>
+      </label>
+    `;
+  }
+  if (label === "Registered Laden Weight") {
+    const raw = String(displayValue ?? "").trim();
+    const isPreset = REGISTERED_LADEN_WEIGHT_OPTIONS.includes(raw);
+    const selectValue = isPreset ? raw : raw ? LADEN_WEIGHT_CUSTOM_VALUE : REGISTERED_LADEN_WEIGHT_OPTIONS[0];
+    const presetOpts = REGISTERED_LADEN_WEIGHT_OPTIONS.map((opt) => {
+      const sel = opt === selectValue ? " selected" : "";
+      return `<option value="${escapeHtml(opt)}"${sel}>${escapeHtml(opt)}</option>`;
+    }).join("");
+    const customSelected = selectValue === LADEN_WEIGHT_CUSTOM_VALUE ? " selected" : "";
+    const customHidden = selectValue === LADEN_WEIGHT_CUSTOM_VALUE ? "" : " hidden";
+    const customVal = !isPreset ? escapeHtml(raw) : "";
+    const customId = `${id}-custom`;
+    return `
+      <label class="form-field form-field-laden-weight" for="${id}">
+        <span class="form-label">${label}</span>
+        <div class="form-input-wrap">
+          <span class="form-field-icon">${fieldIcon(iconKey)}</span>
+          <select id="${id}" class="form-control" name="${name}" data-laden-weight-select ${readonly ? "disabled" : ""} required>
+            ${presetOpts}
+            <option value="${LADEN_WEIGHT_CUSTOM_VALUE}"${customSelected}>Custom…</option>
+          </select>
+        </div>
+        <div class="form-input-wrap form-laden-weight-custom-wrap"${customHidden}>
+          <input
+            id="${customId}"
+            class="form-control form-laden-weight-custom"
+            type="text"
+            name="${LADEN_WEIGHT_CUSTOM_FIELD.replace(/"/g, "&quot;")}"
+            value="${customVal}"
+            placeholder="Enter custom weight (e.g. 30000.00)"
+            inputmode="decimal"
+            ${readonly ? "readonly disabled" : ""}
+          />
         </div>
       </label>
     `;
@@ -1723,6 +1763,14 @@ function syncAmountInWords(form, amountRaw) {
   wordsInput.value = amountToWords(amountRaw);
 }
 
+function syncLadenWeightCustomField(form) {
+  const select = form.querySelector("[data-laden-weight-select]");
+  const wrap = form.querySelector(".form-laden-weight-custom-wrap");
+  if (!select || !wrap) return;
+  const show = select.value === LADEN_WEIGHT_CUSTOM_VALUE;
+  wrap.hidden = !show;
+}
+
 function updateFollowLinkPreview() {
   const form = document.getElementById("cert-editor");
   if (!form) return;
@@ -1942,12 +1990,16 @@ function bindActions() {
       if (event.target.getAttribute("name") === "Amount") {
         syncAmountInWords(form, event.target.value);
       }
+      if (event.target.matches("[data-laden-weight-select]")) {
+        syncLadenWeightCustomField(form);
+      }
       if (event.target.getAttribute("name") !== "Issue Date") return;
       const expiryInput = form.querySelector(`[name="${cssEscape("Expiry Date")}"]`);
       if (expiryInput) {
         expiryInput.value = expiryFromIssueDate(event.target.value);
       }
     });
+    syncLadenWeightCustomField(form);
   }
 
   if (document.getElementById("cert-list")) {

@@ -90,6 +90,24 @@ export const SEATING_CAPACITY_OPTIONS = Array.from({ length: 70 }, (_, i) => Str
 
 export const DEFAULT_SEATING_CAPACITY = "3";
 
+/** Preset registered laden weights (kg) + custom entry in admin. */
+export const LADEN_WEIGHT_CUSTOM_VALUE = "__custom__";
+
+export const REGISTERED_LADEN_WEIGHT_OPTIONS = [
+  "15000.00",
+  "20000.00",
+  "1250.00",
+  "58500.00",
+  "39500.00",
+  "38500.00",
+  "27000.00",
+  "27500.00",
+  "28000.00",
+  "28500.00",
+];
+
+export const DEFAULT_LADEN_WEIGHT = REGISTERED_LADEN_WEIGHT_OPTIONS[0];
+
 /** Model year options for admin dropdown (newest first). */
 export const VEHICLE_MODEL_OPTIONS = (() => {
   const years = [];
@@ -117,7 +135,7 @@ const DEFAULT_VALUES = {
   "Application Status": "Certificate Ready - Available for Download",
   "Certificate Type": "RENEWAL",
   "Vehicle Model": "2012",
-  "Registered Laden Weight": "0.00",
+  "Registered Laden Weight": DEFAULT_LADEN_WEIGHT,
   "Seating Capacity": "3",
   "Vehicle Fuel Type": "PETROL",
   Amount: "1500",
@@ -615,13 +633,50 @@ export function getCertificateForEdit(token) {
   return defaultCertificate();
 }
 
+export const LADEN_WEIGHT_CUSTOM_FIELD = "Registered Laden Weight custom";
+
+export function readLadenWeightFromForm(form) {
+  const select = form.querySelector(`[name="${cssEscape("Registered Laden Weight")}"]`);
+  if (!select) {
+    return form.querySelector(`[name="${cssEscape(LADEN_WEIGHT_CUSTOM_FIELD)}"]`)?.value?.trim() ?? "";
+  }
+  const picked = select.value?.trim() ?? "";
+  if (picked === LADEN_WEIGHT_CUSTOM_VALUE) {
+    return form.querySelector(`[name="${cssEscape(LADEN_WEIGHT_CUSTOM_FIELD)}"]`)?.value?.trim() ?? "";
+  }
+  return picked;
+}
+
+export function applyLadenWeightToForm(form, rawValue) {
+  const value = String(rawValue ?? "").trim();
+  const select = form.querySelector(`[name="${cssEscape("Registered Laden Weight")}"]`);
+  const customInput = form.querySelector(`[name="${cssEscape(LADEN_WEIGHT_CUSTOM_FIELD)}"]`);
+  if (!select) {
+    if (customInput) customInput.value = value;
+    return;
+  }
+  const isPreset = REGISTERED_LADEN_WEIGHT_OPTIONS.includes(value);
+  if (isPreset) {
+    select.value = value;
+    if (customInput) customInput.value = "";
+  } else if (value) {
+    select.value = LADEN_WEIGHT_CUSTOM_VALUE;
+    if (customInput) customInput.value = value;
+  } else {
+    select.value = DEFAULT_LADEN_WEIGHT;
+    if (customInput) customInput.value = "";
+  }
+}
+
 export function readFormValues(form) {
   const status = form.querySelector('[name="status"]')?.value?.trim() || "Issued";
   const values = {};
   ALL_FIELD_LABELS.forEach((label) => {
+    if (label === "Registered Laden Weight") return;
     const input = form.querySelector(`[name="${cssEscape(label)}"]`);
     values[label] = input?.value?.trim() ?? "";
   });
+  values["Registered Laden Weight"] = readLadenWeightFromForm(form);
   applyCertificateValidity(values);
   return { status, values };
 }
@@ -630,11 +685,13 @@ export function fillForm(form, { status, values }) {
   const statusEl = form.querySelector('[name="status"]');
   if (statusEl) statusEl.value = status ?? "Issued";
   ALL_FIELD_LABELS.forEach((label) => {
+    if (label === "Registered Laden Weight") return;
     const input = form.querySelector(`[name="${cssEscape(label)}"]`);
     if (!input) return;
     const raw = values?.[label] ?? "";
     input.value = DATE_FIELD_LABELS.includes(label) ? toDateInputValue(raw) : raw;
   });
+  applyLadenWeightToForm(form, values?.["Registered Laden Weight"] ?? "");
 }
 
 const PRINT_MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];

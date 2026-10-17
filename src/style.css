@@ -502,6 +502,14 @@ html[data-theme="dark"] .admin-shell .form-field-icon {
   padding-top: 10px;
 }
 
+.form-field-laden-weight .form-laden-weight-custom-wrap {
+  margin-top: 8px;
+}
+
+.form-field-laden-weight .form-laden-weight-custom-wrap .form-control {
+  padding-left: 14px;
+}
+
 .editor-actions {
   display: flex;
   flex-wrap: wrap;
