@@ -92,7 +92,6 @@ const FORM_SECTIONS = [
   {
     title: "Certificate",
     fields: [
-      "Serial Number",
       "Certificate Number",
       "Tracking ID",
       "Issue Date",
@@ -868,13 +867,11 @@ function renderCertSidebar(activeToken) {
       const summary = getCertificateSummary(token);
       const { values } = getCertificateForEdit(token);
       const trackingId = String(values["Tracking ID"] ?? "").trim();
-      const serialNo = String(values["Serial Number"] ?? "").trim();
       const registrationNo = String(values["Registration Number"] ?? "").trim();
       const regNorm = normalizeSearchKey(registrationNo);
       const searchBlob = [
         summary.applicant,
         summary.certificateNumber,
-        serialNo,
         summary.token,
         trackingId,
         registrationNo,
@@ -889,7 +886,6 @@ function renderCertSidebar(activeToken) {
         .toLowerCase();
       return {
         ...summary,
-        serialNo,
         trackingId,
         registrationNo,
         regNorm,
@@ -918,7 +914,6 @@ function renderCertSidebar(activeToken) {
             </span>
           </div>
           <p class="cert-list-reg">Reg: ${escapeHtml(item.registrationNo || "—")}</p>
-          <p class="cert-list-serial">Serial: ${escapeHtml(item.serialNo || "—")}</p>
           <p class="cert-list-number">${escapeHtml(item.certificateNumber)}</p>
           <p class="cert-list-id">${escapeHtml(item.trackingId || item.token)}</p>
         </a>
@@ -978,7 +973,7 @@ function renderFormSections(data) {
 
 function renderCertEditor(token, data, isCreate) {
   const serialRaw = String(data.values["Serial Number"] ?? "").trim();
-  const serialDisplay = escapeHtml(serialRaw || "Assigned on save");
+  const serialDisplay = escapeHtml(serialRaw ? `#${serialRaw}` : "—");
   const certNo = escapeHtml(data.values["Certificate Number"] || "—");
   const trackingRaw = String(data.values["Tracking ID"] ?? "").trim();
   const tracking = escapeHtml(trackingRaw || "—");
@@ -1009,7 +1004,7 @@ function renderCertEditor(token, data, isCreate) {
           <div class="admin-main-head-text">
             <p class="admin-breadcrumb">Dashboard · ${isCreate ? "New" : "Edit"}</p>
             <h2 class="admin-main-title">${isCreate ? "New certificate" : escapeHtml(data.values["Applicant Name"] || "Certificate")}</h2>
-            <p class="admin-main-meta"><span>Serial ${serialDisplay}</span><span>${certNo}</span><span>${tracking}</span></p>
+            <p class="admin-main-meta"><span>${certNo}</span><span>${tracking}</span></p>
           </div>
           <div class="admin-head-actions">
             <button class="btn btn-ghost admin-pill-btn" type="button" data-action="copy">${iconCopy()} Copy link</button>
@@ -1055,9 +1050,9 @@ function renderCertEditor(token, data, isCreate) {
 
           <footer class="editor-toolbar editor-toolbar-minimal">
             <div class="editor-save-serial">
-              <span class="editor-save-serial-label">Serial number</span>
-              <strong id="editor-serial-display" class="editor-save-serial-value">${serialDisplay}</strong>
-              <span class="editor-save-serial-hint">${serialRaw ? "Saved with this certificate" : "Auto-assigned when you save"}</span>
+              <span class="editor-save-serial-label">Save record</span>
+              <strong class="editor-save-serial-value">${serialDisplay}</strong>
+              <span class="editor-save-serial-hint">${serialRaw ? "Internal save number for this record" : "Number assigned when you save"}</span>
             </div>
             <div class="editor-toolbar-actions">
               <button class="btn btn-primary admin-pill-btn editor-btn-main" type="submit">
@@ -1409,14 +1404,6 @@ function syncAmountInWords(form, amountRaw) {
   wordsInput.value = amountToWords(amountRaw);
 }
 
-function updateSerialDisplay() {
-  const form = document.getElementById("cert-editor");
-  const el = document.getElementById("editor-serial-display");
-  if (!form || !el) return;
-  const v = form.querySelector('[name="Serial Number"]')?.value?.trim();
-  el.textContent = v || "Assigned on save";
-}
-
 function updateFollowLinkPreview() {
   const form = document.getElementById("cert-editor");
   if (!form) return;
@@ -1426,7 +1413,6 @@ function updateFollowLinkPreview() {
   const printLink = document.getElementById("open-print-link");
   if (openLink) openLink.setAttribute("href", verifyLink);
   if (printLink) printLink.setAttribute("href", printPath(token));
-  updateSerialDisplay();
 }
 
 function navigate(path) {

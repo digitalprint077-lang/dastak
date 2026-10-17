@@ -30,8 +30,8 @@ export {
 
 export const FOLLOW_TOKEN = "TvALy858l8Oc";
 
+/** Shown on public verify/preview only — not internal save counter. */
 export const FIELD_LABELS = [
-  "Serial Number",
   "Certificate Number",
   "Tracking ID",
   "Applicant Name",
@@ -59,7 +59,9 @@ export const PRINT_FIELD_LABELS = [
   "Renewal To",
 ];
 
-export const ALL_FIELD_LABELS = [...FIELD_LABELS, ...PRINT_FIELD_LABELS];
+export const SERIAL_NUMBER_LABEL = "Serial Number";
+
+export const ALL_FIELD_LABELS = [...FIELD_LABELS, ...PRINT_FIELD_LABELS, SERIAL_NUMBER_LABEL];
 
 export const DATE_FIELD_LABELS = ["Issue Date", "Expiry Date", "Renewal From", "Renewal To"];
 
@@ -294,11 +296,15 @@ export function allocateSerialNumber(excludeToken = null) {
 
 export function ensureCertificateSerial(token, values) {
   const next = { ...values };
-  let n = parseSerialNumberValue(next["Serial Number"]);
+  let n = parseSerialNumberValue(next[SERIAL_NUMBER_LABEL]);
+  if (n < 1) {
+    const existing = explicitSerialNumberForToken(token);
+    if (existing > 0) n = existing;
+  }
   if (n < 1 || isSerialNumberInUse(n, token)) {
-    next["Serial Number"] = allocateSerialNumber(token);
+    next[SERIAL_NUMBER_LABEL] = allocateSerialNumber(token);
   } else {
-    next["Serial Number"] = String(n);
+    next[SERIAL_NUMBER_LABEL] = String(n);
     writeStoredCounter(Math.max(readStoredCounter(), n));
   }
   return next;
@@ -317,7 +323,6 @@ const NEW_CERT_EMPTY_FIELDS = [
 export function newCertificateTemplate() {
   const values = {
     ...DEFAULT_VALUES,
-    "Serial Number": allocateSerialNumber(),
     "Certificate Number": generateCertificateNumber(),
     "Tracking ID": generateTrackingId(),
   };
