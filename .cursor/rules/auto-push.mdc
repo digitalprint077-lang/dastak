@@ -1,0 +1,14 @@
+---
+description: Push to remote when asked; never prompt to confirm push
+alwaysApply: true
+---
+
+# Git push (Dastak)
+
+When the user says **push**, **deploy**, **ship it**, or similar, **commit any pending project changes and push to the remote immediately**. Do not ask "Want this pushed?" or wait for a second confirmation.
+
+- Follow the existing git safety protocol (status, diff, commit message, `git pull --rebase` if needed, then push).
+- Use smart-mode approval for protected `main` when the environment requires it; do not ask the user in chat first.
+- After finishing a task the user clearly wanted on the live repo, you may push once if they already said push in that thread; otherwise only push when they explicitly request it (do not auto-commit unrelated WIP without a push/deploy request).
+
+At the end of responses, **do not** offer "Say if you want this pushed" — the user will say push when they want it.
