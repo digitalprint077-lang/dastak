@@ -3513,6 +3513,215 @@ html[data-theme="dark"] .admin-login-v2-card {
   text-decoration: none;
 }
 
+/* Admin dashboard — larger type & controls for readability */
+.admin-shell.admin-ui-v2 {
+  font-size: 16px;
+}
+
+.admin-shell.admin-ui-v2 {
+  grid-template-columns: 280px minmax(0, 1fr);
+}
+
+.admin-ui-v2 .admin-context-bar {
+  padding: 24px 32px 18px;
+}
+
+.admin-ui-v2 .admin-context-title {
+  font-size: 1.75rem;
+}
+
+.admin-ui-v2 .admin-context-lead {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.admin-ui-v2 .admin-context-cta,
+.admin-ui-v2 .btn-primary.admin-context-cta {
+  font-size: 15px;
+  padding: 12px 22px;
+  min-height: 48px;
+}
+
+.admin-ui-v2 .admin-rail {
+  padding: 24px 18px;
+}
+
+.admin-ui-v2 .admin-rail-kicker {
+  font-size: 11px;
+}
+
+.admin-ui-v2 .admin-rail-title {
+  font-size: 17px;
+}
+
+.admin-ui-v2 .admin-rail-link {
+  font-size: 15px;
+  padding: 12px 14px;
+  gap: 12px;
+}
+
+.admin-ui-v2 .admin-rail-link-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.admin-ui-v2 .admin-rail-logout {
+  font-size: 15px;
+  padding: 12px 14px;
+  min-height: 48px;
+}
+
+.admin-ui-v2 .admin-frame-body {
+  padding: 24px 32px 36px;
+}
+
+.admin-ui-v2 .admin-save-progress {
+  padding: 12px 32px 14px;
+}
+
+.admin-ui-v2 .admin-save-progress-label,
+.admin-ui-v2 .admin-save-progress-pct {
+  font-size: 15px;
+}
+
+.admin-ui-v2 .admin-save-progress-track {
+  height: 8px;
+}
+
+.admin-ui-v2 .admin-list-panel-title {
+  font-size: 1.125rem;
+}
+
+.admin-ui-v2 .admin-list-panel-count {
+  font-size: 0.875rem;
+}
+
+.admin-ui-v2 .admin-list-search-input,
+.admin-ui-v2 .admin-list-filters .form-control {
+  font-size: 15px;
+  min-height: 46px;
+}
+
+.admin-ui-v2 .admin-list-tool {
+  font-size: 13px;
+  padding: 8px 14px;
+}
+
+.admin-ui-v2 .cert-list-avatar {
+  width: 42px;
+  height: 42px;
+  font-size: 14px;
+}
+
+.admin-ui-v2 .cert-list-name {
+  font-size: 16px;
+}
+
+.admin-ui-v2 .cert-list-reg,
+.admin-ui-v2 .cert-list-meta,
+.admin-ui-v2 .cert-list-id {
+  font-size: 13px;
+}
+
+.admin-ui-v2 .cert-badge {
+  font-size: 11px;
+  padding: 4px 9px;
+}
+
+.admin-ui-v2 .admin-editor-kicker {
+  font-size: 12px;
+}
+
+.admin-ui-v2 .admin-editor-title {
+  font-size: 1.65rem;
+}
+
+.admin-ui-v2 .admin-editor-tag,
+.admin-ui-v2 .admin-hero-chip {
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+.admin-ui-v2 .admin-editor-status-detail {
+  font-size: 15px;
+}
+
+.admin-ui-v2 .admin-btn-pill {
+  font-size: 15px;
+  font-weight: 600;
+  padding: 12px 20px;
+  min-height: 46px;
+  gap: 10px;
+}
+
+.admin-ui-v2 .admin-btn-pill svg {
+  width: 18px;
+  height: 18px;
+}
+
+.admin-ui-v2 .admin-editor-card {
+  padding: 22px 22px 0;
+}
+
+.admin-ui-v2 .admin-form-panel-title {
+  font-size: 1.05rem;
+}
+
+.admin-ui-v2 .admin-form-panel-desc {
+  font-size: 14px;
+}
+
+.admin-ui-v2 .form-label {
+  font-size: 14px;
+}
+
+.admin-ui-v2 .form-control,
+.admin-ui-v2 .form-field input,
+.admin-ui-v2 .form-field select,
+.admin-ui-v2 .form-field textarea {
+  font-size: 15px;
+  min-height: 46px;
+  padding: 11px 14px;
+}
+
+.admin-ui-v2 .editor-save-serial-label {
+  font-size: 0.8rem;
+}
+
+.admin-ui-v2 .editor-save-serial-value {
+  font-size: 1.45rem;
+}
+
+.admin-ui-v2 .editor-save-serial-hint {
+  font-size: 0.875rem;
+}
+
+.admin-ui-v2 .admin-editor-footer {
+  padding: 16px 22px;
+}
+
+.admin-ui-v2 .analytics-kpi-label {
+  font-size: 14px;
+}
+
+.admin-ui-v2 .analytics-kpi-value {
+  font-size: 2rem;
+}
+
+.admin-ui-v2 .analytics-panel-title {
+  font-size: 1.05rem;
+}
+
+.admin-ui-v2 .analytics-table {
+  font-size: 14px;
+}
+
+.admin-ui-v2 .cert-list-pager .btn {
+  font-size: 14px;
+  min-height: 40px;
+  padding: 8px 16px;
+}
+
 @media (max-width: 1100px) {
   .admin-shell.admin-ui-v2 {
     grid-template-columns: 72px minmax(0, 1fr);
