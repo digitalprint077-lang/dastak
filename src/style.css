@@ -3483,8 +3483,19 @@ html[data-theme="dark"] .admin-login-v2-card {
   gap: 8px;
 }
 
+.admin-login-v2-form .form-input-wrap .form-field-icon {
+  left: 15px;
+}
+
+.admin-login-v2-form .form-input-wrap .form-field-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
 .admin-login-v2-form .form-control {
-  min-height: 44px;
+  min-height: 50px;
+  font-size: 16px;
+  padding: 13px 16px 13px 54px;
   border-radius: 12px;
 }
 
@@ -3672,16 +3683,60 @@ html[data-theme="dark"] .admin-login-v2-card {
 }
 
 .admin-ui-v2 .form-label {
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 700;
 }
 
-.admin-ui-v2 .form-control,
+.admin-ui-v2 .form-field {
+  gap: 8px;
+}
+
+.admin-ui-v2 .admin-form-panel .form-grid {
+  gap: 20px 28px;
+}
+
+.admin-ui-v2 .form-field .form-control,
 .admin-ui-v2 .form-field input,
 .admin-ui-v2 .form-field select,
 .admin-ui-v2 .form-field textarea {
-  font-size: 15px;
-  min-height: 46px;
-  padding: 11px 14px;
+  font-size: 16px;
+  line-height: 1.35;
+  min-height: 50px;
+}
+
+/* Icon-in-field: keep text clear of the left glyph (v2 scale had reset padding) */
+.admin-ui-v2 .form-input-wrap .form-field-icon {
+  left: 15px;
+}
+
+.admin-ui-v2 .form-input-wrap .form-field-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.admin-ui-v2 .form-input-wrap:has(textarea) .form-field-icon {
+  top: 16px;
+  transform: none;
+}
+
+.admin-ui-v2 .form-input-wrap > .form-control,
+.admin-ui-v2 .form-input-wrap > input,
+.admin-ui-v2 .form-input-wrap > select,
+.admin-ui-v2 .form-input-wrap > textarea {
+  padding: 13px 16px 13px 54px;
+}
+
+.admin-ui-v2 .form-input-wrap textarea.form-control {
+  min-height: 88px;
+  padding-top: 13px;
+}
+
+.admin-ui-v2 .form-input-wrap .form-control-date {
+  padding-right: 10px;
+}
+
+.admin-ui-v2 .form-input-wrap select.form-control {
+  padding-right: 40px;
 }
 
 .admin-ui-v2 .editor-save-serial-label {
