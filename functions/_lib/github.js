@@ -57,3 +57,18 @@ export async function githubPutJsonFile(env, filePath, obj, message, sha) {
   }
   return res.json();
 }
+
+export async function githubDeleteFile(env, filePath, sha, message) {
+  const branch = resolveGithubBranch(env);
+  const owner = resolveGithubOwner(env);
+  const repo = resolveGithubRepo(env);
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
+    method: "DELETE",
+    headers: { ...githubHeaders(env), "Content-Type": "application/json" },
+    body: JSON.stringify({ message, sha, branch }),
+  });
+  if (!res.ok) {
+    throw new Error(`GitHub delete ${filePath}: ${res.status} ${await res.text()}`);
+  }
+  return res.json();
+}

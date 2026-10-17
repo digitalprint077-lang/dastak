@@ -11,6 +11,8 @@ import {
   downloadIndividualCertFile,
   syncPublishedCertificates,
   upsertPublishedCertificate,
+  removePublishedCertificate,
+  deletePublishedCertificate,
 } from "./publish.js";
 
 export {
@@ -87,9 +89,8 @@ export const DEFAULT_SEATING_CAPACITY = "3";
 
 /** Model year options for admin dropdown (newest first). */
 export const VEHICLE_MODEL_OPTIONS = (() => {
-  const end = new Date().getFullYear() + 1;
   const years = [];
-  for (let y = end; y >= 1990; y -= 1) years.push(String(y));
+  for (let y = 2050; y >= 1990; y -= 1) years.push(String(y));
   return years;
 })();
 
@@ -520,8 +521,24 @@ export async function saveCertificate(token, { status, values: rawValues }) {
   };
 }
 
-export function deleteCertificate(token) {
-  localStorage.removeItem(`${STORAGE_PREFIX}${token}`);
+export async function deleteCertificate(token) {
+  const id = String(token ?? "").trim();
+  if (!id) return { ok: false, reason: "bad-token" };
+
+  localStorage.removeItem(`${STORAGE_PREFIX}${id}`);
+
+  if (id === FOLLOW_TOKEN) {
+    return { ok: true, local: true, remote: false, reason: "default-reset" };
+  }
+
+  removePublishedCertificate(id);
+  const remote = await deletePublishedCertificate(id);
+  return {
+    ok: true,
+    local: true,
+    remote: remote.ok,
+    reason: remote.reason,
+  };
 }
 
 export function listSavedTokens() {

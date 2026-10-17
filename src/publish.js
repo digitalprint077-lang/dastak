@@ -208,6 +208,60 @@ export function downloadPublishedBundle(bundle) {
   URL.revokeObjectURL(url);
 }
 
+export function removePublishedCertificate(slugOrToken) {
+  const entry = findPublishedEntry(slugOrToken);
+  if (!entry) return null;
+
+  remotePublished = normalizeBundle(remotePublished);
+  delete remotePublished.certificates[entry.token];
+
+  try {
+    const overlay = getPublishedOverlay();
+    if (overlay.certificates[entry.token]) {
+      delete overlay.certificates[entry.token];
+      setPublishedOverlay(overlay);
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return entry.token;
+}
+
+export async function deletePublishedCertificate(slugOrToken) {
+  const needle = decodeURIComponent(String(slugOrToken ?? "").trim());
+  if (!needle) return { ok: false, reason: "bad-token" };
+
+  removePublishedCertificate(needle);
+
+  const syncKey = getAdminSyncKey();
+  if (!syncKey) return { ok: false, reason: "no-key" };
+
+  try {
+    const res = await fetch(`/api/certificate/${encodeURIComponent(needle)}`, {
+      method: "DELETE",
+      headers: { "X-Admin-Sync-Key": syncKey },
+    });
+    const type = res.headers.get("content-type") ?? "";
+    if (type.includes("text/html")) {
+      return { ok: false, reason: "no-api" };
+    }
+    if (res.ok || res.status === 204) {
+      const via = res.headers.get("X-Publish-Via") || "remote";
+      return { ok: true, reason: via };
+    }
+    if (res.status === 404) {
+      return { ok: true, reason: "not-on-server" };
+    }
+    if (res.status === 503) {
+      return { ok: false, reason: "no-github" };
+    }
+    return { ok: false, reason: res.status === 401 ? "unauthorized" : "delete-failed" };
+  } catch {
+    return { ok: false, reason: "network" };
+  }
+}
+
 export function ingestPublishedCertificate(token, payload) {
   if (!token || !payload?.values) return;
   const entry = {

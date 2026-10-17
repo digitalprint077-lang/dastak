@@ -1,7 +1,7 @@
 import { resolveAdminSyncKey } from "../../_lib/env-bindings.js";
 import { normalizeBundle, loadMerged, findEntry } from "../../_lib/published-bundle.js";
 
-function authorizePut(request, env) {
+function authorizeAdmin(request, env) {
   const expected = resolveAdminSyncKey(env) || "dastak-admin";
   const provided = request.headers.get("X-Admin-Sync-Key");
   return provided === expected;
@@ -29,7 +29,7 @@ export async function onRequestGet(context) {
 
 export async function onRequestPut(context) {
   const { env, request, params } = context;
-  if (!authorizePut(request, env)) {
+  if (!authorizeAdmin(request, env)) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -70,6 +70,55 @@ export async function onRequestPut(context) {
       });
     }
     return new Response("Publish failed", { status: 502 });
+  } catch (err) {
+    return new Response(String(err?.message || err), { status: 502 });
+  }
+}
+
+export async function onRequestDelete(context) {
+  const { env, request, params } = context;
+  if (!authorizeAdmin(request, env)) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const slug = decodeURIComponent(String(params.slug ?? "").trim());
+  if (!slug) {
+    return new Response("Bad request", { status: 400 });
+  }
+
+  if (env.CERTS_KV) {
+    const merged = await loadMerged(env, request);
+    const entry = findEntry(merged, slug);
+    if (!entry) {
+      return new Response(JSON.stringify({ error: "not_found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    delete merged.certificates[entry.token];
+    await env.CERTS_KV.put("published", JSON.stringify(merged));
+    return new Response(null, { status: 204, headers: { "X-Publish-Via": "kv" } });
+  }
+
+  try {
+    const { deleteCertificateFromGitHub } = await import("../../_lib/publish-certificate.js");
+    const result = await deleteCertificateFromGitHub(env, slug);
+    if (result.ok) {
+      return new Response(null, { status: 204, headers: { "X-Publish-Via": "github" } });
+    }
+    if (result.reason === "not-found") {
+      return new Response(JSON.stringify({ error: "not_found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (result.reason === "no-github") {
+      return new Response(JSON.stringify({ error: "no_github_token" }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response("Delete failed", { status: 502 });
   } catch (err) {
     return new Response(String(err?.message || err), { status: 502 });
   }

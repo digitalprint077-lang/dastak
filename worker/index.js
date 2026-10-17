@@ -1,5 +1,9 @@
 import { onRequestGet as certificatesGet, onRequestPut as certificatesPut } from "../functions/api/certificates.js";
-import { onRequestGet as certificateGet, onRequestPut as certificatePut } from "../functions/api/certificate/[slug].js";
+import {
+  onRequestGet as certificateGet,
+  onRequestPut as certificatePut,
+  onRequestDelete as certificateDelete,
+} from "../functions/api/certificate/[slug].js";
 import {
   adminPublishConfigured,
   githubPublishConfigured,
@@ -38,6 +42,7 @@ export default {
       const context = { env, request, params: { slug } };
       if (request.method === "GET") return certificateGet(context);
       if (request.method === "PUT") return certificatePut(context);
+      if (request.method === "DELETE") return certificateDelete(context);
       return new Response("Method Not Allowed", { status: 405 });
     }
 

@@ -24,6 +24,7 @@ import {
   isCertificateSaved,
   findDeployedPublishedEntry,
   ensurePublishedLoaded,
+  refreshPublishedCertificates,
   hydrateCertificateFromApi,
   hydratePublicCertificate,
   waitForCertificateLive,
@@ -1704,14 +1705,35 @@ async function handleDataActionClick(el) {
   if (action === "delete-cert") {
     const token = document.querySelector('[name="linkToken"]')?.value?.trim();
     if (!token) return;
-    if (!window.confirm(`Delete saved data for link ID "${token}"?`)) return;
-    deleteCertificate(token);
-    showToast(
-      token === FOLLOW_TOKEN
-        ? "Default link reset to built-in values"
-        : "Certificate deleted"
-    );
-    navigate(`/admin/dashboard?token=${encodeURIComponent(FOLLOW_TOKEN)}`);
+    if (
+      !window.confirm(
+        `Delete certificate "${token}"? This removes local data and unpublishes from the live site when connected.`
+      )
+    ) {
+      return;
+    }
+    showAppLoader();
+    try {
+      const result = await deleteCertificate(token);
+      await refreshPublishedCertificates();
+      if (token === FOLLOW_TOKEN) {
+        showToast("Default link reset to built-in values");
+      } else if (result.remote && result.reason === "github") {
+        showToast("Deleted — site redeploying; list updates in ~2 minutes");
+      } else if (result.remote) {
+        showToast("Certificate deleted from site");
+      } else if (result.reason === "no-api" || result.reason === "no-github") {
+        showToast("Removed on this device — could not reach publish API");
+      } else if (result.reason === "unauthorized") {
+        showToast("Removed locally — log in again (sync key mismatch)");
+      } else {
+        showToast("Removed on this device");
+      }
+      sessionStorage.removeItem("dastak:editor-token");
+      navigate(`/admin/dashboard?token=${encodeURIComponent(FOLLOW_TOKEN)}`);
+    } finally {
+      hideAppLoader(true);
+    }
   }
   if (action === "admin-create-new") {
     navigate("/admin/dashboard?create=1");
@@ -1749,6 +1771,10 @@ function bindActions() {
     document.addEventListener("click", (event) => {
       const el = event.target.closest("[data-action]");
       if (!el) return;
+      const action = el.getAttribute("data-action");
+      if (action === "delete-cert" || action === "renew-cert") {
+        event.preventDefault();
+      }
       void handleDataActionClick(el);
     });
   }
