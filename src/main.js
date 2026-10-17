@@ -41,6 +41,7 @@ import {
   FUEL_TYPE_OPTIONS,
   SEATING_CAPACITY_OPTIONS,
   DEFAULT_SEATING_CAPACITY,
+  VEHICLE_MODEL_OPTIONS,
   expiryFromIssueDate,
   cssEscape,
 } from "./certificates.js";
@@ -530,7 +531,7 @@ function fieldControl({ id, name, value, multiline = false, inputType = "text", 
   return `<input id="${id}" class="form-control${inputType === "date" ? " form-control-date" : ""}" type="${inputType}" name="${name}" value="${escapeHtml(value)}"${ro} />`;
 }
 
-function fieldSelect({ id, name, value, options, readonly = false }) {
+function fieldSelect({ id, name, value, options, readonly = false, required = true, placeholder = "" }) {
   const opts = options
     .map((opt) => {
       const sel = opt === value ? " selected" : "";
@@ -541,7 +542,12 @@ function fieldSelect({ id, name, value, options, readonly = false }) {
   const customOpt = custom
     ? `<option value="${escapeHtml(value)}" selected>${escapeHtml(value)} (custom)</option>`
     : "";
-  return `<select id="${id}" class="form-control" name="${name}" ${readonly ? "disabled" : ""} required>${customOpt}${opts}</select>`;
+  const placeholderOpt =
+    placeholder && !value
+      ? `<option value="" selected disabled hidden>${escapeHtml(placeholder)}</option>`
+      : "";
+  const req = required ? " required" : "";
+  return `<select id="${id}" class="form-control" name="${name}" ${readonly ? "disabled" : ""}${req}>${placeholderOpt}${customOpt}${opts}</select>`;
 }
 
 function fieldInput(label, value, iconKey = label, readonly = false) {
@@ -612,6 +618,24 @@ function fieldInput(label, value, iconKey = label, readonly = false) {
             value: displayValue || DEFAULT_SEATING_CAPACITY,
             options: SEATING_CAPACITY_OPTIONS,
             readonly,
+          })}
+        </div>
+      </label>
+    `;
+  }
+  if (label === "Vehicle Model") {
+    return `
+      <label class="form-field" for="${id}">
+        <span class="form-label">${label}</span>
+        <div class="form-input-wrap">
+          <span class="form-field-icon">${fieldIcon(iconKey)}</span>
+          ${fieldSelect({
+            id,
+            name,
+            value: displayValue || VEHICLE_MODEL_OPTIONS[0] || "",
+            options: VEHICLE_MODEL_OPTIONS,
+            readonly,
+            placeholder: "Select model year",
           })}
         </div>
       </label>
@@ -1151,20 +1175,10 @@ function renderCertEditor(token, data, isCreate) {
       : savedLocally
         ? "Publish settings or deploy may still be pending — save again after Cloudflare is wired."
         : "Save this record to push it to the live website.";
-  const expiringCount = countExpiringWithin(30);
-  const alertsHtml =
-    expiringCount > 0
-      ? `<a class="admin-inline-alert" href="/admin/dashboard?view=analytics&amp;filter=expiring">
-          ${iconActivity()} <strong>${expiringCount}</strong> expiring within 30 days
-        </a>`
-      : "";
-
   return `
     <div class="admin-cert-workspace">
       ${renderCertSidebar(token)}
       <div class="admin-editor-pane">
-        ${alertsHtml}
-        ${expiryReminderHtml(data.values["Expiry Date"])}
         <section class="admin-editor-hero">
           <div class="admin-editor-hero-main">
             <p class="admin-editor-kicker">${isCreate ? "New record" : "Editing"}</p>
@@ -1365,7 +1379,7 @@ function renderAnalyticsDashboard() {
       </div>
 
       <div class="analytics-kpi-grid">
-        ${kpi("Certificates", metrics.total, `${metrics.saved} saved locally`)}
+        ${kpi("Certificates", metrics.total, `${metrics.total} in registry`)}
         ${kpi("Expiring ≤ 30 days", metrics.expiringSoon, `${metrics.expired} expired`)}
         ${kpi("Preview views (7d)", metrics.views7d, "Public certificate pages")}
         ${kpi("Track / verify (7d)", metrics.lookups7d, `${metrics.successfulLookups7d} matched`)}

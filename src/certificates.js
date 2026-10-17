@@ -85,6 +85,14 @@ export const SEATING_CAPACITY_OPTIONS = Array.from({ length: 70 }, (_, i) => Str
 
 export const DEFAULT_SEATING_CAPACITY = "3";
 
+/** Model year options for admin dropdown (newest first). */
+export const VEHICLE_MODEL_OPTIONS = (() => {
+  const end = new Date().getFullYear() + 1;
+  const years = [];
+  for (let y = end; y >= 1990; y -= 1) years.push(String(y));
+  return years;
+})();
+
 /** Vehicle fitness certificates are valid for six months from issue date. */
 export const CERTIFICATE_VALIDITY_MONTHS = 6;
 

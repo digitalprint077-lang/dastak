@@ -2733,6 +2733,12 @@ html[data-theme="dark"] .admin-shell.admin-ui-v2 {
   border-bottom: 1px solid var(--admin-border);
 }
 
+.admin-ui-v2 .admin-alert-banner {
+  background: var(--admin-surface-muted);
+  border: 1px solid var(--admin-border);
+  color: var(--text-dark);
+}
+
 .admin-context-title {
   margin: 0;
   font-size: 1.35rem;
@@ -3064,18 +3070,122 @@ html[data-theme="dark"] .admin-hero-chip-draft {
   color: #fff;
 }
 
-.admin-inline-alert {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
+.admin-ui-v2 .admin-editor-pane .cert-banner,
+.admin-ui-v2 .admin-inline-alert {
+  display: none !important;
+}
+
+.admin-ui-v2 #publish-health-banner:not([hidden]) {
+  margin-bottom: 14px;
   padding: 10px 14px;
-  border-radius: 12px;
-  text-decoration: none;
+  border-radius: 10px;
   font-size: 13px;
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
-  color: #9a3412;
+  line-height: 1.45;
+  background: var(--admin-surface-muted);
+  border: 1px solid var(--admin-border);
+  color: var(--text-dark);
+}
+
+.admin-ui-v2 .btn,
+.admin-ui-v2 .admin-action-btn,
+.admin-ui-v2 .admin-list-tool,
+.admin-ui-v2 .admin-rail-logout,
+.admin-login-v2-submit {
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.4, 0.64, 1),
+    box-shadow 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease,
+    filter 0.16s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-ui-v2 .btn,
+  .admin-ui-v2 .admin-action-btn,
+  .admin-ui-v2 .admin-list-tool,
+  .admin-ui-v2 .admin-rail-logout,
+  .admin-login-v2-submit {
+    transition: background 0.16s ease, border-color 0.16s ease;
+  }
+}
+
+.admin-ui-v2 .btn:hover:not(:disabled),
+.admin-ui-v2 .admin-action-btn:hover,
+.admin-ui-v2 .admin-list-tool:hover,
+.admin-ui-v2 .admin-rail-logout:hover {
+  transform: translateY(-2px);
+}
+
+.admin-ui-v2 .btn:active:not(:disabled),
+.admin-ui-v2 .admin-action-btn:active,
+.admin-ui-v2 .admin-list-tool:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.admin-ui-v2 .btn-primary,
+.admin-ui-v2 .admin-save-btn,
+.admin-ui-v2 .admin-context-cta {
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 55%, #0e7490 100%);
+  border: none;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(8, 145, 178, 0.35);
+}
+
+.admin-ui-v2 .btn-primary:hover:not(:disabled),
+.admin-ui-v2 .admin-save-btn:hover,
+.admin-ui-v2 .admin-context-cta:hover {
+  box-shadow: 0 8px 22px rgba(8, 145, 178, 0.42);
+  filter: brightness(1.04);
+}
+
+.admin-ui-v2 .btn-ghost {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+}
+
+.admin-ui-v2 .btn-danger,
+.admin-ui-v2 .admin-delete-btn {
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fff 0%, #fef2f2 100%);
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.12);
+}
+
+.admin-ui-v2 .btn-danger:hover,
+.admin-ui-v2 .admin-delete-btn:hover {
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.18);
+}
+
+.admin-ui-v2 .admin-action-btn {
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.admin-ui-v2 .admin-action-btn-accent {
+  box-shadow: 0 6px 18px rgba(8, 145, 178, 0.35);
+}
+
+.admin-ui-v2 .admin-context-cta {
+  border-radius: 14px;
+  animation: admin-cta-glow 3s ease-in-out infinite;
+}
+
+@keyframes admin-cta-glow {
+  0%,
+  100% {
+    box-shadow: 0 4px 14px rgba(8, 145, 178, 0.35);
+  }
+  50% {
+    box-shadow: 0 6px 22px rgba(34, 211, 238, 0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-ui-v2 .admin-context-cta {
+    animation: none;
+  }
 }
 
 .admin-ui-v2 .admin-editor-card {
