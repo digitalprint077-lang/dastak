@@ -1,76 +1,5 @@
 import { resolveAdminSyncKey } from "../../_lib/env-bindings.js";
-
-const KV_KEY = "published";
-
-function emptyBundle() {
-  return { version: 1, certificates: {} };
-}
-
-function normalizeBundle(raw) {
-  if (!raw || typeof raw !== "object") return emptyBundle();
-  const certificates =
-    raw.certificates && typeof raw.certificates === "object" ? raw.certificates : {};
-  return { version: 1, certificates };
-}
-
-function mergeBundles(...bundles) {
-  const merged = emptyBundle();
-  for (const bundle of bundles) {
-    const normalized = normalizeBundle(bundle);
-    merged.certificates = { ...merged.certificates, ...normalized.certificates };
-  }
-  return merged;
-}
-
-async function loadStaticPublished(request, assets) {
-  try {
-    const url = new URL("/published-certificates.json", request.url);
-    const req = new Request(url, { headers: { Accept: "application/json" } });
-    const res = assets ? await assets.fetch(req) : await fetch(req);
-    if (!res.ok) return null;
-    const type = res.headers.get("content-type") ?? "";
-    if (type.includes("text/html")) return null;
-    return normalizeBundle(await res.json());
-  } catch {
-    return null;
-  }
-}
-
-async function loadKvBundle(env) {
-  if (!env.CERTS_KV) return null;
-  try {
-    const raw = await env.CERTS_KV.get(KV_KEY);
-    if (!raw) return null;
-    return normalizeBundle(JSON.parse(raw));
-  } catch {
-    return null;
-  }
-}
-
-function findEntry(bundle, slug) {
-  const id = decodeURIComponent(String(slug ?? "").trim());
-  if (!id) return null;
-  if (bundle.certificates[id]) {
-    return { token: id, payload: bundle.certificates[id] };
-  }
-  for (const [token, payload] of Object.entries(bundle.certificates)) {
-    const tracking = String(payload?.values?.["Tracking ID"] ?? "").trim();
-    const certNo = String(payload?.values?.["Certificate Number"] ?? "").trim();
-    if (tracking === id || certNo === id) {
-      return { token, payload };
-    }
-  }
-  return null;
-}
-
-async function loadMerged(env, request) {
-  const parts = [];
-  const staticBundle = await loadStaticPublished(request, env.ASSETS);
-  if (staticBundle) parts.push(staticBundle);
-  const kvBundle = await loadKvBundle(env);
-  if (kvBundle) parts.push(kvBundle);
-  return mergeBundles(...parts);
-}
+import { normalizeBundle, loadMerged, findEntry } from "../../_lib/published-bundle.js";
 
 function authorizePut(request, env) {
   const expected = resolveAdminSyncKey(env) || "dastak-admin";
@@ -124,7 +53,7 @@ export async function onRequestPut(context) {
   if (env.CERTS_KV) {
     const merged = await loadMerged(env, request);
     merged.certificates[token] = payload;
-    await env.CERTS_KV.put(KV_KEY, JSON.stringify(merged));
+    await env.CERTS_KV.put("published", JSON.stringify(merged));
     return new Response(null, { status: 204, headers: { "X-Publish-Via": "kv" } });
   }
 

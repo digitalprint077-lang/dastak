@@ -35,7 +35,7 @@ function readHtmlBootstrapPublished() {
 
 function applyHtmlBootstrapPublished() {
   const boot = readHtmlBootstrapPublished();
-  if (!boot) return;
+  if (!boot?.certificates || !Object.keys(boot.certificates).length) return;
   const merged = normalizeBundle(remotePublished);
   merged.certificates = { ...merged.certificates, ...boot.certificates };
   remotePublished = merged;
@@ -132,24 +132,11 @@ export async function loadPublishedCertificates() {
     }
   };
 
-  const [fromApi, fromStatic] = await Promise.all([
-    tryFetchJson("/api/certificates"),
-    tryFetchJson(
-      typeof window !== "undefined"
-        ? `${absoluteAssetUrl("/published-certificates.json")}?_=${Date.now()}`
-        : `/published-certificates.json?_=${Date.now()}`
-    ),
-  ]);
-
-  const merged = normalizeBundle(remotePublished);
-  const api = normalizeBundle(fromApi);
-  const stat = normalizeBundle(fromStatic);
-  merged.certificates = {
-    ...merged.certificates,
-    ...stat.certificates,
-    ...api.certificates,
-  };
-  remotePublished = merged;
+  const fromApi = await tryFetchJson("/api/certificates");
+  if (fromApi && typeof fromApi.count === "number") {
+    remotePublished = normalizeBundle(remotePublished);
+    remotePublished.updatedAt = fromApi.updatedAt || remotePublished.updatedAt;
+  }
 }
 
 export function ensurePublishedLoaded() {
@@ -299,10 +286,47 @@ export async function hydrateCertificateFromStatic(slug) {
   }
 }
 
+async function ingestCertificateFromApi(slug) {
+  const needle = decodeURIComponent(String(slug ?? "").trim());
+  if (!needle) return false;
+  try {
+    const res = await fetch(`/api/certificate/${encodeURIComponent(needle)}`, {
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+    if (!res.ok) return false;
+    const type = res.headers.get("content-type") ?? "";
+    if (type.includes("text/html")) return false;
+    const data = await res.json();
+    if (!data?.values) return false;
+    ingestPublishedCertificate(data.token || needle, {
+      status: data.status,
+      values: data.values,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function hydrateCertificateFromApi(slug) {
   const needle = decodeURIComponent(String(slug ?? "").trim());
   if (!needle || findPublishedEntry(needle)) return;
-  await tryIngestCertJson(`/api/certificate/${encodeURIComponent(needle)}`);
+  await ingestCertificateFromApi(needle);
+}
+
+/** Poll until deployed API serves this certificate (after GitHub publish + deploy). */
+export async function waitForCertificateLive(slugOrToken, { timeoutMs = 120000, intervalMs = 4000 } = {}) {
+  const needle = decodeURIComponent(String(slugOrToken ?? "").trim());
+  if (!needle) return false;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await ingestCertificateFromApi(needle)) {
+      if (findPublishedEntryPublic(needle)) return true;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, intervalMs));
+  }
+  return findPublishedEntryPublic(needle) != null;
 }
 
 export async function hydratePublicCertificate(slug) {

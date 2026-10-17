@@ -24,8 +24,12 @@ import {
   isCertificateSaved,
   findDeployedPublishedEntry,
   ensurePublishedLoaded,
+  hydrateCertificateFromApi,
   hydratePublicCertificate,
+  waitForCertificateLive,
   resolvePublicCertificateToken,
+  findDuplicateRegistration,
+  renewCertificateTemplateFrom,
   printPath,
   readFormValues,
   saveCertificate,
@@ -71,6 +75,15 @@ import {
   importCertificatesCsv,
   importCertificatesJson,
 } from "./bulk-data.js";
+import {
+  fetchAdminCertificateList,
+  readCertListFilters,
+  writeCertListFilters,
+  readCertListPage,
+  writeCertListPage,
+  districtFilterOptionsHtml,
+  statusFilterOptionsHtml,
+} from "./admin-cert-api.js";
 
 const ECITIZEN_HOME = "https://ecitizen.kp.gov.pk/";
 
@@ -816,7 +829,21 @@ function adminLoginPage() {
   `;
 }
 
-const CERT_LIST_SEARCH_KEY = "dastak:cert-list-search";
+const RENEW_DRAFT_KEY = "dastak:renew-draft";
+let certListSearchTimer = null;
+
+function readRenewDraft() {
+  try {
+    const raw = sessionStorage.getItem(RENEW_DRAFT_KEY);
+    sessionStorage.removeItem(RENEW_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.values) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
 
 function normalizeSearchKey(value) {
   return String(value ?? "")
@@ -835,98 +862,80 @@ function certSearchTermMatches(term, hay, regNorm) {
   return false;
 }
 
-function filterCertList(query) {
-  const certList = document.querySelector(".admin-sidebar .cert-list");
-  const certListCount = document.getElementById("cert-list-count");
-  if (!certList) return;
-  const q = String(query ?? "").trim();
-  const terms = q.split(/\s+/).filter(Boolean);
-  const rows = certList.querySelectorAll(".cert-list-item");
-  let visible = 0;
-  rows.forEach((row) => {
-    const hay = (row.getAttribute("data-cert-search") || row.textContent || "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase();
-    const regNorm = row.getAttribute("data-reg-search") || "";
-    const show = !terms.length || terms.every((term) => certSearchTermMatches(term, hay, regNorm));
-    row.classList.toggle("cert-list-item-hidden", !show);
-    row.hidden = !show;
-    if (show) visible += 1;
-  });
-  if (certListCount) {
-    const total = rows.length;
-    certListCount.textContent = terms.length ? `${visible} of ${total} shown` : `${total} total`;
-  }
+function localOnlyCertRows(filters) {
+  const q = String(filters.q ?? "").trim();
+  const district = String(filters.district ?? "").trim();
+  const status = String(filters.status ?? "").trim();
+  const expiringDays = filters.expiring === "30" ? 30 : 0;
+
+  return listSavedTokens()
+    .filter((token) => token !== FOLLOW_TOKEN)
+    .filter((token) => isCertificateSaved(token) && !findDeployedPublishedEntry(token))
+    .map((token) => {
+      const summary = getCertificateSummary(token);
+      const { values, status: certStatus } = getCertificateForEdit(token);
+      return {
+        token,
+        applicant: summary.applicant,
+        registrationNumber: String(values["Registration Number"] ?? "").trim(),
+        trackingId: String(values["Tracking ID"] ?? "").trim(),
+        certificateNumber: summary.certificateNumber,
+        district: String(values["District"] ?? "").trim(),
+        status: certStatus,
+        daysLeft: daysUntilExpiry(values["Expiry Date"]),
+        localOnly: true,
+      };
+    })
+    .filter((row) => {
+      if (district && row.district !== district) return false;
+      if (status && row.status !== status) return false;
+      if (expiringDays > 0) {
+        if (row.daysLeft == null || row.daysLeft < 0 || row.daysLeft > expiringDays) return false;
+      }
+      if (!q) return true;
+      const hay = [row.applicant, row.registrationNumber, row.trackingId, row.certificateNumber, row.token]
+        .join(" ")
+        .toLowerCase();
+      const regNorm = normalizeSearchKey(row.registrationNumber);
+      const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+      return terms.every((term) => certSearchTermMatches(term, hay, regNorm));
+    })
+    .sort((a, b) => a.applicant.localeCompare(b.applicant));
+}
+
+function renderCertListItemHtml(item, activeToken) {
+  const daysLeft = item.daysLeft ?? daysUntilExpiry(item.expiryDate);
+  const localBadge = item.localOnly
+    ? `<span class="cert-badge cert-badge-local">Local only</span>`
+    : `<span class="cert-badge ${isCertificateSaved(item.token) ? "cert-badge-saved" : "cert-badge-default"}">${isCertificateSaved(item.token) ? "Saved" : "Published"}</span>`;
+  return `
+    <a
+      class="cert-list-item${item.token === activeToken ? " active" : ""}${item.localOnly ? " cert-list-item-local" : ""}"
+      href="/admin/dashboard?token=${encodeURIComponent(item.token)}"
+    >
+      <div class="cert-list-top">
+        <strong class="cert-list-name">${escapeHtml(item.applicant || "—")}</strong>
+        <span class="cert-list-badges">
+          ${certSidebarExpiryBadge(daysLeft)}
+          ${localBadge}
+        </span>
+      </div>
+      <p class="cert-list-reg">Reg: ${escapeHtml(item.registrationNumber || "—")}</p>
+      <p class="cert-list-number">${escapeHtml(item.certificateNumber || "—")}</p>
+      <p class="cert-list-id">${escapeHtml(item.trackingId || item.token)}</p>
+    </a>
+  `;
 }
 
 function renderCertSidebar(activeToken) {
-  const savedSearch = sessionStorage.getItem(CERT_LIST_SEARCH_KEY) || "";
-  const summaries = listSavedTokens()
-    .map((token) => {
-      const summary = getCertificateSummary(token);
-      const { values } = getCertificateForEdit(token);
-      const trackingId = String(values["Tracking ID"] ?? "").trim();
-      const registrationNo = String(values["Registration Number"] ?? "").trim();
-      const regNorm = normalizeSearchKey(registrationNo);
-      const searchBlob = [
-        summary.applicant,
-        summary.certificateNumber,
-        summary.token,
-        trackingId,
-        registrationNo,
-        values["Father Name"],
-        values["District"],
-        values["Chassis Number"],
-        values["Engine Number"],
-      ]
-        .map((part) => String(part ?? "").trim())
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return {
-        ...summary,
-        trackingId,
-        registrationNo,
-        regNorm,
-        searchBlob,
-        daysLeft: daysUntilExpiry(values["Expiry Date"]),
-      };
-    })
-    .sort((a, b) => a.applicant.localeCompare(b.applicant));
-
-  const items = summaries
-    .map(
-      (item) => `
-        <a
-          class="cert-list-item${item.token === activeToken ? " active" : ""}"
-          href="/admin/dashboard?token=${encodeURIComponent(item.token)}"
-          data-cert-search="${escapeHtml(item.searchBlob)}"
-          data-reg-search="${escapeHtml(item.regNorm)}"
-        >
-          <div class="cert-list-top">
-            <strong class="cert-list-name">${escapeHtml(item.applicant)}</strong>
-            <span class="cert-list-badges">
-              ${certSidebarExpiryBadge(item.daysLeft)}
-              <span class="cert-badge ${item.saved ? "cert-badge-saved" : "cert-badge-default"}">
-                ${item.saved ? "Saved" : "Default"}
-              </span>
-            </span>
-          </div>
-          <p class="cert-list-reg">Reg: ${escapeHtml(item.registrationNo || "—")}</p>
-          <p class="cert-list-number">${escapeHtml(item.certificateNumber)}</p>
-          <p class="cert-list-id">${escapeHtml(item.trackingId || item.token)}</p>
-        </a>
-      `
-    )
-    .join("");
+  const filters = readCertListFilters();
 
   return `
     <aside class="admin-sidebar card">
       <div class="admin-sidebar-head">
         <div>
           <h2 class="admin-sidebar-title">Certificates</h2>
-          <p class="admin-sidebar-count" id="cert-list-count">${summaries.length} total</p>
+          <p class="admin-sidebar-count" id="cert-list-count">Loading…</p>
         </div>
         <button class="btn btn-primary btn-sm" type="button" data-action="admin-create-new">${iconPlus()} New</button>
       </div>
@@ -938,8 +947,20 @@ function renderCertSidebar(activeToken) {
           type="search"
           placeholder="Search reg no, name, tracking ID…"
           autocomplete="off"
-          value="${escapeHtml(savedSearch)}"
+          value="${escapeHtml(filters.q)}"
         />
+      </div>
+      <div class="admin-sidebar-filters">
+        <select id="cert-list-district" class="form-control form-control-sm" aria-label="District filter">
+          ${districtFilterOptionsHtml(filters.district)}
+        </select>
+        <select id="cert-list-status" class="form-control form-control-sm" aria-label="Status filter">
+          ${statusFilterOptionsHtml(filters.status)}
+        </select>
+        <select id="cert-list-expiring" class="form-control form-control-sm" aria-label="Expiry filter">
+          <option value=""${filters.expiring === "" ? " selected" : ""}>Any expiry</option>
+          <option value="30"${filters.expiring === "30" ? " selected" : ""}>Expiring in 30 days</option>
+        </select>
       </div>
       <div class="admin-sidebar-tools">
         <button class="btn btn-ghost btn-sm admin-pill-btn" type="button" data-action="export-json">Export JSON</button>
@@ -953,9 +974,112 @@ function renderCertSidebar(activeToken) {
           <input type="file" accept=".csv,text/csv" data-import="csv" hidden />
         </label>
       </div>
-      <div class="cert-list">${items}</div>
+      <div class="cert-list" id="cert-list"><p class="muted cert-list-loading">Loading certificates…</p></div>
+      <div class="cert-list-pager" id="cert-list-pager" hidden></div>
     </aside>
   `;
+}
+
+async function populateAdminCertList(activeToken) {
+  const listEl = document.getElementById("cert-list");
+  const countEl = document.getElementById("cert-list-count");
+  const pagerEl = document.getElementById("cert-list-pager");
+  if (!listEl) return;
+
+  const filters = readCertListFilters();
+  const page = readCertListPage();
+
+  let data = null;
+  try {
+    data = await fetchAdminCertificateList({ page, limit: 25, filters });
+  } catch {
+    data = null;
+  }
+
+  const localRows = page === 1 ? localOnlyCertRows(filters) : [];
+  const serverItems = data?.items ?? [];
+
+  if (!data && !localRows.length) {
+    listEl.innerHTML = `<p class="muted">Could not load certificate list. Use dev with Worker APIs or open a certificate by link ID.</p>`;
+    if (countEl) countEl.textContent = "—";
+    if (pagerEl) pagerEl.hidden = true;
+    return;
+  }
+
+  const itemsHtml =
+    localRows.map((item) => renderCertListItemHtml(item, activeToken)).join("") +
+    serverItems.map((item) => renderCertListItemHtml(item, activeToken)).join("");
+
+  listEl.innerHTML = itemsHtml || `<p class="muted">No certificates match these filters.</p>`;
+
+  if (countEl) {
+    const total = (data?.total ?? 0) + (page === 1 ? localRows.length : 0);
+    const totalPages = data?.totalPages ?? 1;
+    countEl.textContent =
+      data != null
+        ? `${total} matching · page ${page} of ${totalPages}`
+        : `${localRows.length} on this device only`;
+  }
+
+  if (pagerEl && data && data.totalPages > 1) {
+    pagerEl.hidden = false;
+    pagerEl.innerHTML = `
+      <button class="btn btn-ghost btn-sm" type="button" id="cert-list-prev" ${page <= 1 ? "disabled" : ""}>Previous</button>
+      <span class="cert-list-pager-label">Page ${page} / ${data.totalPages}</span>
+      <button class="btn btn-ghost btn-sm" type="button" id="cert-list-next" ${page >= data.totalPages ? "disabled" : ""}>Next</button>
+    `;
+  } else if (pagerEl) {
+    pagerEl.hidden = true;
+    pagerEl.innerHTML = "";
+  }
+
+  document.getElementById("cert-list-prev")?.addEventListener("click", () => {
+    writeCertListPage(Math.max(1, readCertListPage() - 1));
+    void populateAdminCertList(activeToken);
+  });
+  document.getElementById("cert-list-next")?.addEventListener("click", () => {
+    writeCertListPage(readCertListPage() + 1);
+    void populateAdminCertList(activeToken);
+  });
+
+  listEl.querySelectorAll(".cert-list-item").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      const url = new URL(link.href);
+      sessionStorage.setItem("dastak:editor-token", url.searchParams.get("token") || FOLLOW_TOKEN);
+      navigate(`${url.pathname}${url.search}`);
+    });
+  });
+}
+
+function bindAdminCertListControls(activeToken) {
+  const applyFilters = () => {
+    const search = document.getElementById("cert-list-search");
+    const district = document.getElementById("cert-list-district");
+    const status = document.getElementById("cert-list-status");
+    const expiring = document.getElementById("cert-list-expiring");
+    writeCertListFilters({
+      q: search?.value ?? "",
+      district: district?.value ?? "",
+      status: status?.value ?? "",
+      expiring: expiring?.value ?? "",
+    });
+    writeCertListPage(1);
+    void populateAdminCertList(activeToken);
+  };
+
+  const search = document.getElementById("cert-list-search");
+  if (search) {
+    search.addEventListener("input", () => {
+      window.clearTimeout(certListSearchTimer);
+      certListSearchTimer = window.setTimeout(applyFilters, 350);
+    });
+    search.addEventListener("search", applyFilters);
+  }
+
+  for (const id of ["cert-list-district", "cert-list-status", "cert-list-expiring"]) {
+    document.getElementById(id)?.addEventListener("change", applyFilters);
+  }
 }
 
 function renderFormSections(data) {
@@ -978,14 +1102,17 @@ function renderCertEditor(token, data, isCreate) {
   const trackingRaw = String(data.values["Tracking ID"] ?? "").trim();
   const tracking = escapeHtml(trackingRaw || "—");
   const publicVerifyUrl = followLinkPublic(publicSiteOrigin(), token);
-  const mobileLive =
+  const onLiveSite =
     !isCreate &&
     !!(findDeployedPublishedEntry(trackingRaw) || findDeployedPublishedEntry(token));
+  const savedLocally = !isCreate && isCertificateSaved(token);
   const mobileBannerHtml = isCreate
     ? ""
-    : mobileLive
-      ? `<div class="admin-banner admin-banner-readonly"><strong>Public link:</strong> <span class="admin-mobile-url">${escapeHtml(publicVerifyUrl)}</span></div>`
-      : `<div class="admin-banner"><strong>Public link:</strong> Not live yet — save to publish to the website.</div>`;
+    : onLiveSite
+      ? `<div class="admin-banner admin-banner-readonly admin-banner-live"><strong>Live on site</strong> — public verify works. <span class="admin-mobile-url">${escapeHtml(publicVerifyUrl)}</span></div>`
+      : savedLocally
+        ? `<div class="admin-banner admin-banner-warn"><strong>Saved locally only</strong> — not on the live site yet. Fix publish settings and save again, or wait for deploy.</div>`
+        : `<div class="admin-banner"><strong>Not published</strong> — save to push this certificate to the website.</div>`;
   const expiringCount = countExpiringWithin(30);
   const alertsHtml =
     expiringCount > 0
@@ -1011,6 +1138,11 @@ function renderCertEditor(token, data, isCreate) {
             <a class="btn btn-ghost admin-pill-btn" id="open-cert-link" href="${followLinkPublic(publicSiteOrigin(), token)}" target="_blank" rel="noreferrer">${iconPreview()} Preview</a>
             <a class="btn btn-ghost admin-pill-btn" id="open-print-link" href="${printPath(token)}" target="_blank" rel="noreferrer">${iconPrint()} Print</a>
             <button class="btn btn-teal admin-pill-btn" type="button" data-action="download-pdf" data-token="${escapeHtml(token)}">${iconDownload()} Download PDF</button>
+            ${
+              isCreate
+                ? ""
+                : `<button class="btn btn-ghost admin-pill-btn" type="button" data-action="renew-cert" title="Copy vehicle details with new tracking ID and dates">${iconPlus()} Renew</button>`
+            }
           </div>
         </div>
 
@@ -1253,7 +1385,7 @@ function adminDashboardPage() {
   }
   const isCreate = isCreateMode();
   const token = isCreate ? generateLinkId() : getEditorToken();
-  const data = isCreate ? newCertificateTemplate() : getCertificateForEdit(token);
+  const data = isCreate ? readRenewDraft() || newCertificateTemplate() : getCertificateForEdit(token);
   return adminDashboardShell(renderCertEditor(token, data, isCreate), "certificates");
 }
 
@@ -1283,6 +1415,38 @@ function certificatePage(token) {
   }
 
   const values = Object.fromEntries(cert.fields);
+  const status = String(cert.status ?? "Issued").trim();
+  const restricted = status === "Revoked" || status === "Expired";
+
+  if (restricted) {
+    const summaryFields = [
+      ["Registration Number", values["Registration Number"]],
+      ["Certificate Number", values["Certificate Number"]],
+      ["Expiry Date", values["Expiry Date"]],
+    ]
+      .map(
+        ([label, val]) => `
+        <div class="field">
+          <dt>${escapeHtml(label)}</dt>
+          <dd>${escapeHtml(val ?? "—")}</dd>
+        </div>
+      `
+      )
+      .join("");
+
+    return layout(`
+      <h1 class="page-title">${t("certTitle")}</h1>
+      <div class="card cert-status-card cert-status-${status.toLowerCase()}">
+        <div class="card-body">
+          <p class="alert cert-status-alert">${t("certStatus")}: <strong>${escapeHtml(status)}</strong></p>
+          <p class="muted">This certificate is not valid for verification. Contact the issuing authority if you have questions.</p>
+          <dl class="fields fields-compact">${summaryFields}</dl>
+        </div>
+      </div>
+      <a class="btn btn-primary" href="/">${t("backHome")}</a>
+    `);
+  }
+
   const fields = FIELD_LABELS.map(
     (label) => `
         <div class="field">
@@ -1364,19 +1528,33 @@ async function saveFromEditor(previewAfter) {
     return;
   }
   const payload = readFormValues(form);
+  const regNo = payload.values["Registration Number"];
+  const duplicate = findDuplicateRegistration(token, regNo);
+  if (duplicate) {
+    const ok = window.confirm(
+      `Registration "${regNo}" is already used on link ID "${duplicate.token}". Save anyway?`
+    );
+    if (!ok) return;
+  }
+
   const saveResult = await saveCertificate(token, payload);
   sessionStorage.setItem("dastak:editor-token", token);
   recordAnalyticsEvent(EVENT_TYPES.ADMIN_SAVE, { token, trackingId: payload.values["Tracking ID"] });
   if (saveResult?.publishedOnline) {
     const via = saveResult.publishVia;
     if (via === "github") {
-      showToast("Saved — site is redeploying; mobile QR works in ~2 minutes");
+      showToast("Saved — waiting for deploy…");
+      showAppLoader();
+      const liveSlug = String(payload.values["Tracking ID"] ?? "").trim() || token;
+      const live = await waitForCertificateLive(liveSlug);
+      hideAppLoader(true);
+      showToast(live ? "Live on site — QR is ready" : "Saved — deploy still running; QR may work in a few minutes");
     } else if (via === "local") {
       showToast("Saved to public/certs — run git push to update the live site");
     } else if (via === "kv") {
-      showToast(isCreateMode() ? "Certificate created — live QR updated" : "Certificate saved — live QR updated");
+      showToast("Live on site — certificate updated immediately");
     } else {
-      showToast(isCreateMode() ? "Certificate created — live QR updated" : "Certificate saved — live QR updated");
+      showToast("Live on site — certificate published");
     }
   } else if (saveResult?.saved) {
     const why = saveResult.upsertResult?.reason || saveResult.syncResult?.reason;
@@ -1490,6 +1668,14 @@ async function handleDataActionClick(el) {
   if (action === "admin-create-new") {
     navigate("/admin/dashboard?create=1");
   }
+  if (action === "renew-cert") {
+    const sourceToken = document.querySelector('[name="linkToken"]')?.value?.trim();
+    if (!sourceToken) return;
+    const draft = renewCertificateTemplateFrom(sourceToken);
+    sessionStorage.setItem(RENEW_DRAFT_KEY, JSON.stringify(draft));
+    showToast("Renewal draft ready — new link ID on save");
+    navigate("/admin/dashboard?create=1");
+  }
   if (action === "analytics-clear") {
     if (!window.confirm("Clear all locally stored analytics events? Certificate data is not affected.")) return;
     clearAnalyticsEvents();
@@ -1572,24 +1758,10 @@ function bindActions() {
     });
   }
 
-  document.querySelectorAll(".cert-list-item").forEach((link) => {
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      const url = new URL(link.href);
-      sessionStorage.setItem("dastak:editor-token", url.searchParams.get("token") || FOLLOW_TOKEN);
-      navigate(`${url.pathname}${url.search}`);
-    });
-  });
-
-  const certListSearch = document.getElementById("cert-list-search");
-  if (certListSearch) {
-    const applyCertListSearch = () => {
-      sessionStorage.setItem(CERT_LIST_SEARCH_KEY, certListSearch.value);
-      filterCertList(certListSearch.value);
-    };
-    certListSearch.addEventListener("input", applyCertListSearch);
-    certListSearch.addEventListener("search", applyCertListSearch);
-    filterCertList(certListSearch.value);
+  if (document.getElementById("cert-list")) {
+    const activeToken = getEditorToken();
+    bindAdminCertListControls(activeToken);
+    void populateAdminCertList(activeToken);
   }
 
   const trackFilter = document.getElementById("analytics-track-filter");
@@ -1698,6 +1870,10 @@ async function render() {
     });
     app.innerHTML = certificatePage(verifySlug);
   } else if (path === "/admin/dashboard") {
+    if (isAdminLoggedIn() && !isCreateMode()) {
+      const edToken = getEditorToken();
+      if (edToken) await hydrateCertificateFromApi(edToken);
+    }
     app.innerHTML = adminDashboardPage();
   } else if (path === "/admin") {
     app.innerHTML = isAdminLoggedIn() ? adminDashboardPage() : adminLoginPage();

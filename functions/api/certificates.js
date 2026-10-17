@@ -1,61 +1,37 @@
 import { resolveAdminSyncKey } from "../_lib/env-bindings.js";
+import {
+  emptyBundle,
+  normalizeBundle,
+  mergeBundles,
+  loadMerged,
+  loadStaticPublished,
+  listCertificates,
+} from "../_lib/published-bundle.js";
 
 const KV_KEY = "published";
 
-function emptyBundle() {
-  return { version: 1, certificates: {} };
-}
-
-function normalizeBundle(raw) {
-  if (!raw || typeof raw !== "object") return emptyBundle();
-  const certificates =
-    raw.certificates && typeof raw.certificates === "object" ? raw.certificates : {};
-  return { version: 1, certificates };
-}
-
-function mergeBundles(...bundles) {
-  const merged = emptyBundle();
-  for (const bundle of bundles) {
-    const normalized = normalizeBundle(bundle);
-    merged.certificates = { ...merged.certificates, ...normalized.certificates };
-  }
-  return merged;
-}
-
-async function loadStaticPublished(request, assets) {
-  try {
-    const url = new URL("/published-certificates.json", request.url);
-    const req = new Request(url, { headers: { Accept: "application/json" } });
-    const res = assets ? await assets.fetch(req) : await fetch(req);
-    if (!res.ok) return null;
-    const type = res.headers.get("content-type") ?? "";
-    if (type.includes("text/html")) return null;
-    return normalizeBundle(await res.json());
-  } catch {
-    return null;
-  }
-}
-
 export async function onRequestGet(context) {
   const { env, request } = context;
-  const parts = [];
+  const url = new URL(request.url);
+  const merged = await loadMerged(env, request);
 
-  const staticBundle = await loadStaticPublished(request, env.ASSETS);
-  if (staticBundle) parts.push(staticBundle);
-
-  try {
-    if (env.CERTS_KV) {
-      const raw = await env.CERTS_KV.get(KV_KEY);
-      if (raw) parts.push(normalizeBundle(JSON.parse(raw)));
-    }
-  } catch {
-    /* ignore KV read errors */
+  if (url.searchParams.get("list") === "1") {
+    const body = listCertificates(merged, url.searchParams);
+    return new Response(JSON.stringify(body), {
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
   }
 
-  const body = mergeBundles(...parts);
-  return new Response(JSON.stringify(body), {
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-  });
+  const count = Object.keys(merged.certificates).length;
+  return new Response(
+    JSON.stringify({
+      version: 1,
+      updatedAt: merged.updatedAt,
+      count,
+      certificates: {},
+    }),
+    { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
+  );
 }
 
 export async function onRequestPut(context) {

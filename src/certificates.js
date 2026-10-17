@@ -26,6 +26,7 @@ export {
   hydratePublicCertificate,
   loadPublishedCertificates,
   refreshPublishedCertificates,
+  waitForCertificateLive,
 } from "./publish.js";
 
 export const FOLLOW_TOKEN = "TvALy858l8Oc";
@@ -337,6 +338,58 @@ export function newCertificateTemplate() {
     status: "Issued",
     values,
   };
+}
+
+function normalizeRegistrationKey(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[\s.\-_/]/g, "");
+}
+
+/** Another saved/published cert with the same registration (excluding current token). */
+export function findDuplicateRegistration(token, registrationNumber) {
+  const regKey = normalizeRegistrationKey(registrationNumber);
+  if (!regKey) return null;
+  const tokens = new Set(listSavedTokens());
+  for (const t of Object.keys(getMergedPublishedMap())) tokens.add(t);
+  for (const other of tokens) {
+    if (other === token) continue;
+    const { values } = getCertificateForEdit(other);
+    if (normalizeRegistrationKey(values["Registration Number"]) === regKey) {
+      return { token: other, registrationNumber: values["Registration Number"] };
+    }
+  }
+  return null;
+}
+
+const RENEWAL_COPY_LABELS = [
+  "Applicant Name",
+  "Father Name",
+  "District",
+  "Registration Number",
+  "Chassis Number",
+  "Engine Number",
+  "Vehicle Kind",
+  "Service",
+  "Certificate Type",
+  "Vehicle Model",
+  "Registered Laden Weight",
+  "Seating Capacity",
+  "Vehicle Fuel Type",
+  "Amount",
+  "Amount In Words",
+  "Application Status",
+];
+
+/** New tracking ID + dates; copy vehicle/applicant from an existing certificate. */
+export function renewCertificateTemplateFrom(sourceToken) {
+  const source = getCertificateForEdit(sourceToken);
+  const fresh = newCertificateTemplate();
+  for (const label of RENEWAL_COPY_LABELS) {
+    if (source.values[label]) fresh.values[label] = source.values[label];
+  }
+  fresh.status = "Issued";
+  return fresh;
 }
 
 export function certificateFromStored(stored) {

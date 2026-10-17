@@ -8,7 +8,13 @@ function mergePublishedCertificatesPlugin() {
     name: "merge-published-certificates",
     transformIndexHtml(html) {
       const bundle = readMergedPublishedBundle();
-      const json = JSON.stringify(bundle).replace(/</g, "\\u003c");
+      const lite = {
+        version: 1,
+        updatedAt: bundle.updatedAt,
+        count: Object.keys(bundle.certificates || {}).length,
+        certificates: {},
+      };
+      const json = JSON.stringify(lite).replace(/</g, "\\u003c");
       const tag = `<script type="application/json" id="dastak-published-bootstrap">${json}</script>`;
       return html.replace("</head>", `${tag}\n</head>`);
     },
