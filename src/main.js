@@ -22,6 +22,7 @@ import {
   findTokenByField,
   listSavedTokens,
   isCertificateSaved,
+  isDefaultDemoLocalSave,
   findDeployedPublishedEntry,
   ensurePublishedLoaded,
   refreshPublishedCertificates,
@@ -912,6 +913,7 @@ function localOnlyCertRows(filters) {
 
   return listSavedTokens()
     .filter((token) => token !== FOLLOW_TOKEN)
+    .filter((token) => !isDefaultDemoLocalSave(token))
     .filter((token) => isCertificateSaved(token) && !findDeployedPublishedEntry(token))
     .map((token) => {
       const summary = getCertificateSummary(token);
@@ -955,11 +957,23 @@ function certListInitials(name) {
   return parts.map((p) => p[0]?.toUpperCase() ?? "").join("");
 }
 
+function registryStatusBadge(item) {
+  const tracking = String(item.trackingId ?? "").trim();
+  const onSite =
+    !item.localOnly &&
+    !!(findDeployedPublishedEntry(tracking) || findDeployedPublishedEntry(item.token));
+  if (onSite) {
+    return `<span class="cert-badge cert-badge-live" title="On the public website">Live</span>`;
+  }
+  if (item.localOnly) {
+    return `<span class="cert-badge cert-badge-local" title="On this device only — not on the website yet">Draft</span>`;
+  }
+  return `<span class="cert-badge cert-badge-default" title="In registry but not deployed yet">Pending</span>`;
+}
+
 function renderCertListItemHtml(item, activeToken) {
   const daysLeft = item.daysLeft ?? daysUntilExpiry(item.expiryDate);
-  const localBadge = item.localOnly
-    ? `<span class="cert-badge cert-badge-local">Local</span>`
-    : `<span class="cert-badge ${isCertificateSaved(item.token) ? "cert-badge-saved" : "cert-badge-default"}">${isCertificateSaved(item.token) ? "Saved" : "Live"}</span>`;
+  const localBadge = registryStatusBadge(item);
   return `
     <a
       class="cert-list-item${item.token === activeToken ? " active" : ""}${item.localOnly ? " cert-list-item-local" : ""}"
@@ -1052,8 +1066,14 @@ async function populateAdminCertList(activeToken) {
     data = null;
   }
 
-  const localRows = page === 1 ? localOnlyCertRows(filters) : [];
-  const serverItems = data?.items ?? [];
+  const serverItems = (data?.items ?? []).filter((item) => item.token !== FOLLOW_TOKEN);
+  const deployedTracking = new Set(
+    serverItems.map((item) => String(item.trackingId ?? "").trim()).filter(Boolean)
+  );
+  const localRows =
+    page === 1
+      ? localOnlyCertRows(filters).filter((row) => !deployedTracking.has(String(row.trackingId ?? "").trim()))
+      : [];
 
   if (!data && !localRows.length) {
     listEl.innerHTML = `<p class="muted">Could not load certificate list. Use dev with Worker APIs or open a certificate by link ID.</p>`;

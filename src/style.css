@@ -1272,6 +1272,11 @@ html[data-theme="dark"] .login-card {
   flex-shrink: 0;
 }
 
+.cert-badge-live {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
 .cert-badge-saved {
   background: #e8f8ee;
   color: #067647;

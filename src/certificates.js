@@ -90,7 +90,7 @@ export const DEFAULT_SEATING_CAPACITY = "3";
 /** Model year options for admin dropdown (newest first). */
 export const VEHICLE_MODEL_OPTIONS = (() => {
   const years = [];
-  for (let y = 2050; y >= 1990; y -= 1) years.push(String(y));
+  for (let y = 2050; y >= 1970; y -= 1) years.push(String(y));
   return years;
 })();
 
@@ -567,6 +567,18 @@ export function findTokenByField(label, value) {
 
 export function isCertificateSaved(token) {
   return localStorage.getItem(`${STORAGE_PREFIX}${token}`) != null;
+}
+
+/** Local save that is only the built-in demo certificate (hide from registry). */
+export function isDefaultDemoLocalSave(token) {
+  if (token === FOLLOW_TOKEN) return true;
+  if (!isCertificateSaved(token)) return false;
+  const { values } = getCertificateForEdit(token);
+  return (
+    String(values["Tracking ID"] ?? "").trim() === DEFAULT_VALUES["Tracking ID"] &&
+    String(values["Certificate Number"] ?? "").trim() === DEFAULT_VALUES["Certificate Number"] &&
+    String(values["Applicant Name"] ?? "").trim() === DEFAULT_VALUES["Applicant Name"]
+  );
 }
 
 export function generateLinkId() {
