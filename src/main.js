@@ -898,37 +898,58 @@ function handleVerifyLicense(form) {
 
 function adminLoginPage() {
   return `
-    <div class="admin-login-v2">
-      <div class="admin-login-v2-bg" aria-hidden="true"></div>
-      <div class="admin-login-v2-card">
-        <header class="admin-login-v2-head">
-          <img class="admin-login-v2-logo" src="/images/logo-dastak.png" alt="Dastak" height="48" />
-          <div>
-            <p class="admin-login-v2-kicker">Staff access</p>
-            <h1 class="admin-login-v2-title">Admin dashboard</h1>
+    <div class="admin-login-page">
+      <aside class="admin-login-brand" aria-hidden="false">
+        <div class="admin-login-brand-inner">
+          <div class="admin-login-brand-logo-wrap">
+            <img class="admin-login-brand-logo" src="/images/logo-dastak.png" alt="" width="56" height="56" />
           </div>
-        </header>
-        <p class="admin-login-v2-lead">Manage vehicle fitness certificates, publish follow links, and print Form-I with QR verification.</p>
-        <ul class="admin-login-v2-features">
-          <li>${iconSave()} Certificate registry &amp; search</li>
-          <li>${iconPrint()} A4 print &amp; PDF export</li>
-          <li>${iconChart()} Expiry &amp; activity insights</li>
-        </ul>
-        <form id="admin-login-form" class="admin-login-v2-form" autocomplete="off">
-          <label class="form-field" for="admin-password">
-            <span class="form-label">Admin password</span>
-            <div class="form-input-wrap">
-              <span class="form-field-icon">${iconLock()}</span>
-              <input id="admin-password" class="form-control" name="password" type="password" placeholder="Enter password" required />
-            </div>
-          </label>
-          <button class="btn btn-primary btn-block admin-login-v2-submit" type="submit">
-            Sign in ${iconArrowRight()}
-          </button>
-        </form>
-        <p class="admin-login-v2-foot">Authorized personnel only. Session is stored on this device.</p>
-        <a class="admin-login-v2-back" href="/">${iconGlobe()} Back to public site</a>
-      </div>
+          <p class="admin-login-brand-kicker">Dastak · Vehicle fitness</p>
+          <h1 class="admin-login-brand-title">Certificate administration</h1>
+          <p class="admin-login-brand-lead">
+            Issue and manage Form-I certificates, publish verification links, and print A4 with QR codes.
+          </p>
+          <ul class="admin-login-brand-highlights">
+            <li>${iconSave()} Registry with search &amp; filters</li>
+            <li>${iconPrint()} Print &amp; PDF export</li>
+            <li>${iconChart()} Expiry &amp; activity overview</li>
+          </ul>
+        </div>
+        <p class="admin-login-brand-copy">Authorized staff only</p>
+      </aside>
+      <main class="admin-login-panel">
+        <div class="admin-login-panel-top">
+          <a class="admin-login-back-link" href="/">${iconGlobe()} Public site</a>
+          <div class="admin-login-theme">${themeToggleButton()}</div>
+        </div>
+        <div class="admin-login-panel-body">
+          <header class="admin-login-panel-head">
+            <h2 class="admin-login-panel-title">Sign in</h2>
+            <p class="admin-login-panel-sub">Enter your admin password to open the dashboard.</p>
+          </header>
+          <form id="admin-login-form" class="admin-login-form" autocomplete="off">
+            <label class="form-field" for="admin-password">
+              <span class="form-label">Password</span>
+              <div class="form-input-wrap">
+                <span class="form-field-icon">${iconLock()}</span>
+                <input
+                  id="admin-password"
+                  class="form-control"
+                  name="password"
+                  type="password"
+                  placeholder="Admin password"
+                  autocomplete="current-password"
+                  required
+                />
+              </div>
+            </label>
+            <button class="btn btn-primary btn-block admin-login-submit" type="submit">
+              Continue to dashboard ${iconArrowRight()}
+            </button>
+          </form>
+          <p class="admin-login-panel-foot">Session stays on this browser until you log out.</p>
+        </div>
+      </main>
       <div class="toast" id="toast"></div>
     </div>
   `;
