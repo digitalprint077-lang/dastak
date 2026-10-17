@@ -1,6 +1,7 @@
 import "./style.css";
 import "./print-a4.css";
 import { hideAppLoader, showAppLoader } from "./loader.js";
+import { showSaveProgress, hideSaveProgress, setSaveFormBusy } from "./save-progress.js";
 import { applyTheme, syncThemeToggleUI, themeToggleButton, toggleTheme } from "./theme.js";
 import { isAdminLoggedIn, loginAdmin, logoutAdmin, requireAdmin } from "./admin.js";
 import {
@@ -518,6 +519,12 @@ function adminDashboardShell(mainHtml, activeView = "certificates") {
               : ""
           }
         </header>
+        <div id="admin-save-progress" class="admin-save-progress" hidden role="status" aria-live="polite">
+          <p class="admin-save-progress-label" id="admin-save-progress-label">Saving…</p>
+          <div class="admin-save-progress-track">
+            <div class="admin-save-progress-bar" id="admin-save-progress-bar"></div>
+          </div>
+        </div>
         <main class="admin-frame-body">
           <div id="publish-health-banner" class="admin-alert-banner" hidden role="status"></div>
           ${mainHtml}
@@ -1597,7 +1604,7 @@ async function refreshPublishHealthBanner() {
 
 async function saveFromEditor(previewAfter) {
   const form = document.getElementById("cert-editor");
-  if (!form) return;
+  if (!form || saveInFlight) return;
   const tokenInput = form.querySelector('[name="linkToken"]');
   const token = tokenInput?.value?.trim();
   if (!token) {
@@ -1614,17 +1621,39 @@ async function saveFromEditor(previewAfter) {
     if (!ok) return;
   }
 
-  const saveResult = await saveCertificate(token, payload);
+  saveInFlight = true;
+  setSaveFormBusy(true);
+  showSaveProgress("Saving on this device…", 15);
+
+  let saveResult;
+  try {
+    saveResult = await saveCertificate(token, payload);
+  } catch (err) {
+    console.error("Save failed", err);
+    showToast("Could not save certificate");
+    hideSaveProgress();
+    setSaveFormBusy(false);
+    saveInFlight = false;
+    return;
+  }
+
+  showSaveProgress("Publishing to site…", 45);
   sessionStorage.setItem("dastak:editor-token", token);
   recordAnalyticsEvent(EVENT_TYPES.ADMIN_SAVE, { token, trackingId: payload.values["Tracking ID"] });
   if (saveResult?.publishedOnline) {
     const via = saveResult.publishVia;
     if (via === "github") {
-      showToast("Saved — waiting for deploy…");
-      showAppLoader();
       const liveSlug = String(payload.values["Tracking ID"] ?? "").trim() || token;
-      const live = await waitForCertificateLive(liveSlug);
-      hideAppLoader(true);
+      showSaveProgress("Saved — waiting for deploy (you can keep working here)…", 55, {
+        indeterminate: true,
+      });
+      const live = await waitForCertificateLive(liveSlug, {
+        onPoll: ({ elapsedMs, timeoutMs }) => {
+          const ratio = Math.min(1, elapsedMs / timeoutMs);
+          const pct = 55 + Math.round(ratio * 40);
+          showSaveProgress("Deploy in progress — checking live site…", pct, { indeterminate: ratio < 0.95 });
+        },
+      });
       showToast(live ? "Live on site — QR is ready" : "Saved — deploy still running; QR may work in a few minutes");
     } else if (via === "local") {
       showToast("Saved to public/certs — run git push to update the live site");
@@ -1647,6 +1676,12 @@ async function saveFromEditor(previewAfter) {
   } else {
     showToast("Could not save certificate");
   }
+
+  showSaveProgress("Done", 100);
+  window.setTimeout(hideSaveProgress, 400);
+  setSaveFormBusy(false);
+  saveInFlight = false;
+
   if (previewAfter) {
     window.open(followLinkPublic(publicSiteOrigin(), token), "_blank", "noopener,noreferrer");
   }
@@ -1677,6 +1712,7 @@ function navigate(path) {
 
 let dataActionClickBound = false;
 let pdfDownloadInFlight = false;
+let saveInFlight = false;
 
 async function handleDataActionClick(el, event) {
   const action = el.getAttribute("data-action");

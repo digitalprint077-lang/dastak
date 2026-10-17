@@ -477,11 +477,16 @@ export async function hydrateCertificateFromApi(slug) {
 }
 
 /** Poll until deployed API serves this certificate (after GitHub publish + deploy). */
-export async function waitForCertificateLive(slugOrToken, { timeoutMs = 120000, intervalMs = 4000 } = {}) {
+export async function waitForCertificateLive(
+  slugOrToken,
+  { timeoutMs = 120000, intervalMs = 4000, onPoll } = {}
+) {
   const needle = decodeURIComponent(String(slugOrToken ?? "").trim());
   if (!needle) return false;
-  const deadline = Date.now() + timeoutMs;
+  const started = Date.now();
+  const deadline = started + timeoutMs;
   while (Date.now() < deadline) {
+    onPoll?.({ elapsedMs: Date.now() - started, timeoutMs });
     if (await ingestCertificateFromApi(needle)) {
       if (findPublishedEntryPublic(needle)) return true;
     }
