@@ -936,7 +936,11 @@ function localOnlyCertRows(filters) {
   return listSavedTokens()
     .filter((token) => token !== FOLLOW_TOKEN)
     .filter((token) => !isDefaultDemoLocalSave(token))
-    .filter((token) => isCertificateSaved(token) && !findDeployedPublishedEntry(token))
+    .filter(
+      (token) =>
+        isCertificateSaved(token) &&
+        !certificateLiveOnSite(token, getCertificateForEdit(token).values["Tracking ID"])
+    )
     .map((token) => {
       const summary = getCertificateSummary(token);
       const { values, status: certStatus } = getCertificateForEdit(token);
@@ -979,18 +983,25 @@ function certListInitials(name) {
   return parts.map((p) => p[0]?.toUpperCase() ?? "").join("");
 }
 
+function certificateLiveOnSite(token, trackingId) {
+  const tracking = String(trackingId ?? "").trim();
+  const id = String(token ?? "").trim();
+  return (
+    !!(tracking && findPublishedEntry(tracking)) ||
+    !!(id && findPublishedEntry(id)) ||
+    !!(tracking && findDeployedPublishedEntry(tracking)) ||
+    !!(id && findDeployedPublishedEntry(id))
+  );
+}
+
 function registryStatusBadge(item) {
-  const tracking = String(item.trackingId ?? "").trim();
-  const onSite =
-    !item.localOnly &&
-    !!(findDeployedPublishedEntry(tracking) || findDeployedPublishedEntry(item.token));
-  if (onSite) {
-    return `<span class="cert-badge cert-badge-live" title="On the public website">Live</span>`;
-  }
   if (item.localOnly) {
     return `<span class="cert-badge cert-badge-local" title="On this device only — not on the website yet">Draft</span>`;
   }
-  return `<span class="cert-badge cert-badge-default" title="In registry but not deployed yet">Pending</span>`;
+  if (item.serverPublished || certificateLiveOnSite(item.token, item.trackingId)) {
+    return `<span class="cert-badge cert-badge-live" title="On the live site (database / API)">Live</span>`;
+  }
+  return `<span class="cert-badge cert-badge-default" title="In registry but not published yet">Pending</span>`;
 }
 
 function renderCertListItemHtml(item, activeToken) {
@@ -1088,12 +1099,14 @@ async function populateAdminCertList(activeToken) {
     data = null;
   }
 
-  const serverItems = (data?.items ?? []).filter(
-    (item) =>
-      item.token !== FOLLOW_TOKEN &&
-      !isPublishedSuppressed(item.token) &&
-      !isPublishedSuppressed(item.trackingId)
-  );
+  const serverItems = (data?.items ?? [])
+    .filter(
+      (item) =>
+        item.token !== FOLLOW_TOKEN &&
+        !isPublishedSuppressed(item.token) &&
+        !isPublishedSuppressed(item.trackingId)
+    )
+    .map((item) => ({ ...item, serverPublished: true }));
   const deployedTracking = new Set(
     serverItems.map((item) => String(item.trackingId ?? "").trim()).filter(Boolean)
   );
@@ -1205,9 +1218,7 @@ function renderCertEditor(token, data, isCreate) {
   const trackingRaw = String(data.values["Tracking ID"] ?? "").trim();
   const tracking = escapeHtml(trackingRaw || "—");
   const publicVerifyUrl = followLinkPublic(publicSiteOrigin(), token);
-  const onLiveSite =
-    !isCreate &&
-    !!(findDeployedPublishedEntry(trackingRaw) || findDeployedPublishedEntry(token));
+  const onLiveSite = !isCreate && certificateLiveOnSite(token, trackingRaw);
   const savedLocally = !isCreate && isCertificateSaved(token);
   const statusChip = isCreate
     ? `<span class="admin-hero-chip admin-hero-chip-draft">Draft</span>`
@@ -1221,7 +1232,7 @@ function renderCertEditor(token, data, isCreate) {
     : onLiveSite
       ? `<span class="admin-hero-url">${escapeHtml(publicVerifyUrl)}</span>`
       : savedLocally
-        ? "Publish settings or deploy may still be pending — save again after Cloudflare is wired."
+        ? "Saved on this device — use Save to publish to the live database."
         : "Save this record to push it to the live website.";
   return `
     <div class="admin-cert-workspace">
