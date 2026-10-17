@@ -1,7 +1,7 @@
 import "./style.css";
 import "./print-a4.css";
 import { hideAppLoader, showAppLoader } from "./loader.js";
-import { showSaveProgress, hideSaveProgress, setSaveFormBusy } from "./save-progress.js";
+import { showSaveProgress, showAdminProgress, hideSaveProgress, setSaveFormBusy } from "./save-progress.js";
 import { applyTheme, syncThemeToggleUI, themeToggleButton, toggleTheme } from "./theme.js";
 import { isAdminLoggedIn, loginAdmin, logoutAdmin, requireAdmin } from "./admin.js";
 import {
@@ -519,8 +519,20 @@ function adminDashboardShell(mainHtml, activeView = "certificates") {
               : ""
           }
         </header>
-        <div id="admin-save-progress" class="admin-save-progress" hidden role="status" aria-live="polite">
-          <p class="admin-save-progress-label" id="admin-save-progress-label">Saving…</p>
+        <div
+          id="admin-save-progress"
+          class="admin-save-progress"
+          hidden
+          role="progressbar"
+          aria-live="polite"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+        >
+          <div class="admin-save-progress-head">
+            <p class="admin-save-progress-label" id="admin-save-progress-label">Saving…</p>
+            <span class="admin-save-progress-pct" id="admin-save-progress-pct">0%</span>
+          </div>
           <div class="admin-save-progress-track">
             <div class="admin-save-progress-bar" id="admin-save-progress-bar"></div>
           </div>
@@ -1623,7 +1635,7 @@ async function saveFromEditor(previewAfter) {
 
   saveInFlight = true;
   setSaveFormBusy(true);
-  showSaveProgress("Saving on this device…", 15);
+  showAdminProgress("save", "Saving on this device…", 10);
 
   let saveResult;
   try {
@@ -1637,32 +1649,34 @@ async function saveFromEditor(previewAfter) {
     return;
   }
 
-  showSaveProgress("Publishing to site…", 45);
+  showAdminProgress("save", "Publishing to site…", 35);
   sessionStorage.setItem("dastak:editor-token", token);
   recordAnalyticsEvent(EVENT_TYPES.ADMIN_SAVE, { token, trackingId: payload.values["Tracking ID"] });
   if (saveResult?.publishedOnline) {
     const via = saveResult.publishVia;
     if (via === "github") {
       const liveSlug = String(payload.values["Tracking ID"] ?? "").trim() || token;
-      showSaveProgress("Saved — waiting for deploy (you can keep working here)…", 55, {
-        indeterminate: true,
-      });
+      showAdminProgress("save", "Waiting for deploy on live site…", 50);
       const live = await waitForCertificateLive(liveSlug, {
         onPoll: ({ elapsedMs, timeoutMs }) => {
           const ratio = Math.min(1, elapsedMs / timeoutMs);
-          const pct = 55 + Math.round(ratio * 40);
-          showSaveProgress("Deploy in progress — checking live site…", pct, { indeterminate: ratio < 0.95 });
+          const pct = 50 + Math.round(ratio * 45);
+          showAdminProgress("save", "Checking deploy progress…", pct);
         },
       });
       showToast(live ? "Live on site — QR is ready" : "Saved — deploy still running; QR may work in a few minutes");
     } else if (via === "local") {
+      showAdminProgress("save", "Saved to project files", 85);
       showToast("Saved to public/certs — run git push to update the live site");
     } else if (via === "kv") {
+      showAdminProgress("save", "Published to live site", 90);
       showToast("Live on site — certificate updated immediately");
     } else {
+      showAdminProgress("save", "Published to live site", 90);
       showToast("Live on site — certificate published");
     }
   } else if (saveResult?.saved) {
+    showAdminProgress("save", "Saved on this device", 80);
     const why = saveResult.upsertResult?.reason || saveResult.syncResult?.reason;
     if (why === "no-api") {
       showToast("Saved locally — site API not active: set Cloudflare build to npm run deploy");
@@ -1677,8 +1691,8 @@ async function saveFromEditor(previewAfter) {
     showToast("Could not save certificate");
   }
 
-  showSaveProgress("Done", 100);
-  window.setTimeout(hideSaveProgress, 400);
+  showAdminProgress("save", "Save complete", 100);
+  window.setTimeout(hideSaveProgress, 600);
   setSaveFormBusy(false);
   saveInFlight = false;
 
@@ -1713,6 +1727,7 @@ function navigate(path) {
 let dataActionClickBound = false;
 let pdfDownloadInFlight = false;
 let saveInFlight = false;
+let deleteInFlight = false;
 
 async function handleDataActionClick(el, event) {
   const action = el.getAttribute("data-action");
@@ -1771,6 +1786,7 @@ async function handleDataActionClick(el, event) {
     showToast("CSV exported");
   }
   if (action === "delete-cert") {
+    if (deleteInFlight || saveInFlight) return;
     const formSlug =
       el.getAttribute("data-delete-token")?.trim() ||
       document.querySelector('[name="linkToken"]')?.value?.trim();
@@ -1787,11 +1803,16 @@ async function handleDataActionClick(el, event) {
     ) {
       return;
     }
-    showAppLoader();
+    deleteInFlight = true;
+    setSaveFormBusy(true);
+    showAdminProgress("delete", "Removing from this device…", 15);
     try {
+      showAdminProgress("delete", "Unpublishing from site…", 40);
       const result = await deleteCertificate(token);
+      showAdminProgress("delete", "Updating certificate list…", 75);
       resetPublishedLoadCache();
       await refreshPublishedCertificates();
+      showAdminProgress("delete", "Delete complete", 100);
       if (token === FOLLOW_TOKEN) {
         showToast("Default link reset to built-in values");
       } else if (result.remote && result.reason === "github") {
@@ -1806,12 +1827,15 @@ async function handleDataActionClick(el, event) {
         showToast("Removed on this device");
       }
       sessionStorage.removeItem("dastak:editor-token");
+      window.setTimeout(hideSaveProgress, 500);
       navigate(`/admin/dashboard?token=${encodeURIComponent(FOLLOW_TOKEN)}`);
     } catch (err) {
       console.error("Delete failed", err);
       showToast("Delete failed — try again");
+      hideSaveProgress();
     } finally {
-      hideAppLoader(true);
+      setSaveFormBusy(false);
+      deleteInFlight = false;
     }
   }
   if (action === "admin-create-new") {
