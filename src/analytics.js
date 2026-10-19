@@ -70,6 +70,7 @@ export function dailyActivityBuckets(days = 7) {
       views: 0,
       prints: 0,
       lookups: 0,
+      saves: 0,
     });
   }
   const byKey = Object.fromEntries(buckets.map((b) => [b.key, b]));
@@ -83,8 +84,97 @@ export function dailyActivityBuckets(days = 7) {
     if (e.type === EVENT_TYPES.TRACK_LOOKUP || e.type === EVENT_TYPES.VERIFY_LOOKUP) {
       bucket.lookups += 1;
     }
+    if (e.type === EVENT_TYPES.ADMIN_SAVE) bucket.saves += 1;
   }
   return buckets;
+}
+
+/** @returns {{ views: number, prints: number, lookups: number, saves: number, total: number }} */
+export function eventTypeMix(events) {
+  const mix = { views: 0, prints: 0, lookups: 0, saves: 0, total: 0 };
+  for (const e of events) {
+    mix.total += 1;
+    if (e.type === EVENT_TYPES.CERT_VIEW) mix.views += 1;
+    if (e.type === EVENT_TYPES.CERT_PRINT) mix.prints += 1;
+    if (e.type === EVENT_TYPES.TRACK_LOOKUP || e.type === EVENT_TYPES.VERIFY_LOOKUP) mix.lookups += 1;
+    if (e.type === EVENT_TYPES.ADMIN_SAVE) mix.saves += 1;
+  }
+  return mix;
+}
+
+export function buildRowFromApiItem(item, events) {
+  const stats = aggregateTokenStats(events, item.token);
+  const daysLeft = item.daysLeft ?? daysUntilExpiry(item.expiryDate);
+  return {
+    token: item.token,
+    trackingId: item.trackingId || "—",
+    applicant: item.applicant || "—",
+    certStatus: item.status || "Issued",
+    appStatus: "—",
+    district: item.district || "—",
+    issue: "",
+    expiry: item.expiryDate || "",
+    daysLeft,
+    health: fitnessHealthLabel(daysLeft),
+    saved: true,
+    fromServer: true,
+    ...stats,
+  };
+}
+
+export function mergeAnalyticsRows(localRows, apiItems) {
+  const events = loadEvents();
+  const byToken = new Map(localRows.map((r) => [r.token, r]));
+  for (const item of apiItems || []) {
+    if (!item?.token) continue;
+    if (!byToken.has(item.token)) {
+      byToken.set(item.token, buildRowFromApiItem(item, events));
+    }
+  }
+  return [...byToken.values()];
+}
+
+export function exportAnalyticsCsv(rows) {
+  const headers = [
+    "Tracking ID",
+    "Applicant",
+    "District",
+    "Fitness",
+    "Cert status",
+    "Expiry",
+    "Days left",
+    "Views",
+    "Prints",
+    "Lookups",
+    "Last activity",
+    "Token",
+  ];
+  const escape = (v) => {
+    const s = String(v ?? "");
+    return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [
+    headers.join(","),
+    ...rows.map((r) =>
+      [
+        r.trackingId,
+        r.applicant,
+        r.district,
+        r.health?.label,
+        r.certStatus,
+        r.expiry,
+        r.daysLeft ?? "",
+        r.views,
+        r.prints,
+        r.lookups,
+        r.lastAt || "",
+        r.token,
+      ]
+        .map(escape)
+        .join(",")
+    ),
+  ];
+  return `${lines.join("\n")}\n`;
 }
 
 function parseIsoDate(value) {
@@ -172,6 +262,7 @@ export function computeOverviewMetrics(rows, eventsWindow) {
   const expired = rows.filter((r) => r.daysLeft != null && r.daysLeft < 0).length;
   const views7d = eventsWindow.filter((e) => e.type === EVENT_TYPES.CERT_VIEW).length;
   const prints7d = eventsWindow.filter((e) => e.type === EVENT_TYPES.CERT_PRINT).length;
+  const adminSaves = eventsWindow.filter((e) => e.type === EVENT_TYPES.ADMIN_SAVE).length;
   const lookups7d = eventsWindow.filter(
     (e) => e.type === EVENT_TYPES.TRACK_LOOKUP || e.type === EVENT_TYPES.VERIFY_LOOKUP
   ).length;
@@ -179,6 +270,10 @@ export function computeOverviewMetrics(rows, eventsWindow) {
     (e) =>
       (e.type === EVENT_TYPES.TRACK_LOOKUP || e.type === EVENT_TYPES.VERIFY_LOOKUP) && e.success === true
   ).length;
+  const lookupSuccessRate =
+    lookups7d > 0 ? Math.round((successfulLookups7d / lookups7d) * 100) : null;
+  const renewalWindow = rows.filter((r) => r.daysLeft != null && r.daysLeft >= 0 && r.daysLeft <= 90).length;
+  const withPublicActivity = rows.filter((r) => r.views + r.prints + r.lookups > 0).length;
 
   const byDistrict = {};
   for (const r of rows) {
@@ -194,10 +289,14 @@ export function computeOverviewMetrics(rows, eventsWindow) {
     saved,
     expiringSoon,
     expired,
+    renewalWindow,
     views7d,
     prints7d,
+    adminSaves,
     lookups7d,
     successfulLookups7d,
+    lookupSuccessRate,
+    withPublicActivity,
     topDistricts,
   };
 }

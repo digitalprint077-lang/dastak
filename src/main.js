@@ -69,6 +69,9 @@ import {
   getAnalyticsEvents,
   recordAnalyticsEvent,
   daysUntilExpiry,
+  eventTypeMix,
+  mergeAnalyticsRows,
+  exportAnalyticsCsv,
 } from "./analytics.js";
 import { getLang, setLang, t, applyDocumentLang } from "./i18n.js";
 import {
@@ -956,6 +959,16 @@ function adminLoginPage() {
 }
 
 const RENEW_DRAFT_KEY = "dastak:renew-draft";
+const ANALYTICS_PERIOD_KEY = "dastak:analytics-period";
+const ANALYTICS_ROWS_CACHE_KEY = "dastak:analytics-rows-cache";
+
+function readAnalyticsPeriodDays() {
+  const fromUrl = new URLSearchParams(window.location.search).get("period");
+  if (fromUrl === "30") return 30;
+  if (fromUrl === "7") return 7;
+  const stored = parseInt(sessionStorage.getItem(ANALYTICS_PERIOD_KEY) || "7", 10);
+  return stored === 30 ? 30 : 7;
+}
 let certListSearchTimer = null;
 
 function readRenewDraft() {
@@ -1387,7 +1400,7 @@ function renderHealthBadge(health) {
   return `<span class="fitness-badge fitness-badge-${health.tone}">${escapeHtml(health.label)}</span>`;
 }
 
-function renderActivityChart(buckets) {
+function renderActivityChart(buckets, periodDays) {
   const max = Math.max(1, ...buckets.map((b) => b.total));
   const bars = buckets
     .map(
@@ -1397,6 +1410,7 @@ function renderActivityChart(buckets) {
             <span class="analytics-bar-seg analytics-bar-views" style="flex-grow: ${b.views || 0.001}"></span>
             <span class="analytics-bar-seg analytics-bar-prints" style="flex-grow: ${b.prints || 0.001}"></span>
             <span class="analytics-bar-seg analytics-bar-lookups" style="flex-grow: ${b.lookups || 0.001}"></span>
+            <span class="analytics-bar-seg analytics-bar-saves" style="flex-grow: ${b.saves || 0.001}"></span>
           </div>
           <span class="analytics-bar-label">${escapeHtml(b.key.slice(5))}</span>
         </div>
@@ -1407,13 +1421,14 @@ function renderActivityChart(buckets) {
     <div class="analytics-chart card">
       <div class="analytics-chart-head">
         <div>
-          <h3 class="analytics-panel-title">${iconActivity()} Activity (7 days)</h3>
-          <p class="analytics-panel-desc">Preview views, print opens, and public lookups</p>
+          <h3 class="analytics-panel-title">${iconActivity()} Activity (${periodDays} days)</h3>
+          <p class="analytics-panel-desc">Views, prints, public lookups, and admin saves on this device</p>
         </div>
         <ul class="analytics-legend">
           <li><span class="analytics-legend-dot analytics-bar-views"></span> Views</li>
           <li><span class="analytics-legend-dot analytics-bar-prints"></span> Prints</li>
           <li><span class="analytics-legend-dot analytics-bar-lookups"></span> Lookups</li>
+          <li><span class="analytics-legend-dot analytics-bar-saves"></span> Saves</li>
         </ul>
       </div>
       <div class="analytics-bars">${bars}</div>
@@ -1421,21 +1436,127 @@ function renderActivityChart(buckets) {
   `;
 }
 
-function renderAnalyticsDashboard() {
-  const tokens = listSavedTokens();
-  const rows = buildFitnessTrackingRows(tokens, getCertificateForEdit, isCertificateSaved).sort((a, b) => {
+function renderEventMixPanel(mix) {
+  const total = Math.max(1, mix.total);
+  const rows = [
+    { key: "views", label: "Certificate views", value: mix.views, cls: "analytics-bar-views" },
+    { key: "prints", label: "Print / PDF opens", value: mix.prints, cls: "analytics-bar-prints" },
+    { key: "lookups", label: "Track & verify", value: mix.lookups, cls: "analytics-bar-lookups" },
+    { key: "saves", label: "Admin saves", value: mix.saves, cls: "analytics-bar-saves" },
+  ];
+  const bars = rows
+    .map(
+      (r) => `
+      <div class="analytics-mix-row">
+        <div class="analytics-mix-meta">
+          <span class="analytics-mix-label">${escapeHtml(r.label)}</span>
+          <strong class="analytics-mix-val">${r.value}</strong>
+        </div>
+        <div class="analytics-mix-track">
+          <span class="analytics-mix-fill ${r.cls}" style="width: ${Math.round((r.value / total) * 100)}%"></span>
+        </div>
+      </div>
+    `
+    )
+    .join("");
+  return `
+    <div class="analytics-mix card">
+      <h3 class="analytics-panel-title">${iconChart()} Event mix</h3>
+      <p class="analytics-panel-desc">${mix.total} events in selected period</p>
+      <div class="analytics-mix-list">${bars}</div>
+    </div>
+  `;
+}
+
+function sortAnalyticsRows(rows) {
+  return [...rows].sort((a, b) => {
     const aExp = a.daysLeft ?? 9999;
     const bExp = b.daysLeft ?? 9999;
     if (aExp !== bExp) return aExp - bExp;
     return a.applicant.localeCompare(b.applicant);
   });
-  const events7d = eventsSince(7);
-  const metrics = computeOverviewMetrics(rows, events7d);
-  const buckets = dailyActivityBuckets(7);
-  const recent = getAnalyticsEvents(12);
+}
 
-  const kpi = (label, value, hint) => `
-    <article class="analytics-kpi card">
+function renderAnalyticsTrackingRows(rows) {
+  return rows
+    .map((row) => {
+      const daysLabel =
+        row.daysLeft == null ? "—" : row.daysLeft < 0 ? `${Math.abs(row.daysLeft)}d ago` : `${row.daysLeft}d`;
+      const filterTags = [
+        row.daysLeft != null && row.daysLeft < 0 ? "expired" : "",
+        row.daysLeft != null && row.daysLeft >= 0 && row.daysLeft <= 30 ? "expiring" : "",
+        row.views + row.prints + row.lookups > 0 ? "active" : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return `
+        <tr class="analytics-track-row" data-token="${escapeHtml(row.token)}" data-days-left="${row.daysLeft ?? ""}" data-analytics-tags="${filterTags}">
+          <td><code class="analytics-code">${escapeHtml(row.trackingId)}</code></td>
+          <td>${escapeHtml(row.applicant)}</td>
+          <td>${escapeHtml(row.district)}</td>
+          <td>${renderHealthBadge(row.health)}</td>
+          <td><span class="analytics-status-pill">${escapeHtml(row.certStatus || "—")}</span></td>
+          <td>${escapeHtml(row.expiry || "—")}<span class="analytics-sub">${daysLabel}</span></td>
+          <td class="analytics-num">${row.views}</td>
+          <td class="analytics-num">${row.prints}</td>
+          <td class="analytics-num">${row.lookups}</td>
+          <td class="analytics-muted">${formatRelativeTime(row.lastAt)}</td>
+          <td>
+            <a class="btn btn-ghost btn-sm admin-pill-btn" href="/admin/dashboard?token=${encodeURIComponent(row.token)}">Edit</a>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+function cacheAnalyticsRows(rows) {
+  try {
+    sessionStorage.setItem(ANALYTICS_ROWS_CACHE_KEY, JSON.stringify(rows.slice(0, 500)));
+  } catch {
+    /* quota */
+  }
+}
+
+async function populateAnalyticsFromServer() {
+  const body = document.getElementById("analytics-track-body");
+  const countEl = document.getElementById("analytics-table-count");
+  if (!body) return;
+  try {
+    const data = await fetchAdminCertificateList({ page: 1, limit: 100, filters: {} });
+    const localRows = sortAnalyticsRows(
+      buildFitnessTrackingRows(listSavedTokens(), getCertificateForEdit, isCertificateSaved)
+    );
+    const merged = sortAnalyticsRows(mergeAnalyticsRows(localRows, data?.items ?? []));
+    body.innerHTML =
+      renderAnalyticsTrackingRows(merged) ||
+      `<tr><td colspan="11" class="analytics-muted">No certificates in registry.</td></tr>`;
+    cacheAnalyticsRows(merged);
+    if (countEl) {
+      countEl.textContent = `${merged.length} records${data?.total > merged.length ? ` (${data.total} on server)` : ""}`;
+    }
+    bindAnalyticsTableInteractions();
+  } catch {
+    /* offline / no API */
+  }
+}
+
+function renderAnalyticsDashboard() {
+  const periodDays = readAnalyticsPeriodDays();
+  sessionStorage.setItem(ANALYTICS_PERIOD_KEY, String(periodDays));
+
+  const tokens = listSavedTokens();
+  const rows = sortAnalyticsRows(buildFitnessTrackingRows(tokens, getCertificateForEdit, isCertificateSaved));
+  cacheAnalyticsRows(rows);
+
+  const eventsWindow = eventsSince(periodDays);
+  const metrics = computeOverviewMetrics(rows, eventsWindow);
+  const buckets = dailyActivityBuckets(periodDays);
+  const mix = eventTypeMix(eventsWindow);
+  const recent = getAnalyticsEvents(15);
+
+  const kpi = (label, value, hint, tone = "") => `
+    <article class="analytics-kpi card${tone ? ` analytics-kpi-${tone}` : ""}">
       <p class="analytics-kpi-label">${label}</p>
       <p class="analytics-kpi-value">${value}</p>
       ${hint ? `<p class="analytics-kpi-hint">${hint}</p>` : ""}
@@ -1449,28 +1570,7 @@ function renderAnalyticsDashboard() {
     )
     .join("");
 
-  const trackingRows = rows
-    .map((row) => {
-      const daysLabel =
-        row.daysLeft == null ? "—" : row.daysLeft < 0 ? `${Math.abs(row.daysLeft)}d ago` : `${row.daysLeft}d`;
-      return `
-        <tr class="analytics-track-row" data-token="${escapeHtml(row.token)}" data-days-left="${row.daysLeft ?? ""}">
-          <td><code class="analytics-code">${escapeHtml(row.trackingId)}</code></td>
-          <td>${escapeHtml(row.applicant)}</td>
-          <td>${escapeHtml(row.district)}</td>
-          <td>${renderHealthBadge(row.health)}</td>
-          <td class="analytics-muted">${escapeHtml(row.appStatus.slice(0, 48))}${row.appStatus.length > 48 ? "…" : ""}</td>
-          <td>${escapeHtml(row.expiry || "—")}<span class="analytics-sub">${daysLabel}</span></td>
-          <td class="analytics-num">${row.views}</td>
-          <td class="analytics-num">${row.prints}</td>
-          <td class="analytics-muted">${formatRelativeTime(row.lastAt)}</td>
-          <td>
-            <a class="btn btn-ghost btn-sm admin-pill-btn" href="/admin/dashboard?token=${encodeURIComponent(row.token)}">Edit</a>
-          </td>
-        </tr>
-      `;
-    })
-    .join("");
+  const trackingRows = renderAnalyticsTrackingRows(rows);
 
   const activityItems = recent
     .map((event) => {
@@ -1487,41 +1587,78 @@ function renderAnalyticsDashboard() {
     })
     .join("");
 
+  const periodBtn = (days, label) =>
+    `<button type="button" class="analytics-period-btn${periodDays === days ? " is-active" : ""}" data-action="analytics-period" data-days="${days}">${label}</button>`;
+
+  const lookupHint =
+    metrics.lookupSuccessRate != null
+      ? `${metrics.successfulLookups7d} matched · ${metrics.lookupSuccessRate}% success`
+      : `${metrics.successfulLookups7d} matched`;
+
   return `
-    <div class="analytics-page admin-analytics-page">
-      <div class="analytics-page-toolbar">
-        <label class="analytics-search-wrap">
-          <span class="admin-list-search-icon">${iconSearch()}</span>
-          <span class="visually-hidden">Filter tracking table</span>
-          <input id="analytics-track-filter" class="form-control analytics-search-input" type="search" placeholder="Filter by tracking ID, name, district…" autocomplete="off" />
-        </label>
-        <button class="btn btn-ghost btn-compact" type="button" data-action="analytics-clear">Clear activity log</button>
+    <div id="analytics-page" class="analytics-page admin-analytics-page analytics-v3">
+      <header class="analytics-hero card">
+        <div class="analytics-hero-text">
+          <p class="analytics-hero-kicker">Insights</p>
+          <h2 class="analytics-hero-title">Analytics &amp; tracking</h2>
+          <p class="analytics-hero-lead">Certificate health, public engagement on this browser, and registry overview. Syncs with live registry when online.</p>
+        </div>
+        <div class="analytics-hero-actions">
+          <div class="analytics-period-toggle" role="group" aria-label="Activity period">
+            ${periodBtn(7, "7 days")}
+            ${periodBtn(30, "30 days")}
+          </div>
+          <button class="btn btn-ghost btn-compact" type="button" data-action="analytics-export">Export CSV</button>
+          <button class="btn btn-ghost btn-compact" type="button" data-action="analytics-clear">Clear activity log</button>
+        </div>
+      </header>
+
+      <div class="analytics-kpi-grid analytics-kpi-grid-6">
+        ${kpi("Registry", metrics.total, `${metrics.saved} saved on this device`)}
+        ${kpi("Expiring ≤ 30d", metrics.expiringSoon, `${metrics.expired} expired`, metrics.expiringSoon > 0 ? "warn" : "")}
+        ${kpi("Renewal window", metrics.renewalWindow, "Expires within 90 days")}
+        ${kpi("Public views", metrics.views7d, `Last ${periodDays} days`)}
+        ${kpi("Prints / PDF", metrics.prints7d, `Last ${periodDays} days`)}
+        ${kpi("Lookups", metrics.lookups7d, lookupHint)}
       </div>
 
-      <div class="analytics-kpi-grid">
-        ${kpi("Certificates", metrics.total, `${metrics.total} in registry`)}
-        ${kpi("Expiring ≤ 30 days", metrics.expiringSoon, `${metrics.expired} expired`)}
-        ${kpi("Preview views (7d)", metrics.views7d, "Public certificate pages")}
-        ${kpi("Track / verify (7d)", metrics.lookups7d, `${metrics.successfulLookups7d} matched`)}
+      <div class="analytics-expiry-strip card">
+        <span class="analytics-expiry-chip analytics-expiry-ok"><strong>${metrics.total - metrics.expired - metrics.expiringSoon}</strong> active</span>
+        <span class="analytics-expiry-chip analytics-expiry-warn"><strong>${metrics.expiringSoon}</strong> expiring soon</span>
+        <span class="analytics-expiry-chip analytics-expiry-danger"><strong>${metrics.expired}</strong> expired</span>
+        <span class="analytics-expiry-chip analytics-expiry-info"><strong>${metrics.withPublicActivity}</strong> with public activity</span>
+        <span class="analytics-expiry-chip"><strong>${metrics.adminSaves}</strong> admin saves (${periodDays}d)</span>
       </div>
 
-      <div class="analytics-grid-main">
-        ${renderActivityChart(buckets)}
+      <div class="analytics-grid-main analytics-grid-v3">
+        ${renderActivityChart(buckets, periodDays)}
+        ${renderEventMixPanel(mix)}
         <aside class="analytics-side card">
           <h3 class="analytics-panel-title">By district</h3>
           <ul class="analytics-district-list">${districtList || "<li><span>—</span><strong>0</strong></li>"}</ul>
           <h3 class="analytics-panel-title analytics-panel-title-spaced">Recent activity</h3>
-          <ul class="analytics-activity-list">${activityItems || '<li class="analytics-muted">No events yet — open a certificate or use Track on the home page.</li>'}</ul>
+          <ul class="analytics-activity-list">${activityItems || '<li class="analytics-muted">No events yet — previews, prints, and home-page lookups appear here.</li>'}</ul>
         </aside>
       </div>
 
       <section class="analytics-table-wrap card">
         <div class="analytics-table-head">
           <div>
-            <h3 class="analytics-panel-title">${iconTrack()} Fitness applications</h3>
-            <p class="analytics-panel-desc">${rows.length} records · click a row to open the editor</p>
+            <h3 class="analytics-panel-title">${iconTrack()} Certificate registry</h3>
+            <p class="analytics-panel-desc" id="analytics-table-count">${rows.length} records · click a row to open the editor</p>
+          </div>
+          <div class="analytics-table-filters" role="group" aria-label="Table filters">
+            <button type="button" class="analytics-filter-chip is-active" data-action="analytics-filter" data-filter="all">All</button>
+            <button type="button" class="analytics-filter-chip" data-action="analytics-filter" data-filter="expiring">Expiring</button>
+            <button type="button" class="analytics-filter-chip" data-action="analytics-filter" data-filter="expired">Expired</button>
+            <button type="button" class="analytics-filter-chip" data-action="analytics-filter" data-filter="active">With activity</button>
           </div>
         </div>
+        <label class="analytics-search-wrap analytics-table-search">
+          <span class="admin-list-search-icon">${iconSearch()}</span>
+          <span class="visually-hidden">Filter tracking table</span>
+          <input id="analytics-track-filter" class="form-control analytics-search-input" type="search" placeholder="Search tracking ID, name, district…" autocomplete="off" />
+        </label>
         <div class="analytics-table-scroll">
           <table class="analytics-table">
             <thead>
@@ -1530,20 +1667,56 @@ function renderAnalyticsDashboard() {
                 <th>Applicant</th>
                 <th>District</th>
                 <th>Fitness</th>
-                <th>Application status</th>
+                <th>Status</th>
                 <th>Expiry</th>
                 <th>Views</th>
                 <th>Prints</th>
+                <th>Lookups</th>
                 <th>Last activity</th>
                 <th></th>
               </tr>
             </thead>
-            <tbody id="analytics-track-body">${trackingRows}</tbody>
+            <tbody id="analytics-track-body">${trackingRows || `<tr><td colspan="11" class="analytics-muted">No certificates yet.</td></tr>`}</tbody>
           </table>
         </div>
       </section>
     </div>
   `;
+}
+
+function bindAnalyticsTableInteractions() {
+  const trackBody = document.getElementById("analytics-track-body");
+  if (!trackBody) return;
+
+  trackBody.querySelectorAll(".analytics-track-row").forEach((row) => {
+    row.addEventListener("click", (event) => {
+      if (event.target.closest("a, button")) return;
+      const token = row.getAttribute("data-token");
+      if (!token) return;
+      sessionStorage.setItem("dastak:editor-token", token);
+      navigate(`/admin/dashboard?token=${encodeURIComponent(token)}`);
+    });
+  });
+}
+
+function applyAnalyticsTableFilter(mode) {
+  const trackBody = document.getElementById("analytics-track-body");
+  const trackFilter = document.getElementById("analytics-track-filter");
+  if (!trackBody) return;
+  const q = trackFilter?.value.trim().toLowerCase() ?? "";
+  trackBody.querySelectorAll(".analytics-track-row").forEach((row) => {
+    const tags = row.getAttribute("data-analytics-tags") || "";
+    let tagOk = true;
+    if (mode === "expiring") tagOk = tags.includes("expiring");
+    if (mode === "expired") tagOk = tags.includes("expired");
+    if (mode === "active") tagOk = tags.includes("active");
+    const text = row.textContent?.toLowerCase() ?? "";
+    const searchOk = !q || text.includes(q);
+    row.hidden = !(tagOk && searchOk);
+  });
+  document.querySelectorAll(".analytics-filter-chip").forEach((chip) => {
+    chip.classList.toggle("is-active", chip.getAttribute("data-filter") === mode);
+  });
 }
 
 function adminDashboardPage() {
@@ -1939,6 +2112,29 @@ async function handleDataActionClick(el, event) {
     showToast("Activity log cleared");
     navigate("/admin/dashboard?view=analytics");
   }
+  if (action === "analytics-period") {
+    const days = el.getAttribute("data-days") === "30" ? "30" : "7";
+    sessionStorage.setItem(ANALYTICS_PERIOD_KEY, days);
+    navigate(`/admin/dashboard?view=analytics&period=${days}`);
+  }
+  if (action === "analytics-export") {
+    try {
+      const raw = sessionStorage.getItem(ANALYTICS_ROWS_CACHE_KEY);
+      const rows = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(rows) || !rows.length) {
+        showToast("No registry data to export");
+        return;
+      }
+      downloadTextFile("dastak-analytics-registry.csv", exportAnalyticsCsv(rows), "text/csv");
+      showToast("Analytics CSV downloaded");
+    } catch {
+      showToast("Export failed");
+    }
+  }
+  if (action === "analytics-filter") {
+    const mode = el.getAttribute("data-filter") || "all";
+    applyAnalyticsTableFilter(mode);
+  }
   if (action === "admin-logout") {
     logoutAdmin();
     navigate("/admin");
@@ -2029,35 +2225,21 @@ function bindActions() {
     void populateAdminCertList(activeToken);
   }
 
-  const trackFilter = document.getElementById("analytics-track-filter");
-  const trackBody = document.getElementById("analytics-track-body");
-  if (trackFilter && trackBody) {
-    trackFilter.addEventListener("input", () => {
-      const q = trackFilter.value.trim().toLowerCase();
-      trackBody.querySelectorAll(".analytics-track-row").forEach((row) => {
-        const text = row.textContent?.toLowerCase() ?? "";
-        row.hidden = q.length > 0 && !text.includes(q);
+  if (document.getElementById("analytics-page")) {
+    bindAnalyticsTableInteractions();
+    void populateAnalyticsFromServer();
+    const trackFilter = document.getElementById("analytics-track-filter");
+    if (trackFilter) {
+      trackFilter.addEventListener("input", () => {
+        const active =
+          document.querySelector(".analytics-filter-chip.is-active")?.getAttribute("data-filter") || "all";
+        applyAnalyticsTableFilter(active);
       });
-    });
-  }
-
-  document.querySelectorAll(".analytics-track-row").forEach((row) => {
-    row.addEventListener("click", (event) => {
-      if (event.target.closest("a, button")) return;
-      const token = row.getAttribute("data-token");
-      if (!token) return;
-      sessionStorage.setItem("dastak:editor-token", token);
-      navigate(`/admin/dashboard?token=${encodeURIComponent(token)}`);
-    });
-  });
-
-  const expiringFilter = new URLSearchParams(window.location.search).get("filter");
-  if (expiringFilter === "expiring" && trackBody) {
-    trackBody.querySelectorAll(".analytics-track-row").forEach((row) => {
-      const left = Number(row.getAttribute("data-days-left"));
-      row.hidden = !(Number.isFinite(left) && left >= 0 && left <= 30);
-    });
-    if (trackFilter) trackFilter.placeholder = "Showing expiring within 30 days…";
+    }
+    const expiringFilter = new URLSearchParams(window.location.search).get("filter");
+    if (expiringFilter === "expiring") {
+      applyAnalyticsTableFilter("expiring");
+    }
   }
 
   document.querySelectorAll("[data-import]").forEach((input) => {
