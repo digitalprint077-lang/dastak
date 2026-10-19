@@ -811,7 +811,7 @@ export function getPrintData(token, origin = publicSiteOrigin()) {
     amountPrintLine2: amountPrint.line2,
     district,
     districtOffice: district,
-    printedDate: formatPrintDate(new Date().toISOString().slice(0, 10)),
+    printedDate: formatPrintDate(v("Issue Date")),
     previewUrl: followLinkPublic(origin, token),
     previewPath: followPathPublic(token),
   };
