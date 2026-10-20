@@ -821,6 +821,43 @@ export function cssEscape(value) {
   return CSS.escape(value);
 }
 
+/** Newest issue date first (registry sidebar + API list). */
+export function parseCertListSortTime(item) {
+  const issue = String(item.issueDate ?? "").trim();
+  if (issue) {
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(issue) ? `${issue}T12:00:00` : issue;
+    const t = new Date(iso).getTime();
+    if (!Number.isNaN(t)) return t;
+  }
+  const tracking = String(item.trackingId ?? "").trim();
+  const m = tracking.match(/VF(\d{2})(\d{2})(\d{2})/i);
+  if (m) {
+    const yy = 2000 + Number(m[1]);
+    const mm = Number(m[2]) - 1;
+    const dd = Number(m[3]);
+    const t = new Date(yy, mm, dd).getTime();
+    if (!Number.isNaN(t)) return t;
+  }
+  return 0;
+}
+
+export function compareCertsNewestFirst(a, b) {
+  const byDate = parseCertListSortTime(b) - parseCertListSortTime(a);
+  if (byDate !== 0) return byDate;
+  return String(b.trackingId ?? b.token ?? "").localeCompare(String(a.trackingId ?? a.token ?? ""));
+}
+
+export function formatCertListDate(iso) {
+  const raw = String(iso ?? "").trim();
+  if (!raw) return "";
+  const normalized = toDateInputValue(raw) || raw;
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(normalized)
+    ? new Date(`${normalized}T12:00:00`)
+    : new Date(normalized);
+  if (Number.isNaN(d.getTime())) return raw;
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
 export function followPath(token = FOLLOW_TOKEN) {
   return `/vehiclefitness/${token}`;
 }

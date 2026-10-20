@@ -115,9 +115,35 @@ function normalizeRegKey(value) {
     .replace(/[\s.\-_/]/g, "");
 }
 
+function parseCertListSortTime(row) {
+  const issue = String(row.issueDate ?? "").trim();
+  if (issue) {
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(issue) ? `${issue}T12:00:00` : issue;
+    const t = new Date(iso).getTime();
+    if (!Number.isNaN(t)) return t;
+  }
+  const tracking = String(row.trackingId ?? "").trim();
+  const m = tracking.match(/VF(\d{2})(\d{2})(\d{2})/i);
+  if (m) {
+    const yy = 2000 + Number(m[1]);
+    const mm = Number(m[2]) - 1;
+    const dd = Number(m[3]);
+    const t = new Date(yy, mm, dd).getTime();
+    if (!Number.isNaN(t)) return t;
+  }
+  return 0;
+}
+
+export function compareCertsNewestFirst(a, b) {
+  const byDate = parseCertListSortTime(b) - parseCertListSortTime(a);
+  if (byDate !== 0) return byDate;
+  return String(b.trackingId ?? b.token ?? "").localeCompare(String(a.trackingId ?? a.token ?? ""));
+}
+
 function summarizeEntry(token, payload) {
   const values = payload?.values || {};
   const expiry = String(values["Expiry Date"] ?? "").trim();
+  const issueDate = String(values["Issue Date"] ?? "").trim();
   return {
     token,
     status: payload?.status || "Issued",
@@ -126,6 +152,7 @@ function summarizeEntry(token, payload) {
     trackingId: String(values["Tracking ID"] ?? "").trim(),
     certificateNumber: String(values["Certificate Number"] ?? "").trim(),
     district: String(values["District"] ?? "").trim(),
+    issueDate,
     expiryDate: expiry,
     daysLeft: daysUntilExpiry(expiry),
   };
@@ -178,7 +205,7 @@ export function listCertificates(bundle, searchParams) {
     });
   }
 
-  items.sort((a, b) => a.applicant.localeCompare(b.applicant));
+  items.sort(compareCertsNewestFirst);
   const total = items.length;
   const start = (page - 1) * limit;
   const pageItems = items.slice(start, start + limit);

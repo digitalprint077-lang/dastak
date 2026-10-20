@@ -4112,6 +4112,11 @@ html[data-theme="dark"] .admin-login-card-badge {
   font-size: 13px;
 }
 
+.admin-ui-v2 .cert-list-date {
+  font-weight: 700;
+  color: var(--text-dark, #0f172a);
+}
+
 .admin-ui-v2 .cert-badge {
   font-size: 11px;
   padding: 4px 9px;

@@ -52,6 +52,8 @@ import {
   LADEN_WEIGHT_CUSTOM_VALUE,
   LADEN_WEIGHT_CUSTOM_FIELD,
   expiryFromIssueDate,
+  compareCertsNewestFirst,
+  formatCertListDate,
   cssEscape,
 } from "./certificates.js";
 import { amountToWords } from "./amount-words.js";
@@ -1041,6 +1043,8 @@ function localOnlyCertRows(filters) {
         trackingId: String(values["Tracking ID"] ?? "").trim(),
         certificateNumber: summary.certificateNumber,
         district: String(values["District"] ?? "").trim(),
+        issueDate: String(values["Issue Date"] ?? "").trim(),
+        expiryDate: String(values["Expiry Date"] ?? "").trim(),
         status: certStatus,
         daysLeft: daysUntilExpiry(values["Expiry Date"]),
         localOnly: true,
@@ -1060,7 +1064,7 @@ function localOnlyCertRows(filters) {
       const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
       return terms.every((term) => certSearchTermMatches(term, hay, regNorm));
     })
-    .sort((a, b) => a.applicant.localeCompare(b.applicant));
+    .sort(compareCertsNewestFirst);
 }
 
 function certListInitials(name) {
@@ -1097,6 +1101,7 @@ function registryStatusBadge(item) {
 function renderCertListItemHtml(item, activeToken) {
   const daysLeft = item.daysLeft ?? daysUntilExpiry(item.expiryDate);
   const localBadge = registryStatusBadge(item);
+  const issueLabel = formatCertListDate(item.issueDate);
   return `
     <a
       class="cert-list-item${item.token === activeToken ? " active" : ""}${item.localOnly ? " cert-list-item-local" : ""}"
@@ -1113,6 +1118,7 @@ function renderCertListItemHtml(item, activeToken) {
         </span>
         <span class="cert-list-reg">${escapeHtml(item.registrationNumber || "No registration")}</span>
         <span class="cert-list-meta">
+          ${issueLabel ? `<span class="cert-list-date">${escapeHtml(issueLabel)}</span>` : ""}
           <span>${escapeHtml(item.certificateNumber || "—")}</span>
           <span class="cert-list-id">${escapeHtml(item.trackingId || item.token)}</span>
         </span>
@@ -1212,9 +1218,8 @@ async function populateAdminCertList(activeToken) {
     return;
   }
 
-  const itemsHtml =
-    localRows.map((item) => renderCertListItemHtml(item, activeToken)).join("") +
-    serverItems.map((item) => renderCertListItemHtml(item, activeToken)).join("");
+  const mergedItems = [...localRows, ...serverItems].sort(compareCertsNewestFirst);
+  const itemsHtml = mergedItems.map((item) => renderCertListItemHtml(item, activeToken)).join("");
 
   listEl.innerHTML = itemsHtml || `<p class="muted">No certificates match these filters.</p>`;
 
