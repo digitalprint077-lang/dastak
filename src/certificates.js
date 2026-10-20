@@ -109,13 +109,14 @@ export const REGISTERED_LADEN_WEIGHT_OPTIONS = [
 export const DEFAULT_LADEN_WEIGHT = REGISTERED_LADEN_WEIGHT_OPTIONS[0];
 
 /** Service (admin) and certificate type on A4 (uppercase; synced from Service). */
-export const SERVICE_TYPE_OPTIONS = ["New Fitness", "Renewal"];
-export const CERTIFICATE_TYPE_OPTIONS = ["NEW FITNESS", "RENEWAL"];
+export const SERVICE_TYPE_OPTIONS = ["New Fitness", "New Fitness + Verification", "Renewal"];
+export const CERTIFICATE_TYPE_OPTIONS = ["NEW FITNESS", "NEW FITNESS + VERIFICATION", "RENEWAL"];
 
 export function normalizeServiceType(value) {
   const v = String(value ?? "").trim();
   if (!v) return "Renewal";
-  if (/new\s*fitness/i.test(v)) return "New Fitness";
+  if (/new\s*fitness\s*\+\s*verification/i.test(v)) return "New Fitness + Verification";
+  if (/^new\s*fitness$/i.test(v)) return "New Fitness";
   if (/renewal/i.test(v)) return "Renewal";
   return SERVICE_TYPE_OPTIONS.includes(v) ? v : "Renewal";
 }
@@ -123,13 +124,15 @@ export function normalizeServiceType(value) {
 export function normalizeCertificateType(value) {
   const v = String(value ?? "").trim();
   if (!v) return "RENEWAL";
-  if (/new\s*fitness/i.test(v)) return "NEW FITNESS";
+  if (/new\s*fitness\s*\+\s*verification/i.test(v)) return "NEW FITNESS + VERIFICATION";
+  if (/^new\s*fitness$/i.test(v)) return "NEW FITNESS";
   if (/renewal/i.test(v)) return "RENEWAL";
   return CERTIFICATE_TYPE_OPTIONS.includes(v) ? v : "RENEWAL";
 }
 
 export function serviceToCertificateType(service) {
   const normalized = normalizeServiceType(service);
+  if (normalized === "New Fitness + Verification") return "NEW FITNESS + VERIFICATION";
   if (normalized === "New Fitness") return "NEW FITNESS";
   return "RENEWAL";
 }
