@@ -38,6 +38,7 @@ import {
   renewCertificateTemplateFrom,
   printPath,
   readFormValues,
+  UPPERCASE_VEHICLE_ID_FIELDS,
   saveCertificate,
   DATE_FIELD_LABELS,
   toDateInputValue,
@@ -749,6 +750,10 @@ function fieldInput(label, value, iconKey = label, readonly = false) {
       </label>
     `;
   }
+  const upperValue =
+    UPPERCASE_VEHICLE_ID_FIELDS.includes(label) && displayValue
+      ? String(displayValue).toUpperCase()
+      : displayValue;
   return `
     <label class="form-field" for="${id}">
       <span class="form-label">${label}</span>
@@ -757,7 +762,7 @@ function fieldInput(label, value, iconKey = label, readonly = false) {
         ${fieldControl({
           id,
           name,
-          value: displayValue,
+          value: upperValue,
           multiline: false,
           inputType: isDate ? "date" : "text",
           readonly,
@@ -2274,7 +2279,19 @@ function bindActions() {
     });
     form.addEventListener("input", (event) => {
       updateFollowLinkPreview();
-      if (event.target.getAttribute("name") === "Amount") {
+      const fieldName = event.target.getAttribute("name");
+      if (UPPERCASE_VEHICLE_ID_FIELDS.includes(fieldName) && event.target.value != null) {
+        const upper = event.target.value.toUpperCase();
+        if (event.target.value !== upper) {
+          const start = event.target.selectionStart;
+          const end = event.target.selectionEnd;
+          event.target.value = upper;
+          if (start != null && end != null) {
+            event.target.setSelectionRange(start, end);
+          }
+        }
+      }
+      if (fieldName === "Amount") {
         syncAmountInWords(form, event.target.value);
       }
     });

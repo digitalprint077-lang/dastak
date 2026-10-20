@@ -545,7 +545,7 @@ export function getCertificate(tokenOrSlug) {
 }
 
 export async function saveCertificate(token, { status, values: rawValues }) {
-  const values = ensureCertificateSerial(token, rawValues);
+  const values = applyUppercaseVehicleIdFields(ensureCertificateSerial(token, rawValues));
   localStorage.setItem(
     `${STORAGE_PREFIX}${token}`,
     JSON.stringify({ status, values })
@@ -697,6 +697,22 @@ export function applyLadenWeightToForm(form, rawValue) {
   }
 }
 
+/** Stored and printed in uppercase (registration, chassis, engine). */
+export const UPPERCASE_VEHICLE_ID_FIELDS = [
+  "Registration Number",
+  "Chassis Number",
+  "Engine Number",
+];
+
+export function applyUppercaseVehicleIdFields(values) {
+  for (const label of UPPERCASE_VEHICLE_ID_FIELDS) {
+    const raw = values[label];
+    if (raw == null || raw === "") continue;
+    values[label] = String(raw).trim().toUpperCase();
+  }
+  return values;
+}
+
 export function readFormValues(form) {
   const status = form.querySelector('[name="status"]')?.value?.trim() || "Issued";
   const values = {};
@@ -707,6 +723,7 @@ export function readFormValues(form) {
   });
   values["Registered Laden Weight"] = readLadenWeightFromForm(form);
   applyCertificateValidity(values);
+  applyUppercaseVehicleIdFields(values);
   return { status, values };
 }
 
@@ -717,7 +734,10 @@ export function fillForm(form, { status, values }) {
     if (label === "Registered Laden Weight") return;
     const input = form.querySelector(`[name="${cssEscape(label)}"]`);
     if (!input) return;
-    const raw = values?.[label] ?? "";
+    let raw = values?.[label] ?? "";
+    if (UPPERCASE_VEHICLE_ID_FIELDS.includes(label) && raw) {
+      raw = String(raw).trim().toUpperCase();
+    }
     input.value = DATE_FIELD_LABELS.includes(label) ? toDateInputValue(raw) : raw;
   });
   applyLadenWeightToForm(form, values?.["Registered Laden Weight"] ?? "");
@@ -823,12 +843,12 @@ export function getPrintData(token, origin = publicSiteOrigin()) {
   return {
     applicationId: v("Tracking ID") || "—",
     certificateNo: v("Certificate Number") || "—",
-    vehicleNo: v("Registration Number") || "—",
+    vehicleNo: (v("Registration Number") || "—").toUpperCase(),
     expiry: formatPrintDate(v("Expiry Date")),
     renewalFrom,
     renewalTo,
-    engine: v("Engine Number") || "—",
-    chassis: v("Chassis Number") || "—",
+    engine: (v("Engine Number") || "—").toUpperCase(),
+    chassis: (v("Chassis Number") || "—").toUpperCase(),
     certType: (v("Certificate Type") || v("Service") || "RENEWAL").toUpperCase(),
     vehicleType: v("Vehicle Kind") || "—",
     model: v("Vehicle Model") || "—",
