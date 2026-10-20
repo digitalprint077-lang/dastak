@@ -108,6 +108,21 @@ export const REGISTERED_LADEN_WEIGHT_OPTIONS = [
 
 export const DEFAULT_LADEN_WEIGHT = REGISTERED_LADEN_WEIGHT_OPTIONS[0];
 
+/** Service & A4 certificate type (kept in sync in admin). */
+export const SERVICE_TYPE_OPTIONS = ["New Fitness", "Renewal"];
+
+export function normalizeServiceType(value) {
+  const v = String(value ?? "").trim();
+  if (!v) return "Renewal";
+  if (/new\s*fitness/i.test(v)) return "New Fitness";
+  if (/renewal/i.test(v)) return "Renewal";
+  return SERVICE_TYPE_OPTIONS.includes(v) ? v : "Renewal";
+}
+
+export function serviceToCertificateType(service) {
+  return normalizeServiceType(service);
+}
+
 /** Model year options for admin dropdown (newest first). */
 export const VEHICLE_MODEL_OPTIONS = (() => {
   const years = [];
@@ -133,7 +148,7 @@ const DEFAULT_VALUES = {
   Service: "Renewal",
   District: "Peshawar",
   "Application Status": "Certificate Ready - Available for Download",
-  "Certificate Type": "RENEWAL",
+  "Certificate Type": "Renewal",
   "Vehicle Model": "2012",
   "Registered Laden Weight": DEFAULT_LADEN_WEIGHT,
   "Seating Capacity": "3",

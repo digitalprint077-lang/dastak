@@ -51,6 +51,9 @@ import {
   REGISTERED_LADEN_WEIGHT_OPTIONS,
   LADEN_WEIGHT_CUSTOM_VALUE,
   LADEN_WEIGHT_CUSTOM_FIELD,
+  SERVICE_TYPE_OPTIONS,
+  normalizeServiceType,
+  serviceToCertificateType,
   expiryFromIssueDate,
   compareCertsNewestFirst,
   formatCertListDate,
@@ -649,6 +652,40 @@ function fieldInput(label, value, iconKey = label, readonly = false) {
             name,
             value: displayValue || DEFAULT_SEATING_CAPACITY,
             options: SEATING_CAPACITY_OPTIONS,
+            readonly,
+          })}
+        </div>
+      </label>
+    `;
+  }
+  if (label === "Service") {
+    return `
+      <label class="form-field" for="${id}">
+        <span class="form-label">${label}</span>
+        <div class="form-input-wrap">
+          <span class="form-field-icon">${fieldIcon(iconKey)}</span>
+          ${fieldSelect({
+            id,
+            name,
+            value: normalizeServiceType(displayValue),
+            options: SERVICE_TYPE_OPTIONS,
+            readonly,
+          })}
+        </div>
+      </label>
+    `;
+  }
+  if (label === "Certificate Type") {
+    return `
+      <label class="form-field" for="${id}">
+        <span class="form-label">${label}</span>
+        <div class="form-input-wrap">
+          <span class="form-field-icon">${fieldIcon(iconKey)}</span>
+          ${fieldSelect({
+            id,
+            name,
+            value: normalizeServiceType(displayValue),
+            options: SERVICE_TYPE_OPTIONS,
             readonly,
           })}
         </div>
@@ -1978,6 +2015,13 @@ function syncAmountInWords(form, amountRaw) {
   wordsInput.value = amountToWords(amountRaw);
 }
 
+function syncCertificateTypeFromService(form) {
+  const serviceEl = form.querySelector(`[name="${cssEscape("Service")}"]`);
+  const certTypeEl = form.querySelector(`[name="${cssEscape("Certificate Type")}"]`);
+  if (!serviceEl || !certTypeEl) return;
+  certTypeEl.value = serviceToCertificateType(serviceEl.value);
+}
+
 function syncLadenWeightCustomField(form) {
   const select = form.querySelector("[data-laden-weight-select]");
   const wrap = form.querySelector(".form-laden-weight-custom-wrap");
@@ -2239,6 +2283,9 @@ function bindActions() {
       if (event.target.matches("[data-laden-weight-select]")) {
         syncLadenWeightCustomField(form);
       }
+      if (event.target.getAttribute("name") === "Service") {
+        syncCertificateTypeFromService(form);
+      }
       if (event.target.getAttribute("name") !== "Issue Date") return;
       const expiryInput = form.querySelector(`[name="${cssEscape("Expiry Date")}"]`);
       if (expiryInput) {
@@ -2246,6 +2293,7 @@ function bindActions() {
       }
     });
     syncLadenWeightCustomField(form);
+    syncCertificateTypeFromService(form);
   }
 
   if (document.getElementById("cert-list")) {
