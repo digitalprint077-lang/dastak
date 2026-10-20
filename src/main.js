@@ -52,7 +52,9 @@ import {
   LADEN_WEIGHT_CUSTOM_VALUE,
   LADEN_WEIGHT_CUSTOM_FIELD,
   SERVICE_TYPE_OPTIONS,
+  CERTIFICATE_TYPE_OPTIONS,
   normalizeServiceType,
+  normalizeCertificateType,
   serviceToCertificateType,
   expiryFromIssueDate,
   compareCertsNewestFirst,
@@ -684,8 +686,8 @@ function fieldInput(label, value, iconKey = label, readonly = false) {
           ${fieldSelect({
             id,
             name,
-            value: normalizeServiceType(displayValue),
-            options: SERVICE_TYPE_OPTIONS,
+            value: normalizeCertificateType(displayValue),
+            options: CERTIFICATE_TYPE_OPTIONS,
             readonly,
           })}
         </div>
