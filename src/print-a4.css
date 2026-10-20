@@ -212,6 +212,12 @@
 .pdf-capture-root .a4-qr-wrap img {
   opacity: 1;
   transition: none;
+  image-rendering: auto;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+.pdf-capture-root .a4-cert {
+  box-shadow: none;
 }
 
 .a4-qr-caption {

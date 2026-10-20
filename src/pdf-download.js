@@ -4,6 +4,20 @@ import { getPrintData } from "./certificates.js";
 import { qrDataUrlWithLogo } from "./qr-with-logo.js";
 import { preloadA4Background, renderA4CertificateArticle } from "./print-a4.js";
 
+/** Target ~300 DPI when rasterizing A4 for PDF (210 mm wide). */
+const PDF_TARGET_DPI = 300;
+const PDF_A4_WIDTH_MM = 210;
+const PDF_MAX_CAPTURE_SCALE = 4;
+const MM_PER_INCH = 25.4;
+
+function pdfCaptureScale(articleEl) {
+  const cssWidth = articleEl.getBoundingClientRect().width;
+  if (!cssWidth || cssWidth < 1) return PDF_MAX_CAPTURE_SCALE;
+  const targetPx = (PDF_A4_WIDTH_MM / MM_PER_INCH) * PDF_TARGET_DPI;
+  const scale = Math.ceil(targetPx / cssWidth);
+  return Math.min(PDF_MAX_CAPTURE_SCALE, Math.max(2, scale));
+}
+
 function waitForNextFrames(count = 2) {
   return new Promise((resolve) => {
     let done = 0;
@@ -52,11 +66,17 @@ export async function downloadCertificatePdf(token) {
       });
     }
 
+    const article = shell.querySelector(".a4-cert");
+    if (!article) throw new Error("Certificate layout missing");
+
+    const captureScale = pdfCaptureScale(article);
+    const qrPixelSize = Math.min(640, Math.max(320, Math.round(240 * (captureScale / 2))));
+
     const qrImg = shell.querySelector("#pdf-cert-qr");
     const url = qrImg?.getAttribute("data-url");
     if (qrImg && url) {
       try {
-        qrImg.src = await qrDataUrlWithLogo(url, { size: 240 });
+        qrImg.src = await qrDataUrlWithLogo(url, { size: qrPixelSize });
         qrImg.classList.add("is-ready");
         await new Promise((resolve) => {
           if (qrImg.complete) resolve();
@@ -70,38 +90,33 @@ export async function downloadCertificatePdf(token) {
       }
     }
 
-    await waitForNextFrames(2);
+    await waitForNextFrames(3);
 
-    const article = shell.querySelector(".a4-cert");
-    if (!article) throw new Error("Certificate layout missing");
-
-    const scale = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
     const canvas = await html2canvas(article, {
-      scale,
+      scale: captureScale,
       useCORS: true,
       allowTaint: false,
       backgroundColor: "#ffffff",
       logging: false,
+      imageTimeout: 15000,
+      removeContainer: false,
     });
 
     if (!canvas.width || !canvas.height) {
       throw new Error("PDF capture produced an empty canvas");
     }
 
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+      compress: true,
+    });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
 
-    let imgData;
-    let format = "PNG";
-    try {
-      imgData = canvas.toDataURL("image/jpeg", 0.92);
-      format = "JPEG";
-    } catch {
-      imgData = canvas.toDataURL("image/png");
-    }
-
-    pdf.addImage(imgData, format, 0, 0, pageW, pageH);
+    const imgData = canvas.toDataURL("image/png");
+    pdf.addImage(imgData, "PNG", 0, 0, pageW, pageH);
     const tracking = getPrintData(token).applicationId.replace(/[^\w-]+/g, "_");
     pdf.save(`vehicle-fitness-${tracking || token}.pdf`);
   } finally {
