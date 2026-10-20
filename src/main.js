@@ -902,55 +902,71 @@ function handleVerifyLicense(form) {
 function adminLoginPage() {
   return `
     <div class="admin-login-page">
-      <aside class="admin-login-brand" aria-hidden="false">
+      <aside class="admin-login-brand">
+        <div class="admin-login-brand-grid" aria-hidden="true"></div>
         <div class="admin-login-brand-inner">
           <div class="admin-login-brand-logo-wrap">
-            <img class="admin-login-brand-logo" src="/images/logo-dastak.png" alt="" width="56" height="56" />
+            <img class="admin-login-brand-logo" src="/images/logo-dastak.png" alt="Dastak" width="52" height="52" />
           </div>
-          <p class="admin-login-brand-kicker">Dastak · Vehicle fitness</p>
-          <h1 class="admin-login-brand-title">Certificate administration</h1>
+          <p class="admin-login-brand-kicker">Government of Khyber Pakhtunkhwa</p>
+          <h1 class="admin-login-brand-title">Dastak admin</h1>
           <p class="admin-login-brand-lead">
-            Issue and manage Form-I certificates, publish verification links, and print A4 with QR codes.
+            Secure workspace for vehicle fitness certificates — registry, instant publish, Form-I print, and QR verification.
           </p>
-          <ul class="admin-login-brand-highlights">
-            <li>${iconSave()} Registry with search &amp; filters</li>
-            <li>${iconPrint()} Print &amp; PDF export</li>
-            <li>${iconChart()} Expiry &amp; activity overview</li>
-          </ul>
+          <div class="admin-login-feature-grid">
+            <div class="admin-login-feature">
+              <span class="admin-login-feature-icon">${iconSave()}</span>
+              <span class="admin-login-feature-text">Registry &amp; search</span>
+            </div>
+            <div class="admin-login-feature">
+              <span class="admin-login-feature-icon">${iconPrint()}</span>
+              <span class="admin-login-feature-text">A4 &amp; PDF</span>
+            </div>
+            <div class="admin-login-feature">
+              <span class="admin-login-feature-icon">${iconChart()}</span>
+              <span class="admin-login-feature-text">Analytics</span>
+            </div>
+          </div>
         </div>
-        <p class="admin-login-brand-copy">Authorized staff only</p>
+        <p class="admin-login-brand-copy">${iconLock()} Authorized personnel only</p>
       </aside>
       <main class="admin-login-panel">
         <div class="admin-login-panel-top">
-          <a class="admin-login-back-link" href="/">${iconGlobe()} Public site</a>
+          <a class="admin-login-back-link" href="/">${iconGlobe()} Back to public site</a>
           <div class="admin-login-theme">${themeToggleButton()}</div>
         </div>
         <div class="admin-login-panel-body">
-          <header class="admin-login-panel-head">
-            <h2 class="admin-login-panel-title">Sign in</h2>
-            <p class="admin-login-panel-sub">Enter your admin password to open the dashboard.</p>
-          </header>
-          <form id="admin-login-form" class="admin-login-form" autocomplete="off">
-            <label class="form-field" for="admin-password">
-              <span class="form-label">Password</span>
-              <div class="form-input-wrap">
-                <span class="form-field-icon">${iconLock()}</span>
-                <input
-                  id="admin-password"
-                  class="form-control"
-                  name="password"
-                  type="password"
-                  placeholder="Admin password"
-                  autocomplete="current-password"
-                  required
-                />
-              </div>
-            </label>
-            <button class="btn btn-primary btn-block admin-login-submit" type="submit">
-              Continue to dashboard ${iconArrowRight()}
-            </button>
-          </form>
-          <p class="admin-login-panel-foot">Session stays on this browser until you log out.</p>
+          <div class="admin-login-card">
+            <div class="admin-login-card-badge">Staff sign-in</div>
+            <header class="admin-login-panel-head">
+              <h2 class="admin-login-panel-title">Welcome back</h2>
+              <p class="admin-login-panel-sub">Enter your admin password to open the certificate dashboard.</p>
+            </header>
+            <form id="admin-login-form" class="admin-login-form" autocomplete="off">
+              <label class="form-field" for="admin-password">
+                <span class="form-label">Admin password</span>
+                <div class="form-input-wrap admin-login-pw-wrap">
+                  <span class="form-field-icon">${iconLock()}</span>
+                  <input
+                    id="admin-password"
+                    class="form-control"
+                    name="password"
+                    type="password"
+                    placeholder="Enter password"
+                    autocomplete="current-password"
+                    required
+                  />
+                  <button class="admin-login-pw-toggle" type="button" data-action="admin-login-toggle-pw" aria-label="Show password">
+                    Show
+                  </button>
+                </div>
+              </label>
+              <button class="btn btn-primary btn-block admin-login-submit" type="submit">
+                Sign in ${iconArrowRight()}
+              </button>
+            </form>
+            <p class="admin-login-panel-foot">Your session is stored on this device until you log out.</p>
+          </div>
         </div>
       </main>
       <div class="toast" id="toast"></div>
@@ -2145,6 +2161,14 @@ async function handleDataActionClick(el, event) {
   if (action === "toggle-theme") {
     toggleTheme();
     showToast(document.documentElement.getAttribute("data-theme") === "dark" ? "Dark mode on" : "Light mode on");
+  }
+  if (action === "admin-login-toggle-pw") {
+    const input = document.getElementById("admin-password");
+    if (!input) return;
+    const show = input.type === "password";
+    input.type = show ? "text" : "password";
+    el.textContent = show ? "Hide" : "Show";
+    el.setAttribute("aria-label", show ? "Hide password" : "Show password");
   }
 }
 
