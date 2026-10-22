@@ -2916,11 +2916,11 @@ html[data-theme="dark"] .admin-rail-link:hover {
 
 .admin-context-bar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 22px 28px 16px;
-  background: var(--admin-surface);
+  padding: 16px 28px;
+  background: color-mix(in srgb, var(--admin-surface) 92%, #fff);
   border-bottom: 1px solid var(--admin-border);
 }
 
@@ -2989,16 +2989,16 @@ html[data-theme="dark"] .admin-rail-link:hover {
 
 .admin-context-title {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.2rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--text-dark);
 }
 
 .admin-context-lead {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   font-size: 0.875rem;
-  color: var(--text);
+  color: var(--text-muted);
   max-width: 42rem;
 }
 
@@ -3619,12 +3619,12 @@ html[data-theme="dark"] .admin-hero-chip-draft {
 .analytics-v3 .analytics-hero {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 22px 24px;
+  gap: 16px;
+  padding: 14px 18px;
   margin-bottom: 16px;
-  background: linear-gradient(135deg, color-mix(in srgb, #0891b2 8%, var(--admin-surface)) 0%, var(--admin-surface) 55%);
+  background: var(--admin-surface);
 }
 
 .analytics-hero-kicker {
@@ -4204,22 +4204,22 @@ html[data-theme="dark"] .admin-login-card-badge {
 }
 
 .admin-shell.admin-ui-v2 {
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 272px minmax(0, 1fr);
 }
 
 .admin-ui-v2 .admin-context-bar {
-  padding: 24px 32px 18px;
-  background: linear-gradient(180deg, var(--admin-surface) 0%, color-mix(in srgb, var(--admin-accent-soft) 40%, var(--admin-surface)) 100%);
+  padding: 16px 32px;
+  background: color-mix(in srgb, var(--admin-surface) 94%, var(--admin-accent-soft));
   border-bottom-color: var(--admin-border);
 }
 
 .admin-ui-v2 .admin-context-title {
-  font-size: 1.75rem;
+  font-size: 1.28rem;
 }
 
 .admin-ui-v2 .admin-context-lead {
-  font-size: 1rem;
-  line-height: 1.5;
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .admin-ui-v2 .admin-context-cta,
@@ -4975,43 +4975,114 @@ html[data-theme="dark"] .admin-login-card-badge {
   margin: 0 auto;
 }
 
-.admin-overview-hero {
+.admin-ov-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 22px;
+  margin-bottom: 18px;
 }
 
-.admin-overview-kicker {
-  margin: 0 0 4px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.admin-overview-title {
-  margin: 0 0 6px;
-  font-size: 1.65rem;
+.admin-ov-greet {
+  margin: 0 0 2px;
+  font-size: 1.15rem;
   font-weight: 800;
-  color: var(--text-dark, #0f172a);
+  letter-spacing: -0.02em;
+  color: var(--dastak-charcoal-deep, #2d3436);
 }
 
-.admin-overview-lead {
+.admin-ov-date {
   margin: 0;
-  max-width: 52ch;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
-.admin-overview-hero-actions {
+.admin-ov-shortcuts {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.admin-ov-shortcut {
+  display: inline-flex;
   align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 6px 18px rgba(45, 52, 54, 0.04);
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin-ov-shortcut:hover {
+  border-color: color-mix(in srgb, var(--dastak-teal) 45%, var(--admin-border));
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(0, 195, 217, 0.12);
+}
+
+.admin-ov-shortcut-icon {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--admin-accent-soft);
+  color: var(--dastak-teal-dark, #009fb3);
+  flex-shrink: 0;
+}
+
+.admin-ov-shortcut strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-ov-shortcut em {
+  display: block;
+  font-style: normal;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.admin-ov-attention {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, #f59e0b 35%, var(--admin-border));
+  background: color-mix(in srgb, #f59e0b 10%, var(--admin-surface));
+  text-decoration: none;
+  color: inherit;
+}
+
+.admin-ov-attention:hover {
+  border-color: #f59e0b;
+}
+
+.admin-ov-attention-icon {
+  display: flex;
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+.admin-ov-attention-copy {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.admin-ov-attention-go {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--dastak-teal-dark, #009fb3);
+  white-space: nowrap;
 }
 
 .admin-ov-summary-grid {
@@ -5028,13 +5099,23 @@ html[data-theme="dark"] .admin-login-card-badge {
 }
 
 .admin-ov-summary-card {
-  border-radius: 14px;
+  display: block;
+  border-radius: 16px;
   padding: 18px 20px 16px;
-  border: 1px solid var(--border);
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-  background: var(--surface-elevated, #fff);
+  border: 1px solid var(--admin-border);
+  box-shadow: 0 10px 28px rgba(45, 52, 54, 0.05);
+  background: var(--admin-surface);
   position: relative;
   overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.admin-ov-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(45, 52, 54, 0.08);
+  border-color: color-mix(in srgb, var(--dastak-teal) 40%, var(--admin-border));
 }
 
 .admin-ov-summary-card::before {
@@ -5058,50 +5139,104 @@ html[data-theme="dark"] .admin-login-card-badge {
   background: linear-gradient(90deg, #f59e0b, #ea580c);
 }
 
+.admin-ov-summary-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
 .admin-ov-summary-icon {
-  font-size: 1.25rem;
-  margin-bottom: 8px;
-  opacity: 0.85;
+  display: flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.admin-ov-card-teal .admin-ov-summary-icon {
+  background: color-mix(in srgb, #00c3d9 16%, #fff);
+  color: #008da3;
+}
+
+.admin-ov-card-green .admin-ov-summary-icon {
+  background: color-mix(in srgb, #22c55e 16%, #fff);
+  color: #15803d;
+}
+
+.admin-ov-card-orange .admin-ov-summary-icon {
+  background: color-mix(in srgb, #f59e0b 18%, #fff);
+  color: #c2410c;
 }
 
 .admin-ov-summary-label {
   margin: 0;
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .admin-ov-summary-value {
-  margin: 6px 0 2px;
-  font-size: 2.25rem;
+  margin: 0 0 4px;
+  font-size: 2.15rem;
   font-weight: 800;
-  line-height: 1.1;
-  color: var(--text-dark, #0f172a);
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  color: var(--dastak-charcoal-deep, #2d3436);
 }
 
 .admin-ov-summary-sub {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   font-size: 12px;
   color: var(--text-muted);
 }
 
-.admin-ov-summary-splits {
+.admin-ov-pills {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-ov-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
   font-size: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
+  background: var(--admin-surface-muted);
+  color: var(--text-muted);
 }
 
-.admin-ov-split-ok strong {
-  color: #16a34a;
+.admin-ov-pill strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--dastak-charcoal-deep, #2d3436);
 }
 
-.admin-ov-split-warn strong {
-  color: #ea580c;
+.admin-ov-pill-ok {
+  background: color-mix(in srgb, #22c55e 14%, #fff);
+  color: #15803d;
+}
+
+.admin-ov-pill-info {
+  background: color-mix(in srgb, #00c3d9 16%, #fff);
+  color: #0e7490;
+}
+
+.admin-ov-pill-warn {
+  background: color-mix(in srgb, #f59e0b 16%, #fff);
+  color: #c2410c;
+}
+
+.admin-ov-pill-danger {
+  background: color-mix(in srgb, #ef4444 14%, #fff);
+  color: #b91c1c;
 }
 
 .admin-ov-breakdown-grid {
@@ -5112,33 +5247,47 @@ html[data-theme="dark"] .admin-login-card-badge {
 }
 
 @media (max-width: 768px) {
-  .admin-ov-breakdown-grid {
+  .admin-ov-breakdown-grid,
+  .admin-ov-bottom-grid {
     grid-template-columns: 1fr;
   }
 }
 
 .admin-ov-panel {
   padding: 18px 20px;
+  border-radius: 16px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  box-shadow: 0 8px 24px rgba(45, 52, 54, 0.04);
+}
+
+.admin-ov-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
 .admin-ov-panel-title {
-  margin: 0 0 4px;
-  font-size: 1rem;
+  margin: 0 0 2px;
+  font-size: 0.98rem;
   font-weight: 800;
+  color: var(--dastak-charcoal-deep, #2d3436);
 }
 
 .admin-ov-panel-desc {
-  margin: 0 0 14px;
+  margin: 0;
   font-size: 13px;
   color: var(--text-muted);
 }
 
 .admin-ov-breakdown-row {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(80px, 2fr) auto;
+  grid-template-columns: minmax(110px, 1.2fr) minmax(70px, 2fr) auto;
   gap: 10px;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   font-size: 13px;
 }
 
@@ -5149,7 +5298,7 @@ html[data-theme="dark"] .admin-login-card-badge {
 .admin-ov-breakdown-track {
   height: 8px;
   border-radius: 999px;
-  background: var(--surface-muted);
+  background: color-mix(in srgb, var(--admin-border) 70%, #fff);
   overflow: hidden;
 }
 
@@ -5164,7 +5313,7 @@ html[data-theme="dark"] .admin-login-card-badge {
 }
 
 .admin-ov-tone-info {
-  background: #3b82f6;
+  background: #00c3d9;
 }
 
 .admin-ov-tone-warn {
@@ -5181,9 +5330,17 @@ html[data-theme="dark"] .admin-login-card-badge {
 
 .admin-ov-breakdown-val {
   font-size: 12px;
+  font-weight: 700;
+  color: var(--dastak-charcoal-deep, #2d3436);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-ov-breakdown-val em {
+  font-style: normal;
   font-weight: 600;
   color: var(--text-muted);
-  white-space: nowrap;
+  margin-left: 6px;
 }
 
 .admin-ov-chart-panel {
@@ -5195,7 +5352,7 @@ html[data-theme="dark"] .admin-login-card-badge {
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .admin-ov-chart-legend {
@@ -5206,19 +5363,20 @@ html[data-theme="dark"] .admin-login-card-badge {
   gap: 14px;
   font-size: 12px;
   align-items: center;
+  color: var(--text-muted);
 }
 
 .admin-ov-legend-dot {
   display: inline-block;
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: 999px;
   margin-right: 4px;
   vertical-align: middle;
 }
 
 .admin-ov-chart-views {
-  background: #22c55e;
+  background: #00c3d9;
 }
 
 .admin-ov-chart-prints {
@@ -5228,10 +5386,10 @@ html[data-theme="dark"] .admin-login-card-badge {
 .admin-ov-chart-bars {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
-  min-height: 160px;
-  padding: 8px 4px 0;
-  border-top: 1px solid var(--border);
+  gap: 10px;
+  min-height: 176px;
+  padding: 12px 4px 0;
+  border-top: 1px solid var(--admin-border);
 }
 
 .admin-ov-chart-col {
@@ -5240,16 +5398,24 @@ html[data-theme="dark"] .admin-login-card-badge {
   display: flex;
   flex-direction: column;
   align-items: center;
-  height: 140px;
+  height: 156px;
+}
+
+.admin-ov-chart-count {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-height: 14px;
+  font-variant-numeric: tabular-nums;
 }
 
 .admin-ov-chart-stack {
   width: 100%;
-  max-width: 48px;
+  max-width: 36px;
   margin-top: auto;
   display: flex;
   flex-direction: column;
-  border-radius: 6px 6px 2px 2px;
+  border-radius: 8px 8px 3px 3px;
   overflow: hidden;
   min-height: 4px;
 }
@@ -5261,9 +5427,40 @@ html[data-theme="dark"] .admin-login-card-badge {
 
 .admin-ov-chart-label {
   margin-top: 8px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.admin-ov-chart-label strong {
+  color: var(--dastak-charcoal-deep, #2d3436);
+  font-weight: 700;
+}
+
+.admin-ov-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 140px;
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 13px;
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-ov-empty-icon {
+  display: flex;
+  color: var(--dastak-teal-dark, #009fb3);
+  opacity: 0.7;
+}
+
+.admin-ov-empty p {
+  margin: 0;
 }
 
 .admin-ov-bottom-grid {
@@ -5272,26 +5469,34 @@ html[data-theme="dark"] .admin-login-card-badge {
   gap: 16px;
 }
 
-@media (max-width: 768px) {
-  .admin-ov-bottom-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 .admin-ov-activity-list,
 .admin-ov-expiring-list {
   list-style: none;
-  margin: 0 0 12px;
+  margin: 0;
   padding: 0;
 }
 
 .admin-ov-activity-item {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--admin-border);
   font-size: 13px;
+}
+
+.admin-ov-activity-item:last-child,
+.admin-ov-expiring-list li:last-child {
+  border-bottom: none;
+}
+
+.admin-ov-activity-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--dastak-teal, #00c3d9);
 }
 
 .admin-ov-activity-title {
@@ -5305,31 +5510,123 @@ html[data-theme="dark"] .admin-login-card-badge {
   color: var(--text-muted);
 }
 
+.admin-ov-activity-item time {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .admin-ov-expiring-list li {
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .admin-ov-expiring-list a {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
   text-decoration: none;
   color: inherit;
   font-size: 13px;
 }
 
+.admin-ov-expiring-list a em {
+  display: block;
+  font-style: normal;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .admin-ov-expiring-list a:hover strong {
-  color: #0891b2;
+  color: var(--dastak-teal-dark, #009fb3);
+}
+
+.admin-ov-days-chip {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  background: color-mix(in srgb, #f59e0b 16%, #fff);
+  color: #c2410c;
+}
+
+.admin-ov-empty-row {
+  padding: 18px 0 6px;
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 .admin-ov-link-more {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--dastak-teal-dark, #009fb3);
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .admin-ov-link-more:hover {
   text-decoration: underline;
+}
+
+html[data-theme="dark"] .admin-ov-greet,
+html[data-theme="dark"] .admin-ov-summary-value,
+html[data-theme="dark"] .admin-ov-panel-title,
+html[data-theme="dark"] .admin-ov-chart-label strong,
+html[data-theme="dark"] .admin-ov-pill strong,
+html[data-theme="dark"] .admin-ov-breakdown-val {
+  color: #f1f5f9;
+}
+
+html[data-theme="dark"] .admin-ov-shortcut,
+html[data-theme="dark"] .admin-ov-summary-card,
+html[data-theme="dark"] .admin-ov-panel {
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .admin-ov-card-teal .admin-ov-summary-icon {
+  background: color-mix(in srgb, #00c3d9 22%, #1e293b);
+}
+
+html[data-theme="dark"] .admin-ov-card-green .admin-ov-summary-icon {
+  background: color-mix(in srgb, #22c55e 22%, #1e293b);
+}
+
+html[data-theme="dark"] .admin-ov-card-orange .admin-ov-summary-icon {
+  background: color-mix(in srgb, #f59e0b 22%, #1e293b);
+}
+
+html[data-theme="dark"] .admin-ov-pill-ok {
+  background: color-mix(in srgb, #22c55e 18%, #1e293b);
+}
+
+html[data-theme="dark"] .admin-ov-pill-info {
+  background: color-mix(in srgb, #00c3d9 18%, #1e293b);
+}
+
+html[data-theme="dark"] .admin-ov-pill-warn {
+  background: color-mix(in srgb, #f59e0b 18%, #1e293b);
+}
+
+html[data-theme="dark"] .admin-ov-pill-danger,
+html[data-theme="dark"] .admin-ov-days-chip {
+  background: color-mix(in srgb, #ef4444 18%, #1e293b);
+}
+
+.analytics-hero-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+
+.analytics-hero-toolbar-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
 }

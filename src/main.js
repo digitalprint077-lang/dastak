@@ -507,7 +507,6 @@ function adminRailLinkContent(icon, label) {
 
 function adminRailNav(activeView) {
   const editorOpen = activeView === "certificates";
-  const workspaceOpen = activeView === "registry" || activeView === "analytics" || editorOpen;
 
   const link = (href, label, icon, active, tone = "") =>
     `<a class="admin-rail-link${active ? " is-active" : ""}${tone ? ` admin-rail-tone-${tone}` : ""}" href="${href}">${adminRailLinkContent(icon, label)}</a>`;
@@ -522,7 +521,7 @@ function adminRailNav(activeView) {
       </div>
 
       <p class="admin-rail-section-label">Workspace</p>
-      <details class="admin-rail-menu"${workspaceOpen ? " open" : ""}>
+      <details class="admin-rail-menu" open>
         <summary class="admin-rail-menu-summary">
           <span class="admin-rail-link-icon">${iconSave()}</span>
           <span class="admin-rail-menu-title">Certificates</span>
@@ -545,23 +544,21 @@ function adminRailNav(activeView) {
 function adminDashboardShell(mainHtml, activeView = "overview") {
   const pageTitle =
     activeView === "analytics"
-      ? "Analytics & tracking"
+      ? "Analytics & reports"
       : activeView === "registry"
         ? "Certificate registry"
         : activeView === "certificates"
           ? "Edit certificate"
-          : "Admin dashboard";
+          : "Dashboard";
   const editorOpen = activeView === "certificates" && isAdminEditorOpen();
   const pageLead =
     activeView === "analytics"
-      ? "Expiry risk, district breakdown, and verify activity on this device."
+      ? "Expiry risk, district mix, and public activity on this device."
       : activeView === "registry"
-        ? "Full certificate registry — open a row to edit and save."
+        ? "Search, filter, and open a record to edit or save."
         : editorOpen
-          ? "Edit fields and save — registry is on a separate screen."
-          : activeView === "overview"
-            ? "Overview of registry health, fitness expiry, and recent public activity."
-            : "";
+          ? "Edit fields and save. Registry stays on its own screen."
+          : "Registry health, fitness expiry, and recent public activity.";
   return `
     <div class="app-shell admin-shell admin-ui-v2">
       <aside class="admin-rail admin-rail-light" aria-label="Admin navigation">
@@ -1542,13 +1539,6 @@ function isAdminEditorOpen() {
 function renderRegistryPage() {
   return `
     <div class="admin-registry-page">
-      <header class="admin-page-hero card">
-        <div>
-          <p class="admin-page-hero-kicker">Vehicle fitness registry</p>
-          <h2 class="admin-page-hero-title">All certificates</h2>
-          <p class="admin-page-hero-lead">Search, filter, and open a record to edit or save. Live and local drafts appear together when online.</p>
-        </div>
-      </header>
       ${renderCertSidebar("", { fullPage: true })}
     </div>
   `;
@@ -1942,12 +1932,8 @@ function renderAnalyticsDashboard() {
 
   return `
     <div id="analytics-page" class="analytics-page admin-analytics-page analytics-v3">
-      <header class="analytics-hero card">
-        <div class="analytics-hero-text">
-          <p class="analytics-hero-kicker">Insights</p>
-          <h2 class="analytics-hero-title">Analytics &amp; tracking</h2>
-          <p class="analytics-hero-lead">Certificate health, public engagement on this browser, and registry overview. Syncs with live registry when online.</p>
-        </div>
+      <header class="analytics-hero analytics-hero-toolbar card">
+        <p class="analytics-hero-toolbar-label">Activity window</p>
         <div class="analytics-hero-actions">
           <div class="analytics-period-toggle" role="group" aria-label="Activity period">
             ${periodBtn(7, "7 days")}
