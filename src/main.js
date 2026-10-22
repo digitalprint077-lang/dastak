@@ -245,6 +245,10 @@ function iconArrowRight() {
   return iconSvg(`<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>`);
 }
 
+function iconArrowLeft() {
+  return iconSvg(`<path d="M19 12H5"/><path d="m11 6-6 6 6 6"/>`);
+}
+
 function iconChart() {
   return iconSvg(`<path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-9"/>`);
 }
@@ -514,10 +518,13 @@ function adminRailNav(activeView) {
 function adminDashboardShell(mainHtml, activeView = "certificates") {
   const pageTitle =
     activeView === "analytics" ? "Analytics & tracking" : "Certificate workspace";
+  const editorOpen = activeView === "certificates" && isAdminEditorOpen();
   const pageLead =
     activeView === "analytics"
       ? "Expiry risk, district breakdown, and verify activity on this device."
-      : "Search, edit, publish, and print vehicle fitness certificates.";
+      : editorOpen
+        ? "Edit fields and save — registry is on a separate screen."
+        : "Full certificate registry — open a row to edit and save.";
   return `
     <div class="app-shell admin-shell admin-ui-v2">
       <aside class="admin-rail" aria-label="Admin navigation">
@@ -1248,26 +1255,31 @@ function certQuickFilterChip(id, label, activeQuick) {
   return `<button type="button" class="admin-filter-chip${active}" data-action="cert-quick-filter" data-quick="${id}">${label}</button>`;
 }
 
-function renderCertSidebar(activeToken) {
+function renderCertSidebar(activeToken, { fullPage = false } = {}) {
   const filters = readCertListFilters();
-  const collapsed = readRegistryCollapsed();
+  const collapsed = !fullPage && readRegistryCollapsed();
   const sort = filters.sort || "issue-desc";
+  const panelClass = fullPage ? " admin-list-panel-full" : collapsed ? " is-collapsed" : "";
 
   return `
-    <aside class="admin-list-panel${collapsed ? " is-collapsed" : ""}" id="admin-registry-panel">
+    <aside class="admin-list-panel${panelClass}" id="admin-registry-panel">
       <div class="admin-list-panel-head">
         <div>
-          <h2 class="admin-list-panel-title">Registry</h2>
+          <h2 class="admin-list-panel-title">${fullPage ? "All certificates" : "Registry"}</h2>
           <p class="admin-list-panel-count" id="cert-list-count">Loading…</p>
         </div>
-        <button
+        ${
+          fullPage
+            ? ""
+            : `<button
           type="button"
           class="admin-registry-collapse-btn"
           data-action="toggle-registry-panel"
           aria-expanded="${collapsed ? "false" : "true"}"
           aria-controls="admin-registry-panel-body"
           title="${collapsed ? "Show registry" : "Hide registry"}"
-        >${collapsed ? "Show" : "Hide"}</button>
+        >${collapsed ? "Show" : "Hide"}</button>`
+        }
       </div>
       <div class="admin-registry-panel-body" id="admin-registry-panel-body"${collapsed ? " hidden" : ""}>
         <div class="admin-list-search">
@@ -1483,88 +1495,19 @@ async function refreshAdminContextKpis() {
   `;
 }
 
-function shouldShowDashboardHome() {
+function isAdminEditorOpen() {
   const params = new URLSearchParams(window.location.search);
-  if (params.get("create") === "1") return false;
-  if (params.get("token")?.trim()) return false;
-  return true;
+  if (params.get("create") === "1") return true;
+  return Boolean(params.get("token")?.trim());
 }
 
-function renderDashboardHome() {
+function renderRegistryPage() {
   return `
-    <div class="admin-cert-workspace">
-      ${renderCertSidebar("")}
-      <div class="admin-dashboard-home" id="admin-dashboard-home">
-        <header class="admin-dashboard-home-hero">
-          <h2 class="admin-dashboard-home-title">Certificate workspace</h2>
-          <p class="admin-dashboard-home-lead">Pick a certificate from the registry or create a new one. Expiring records and recent public activity are listed below.</p>
-          <button class="btn btn-primary" type="button" data-action="admin-create-new">${iconPlus()} New certificate</button>
-        </header>
-        <div class="admin-dashboard-home-grid">
-          <section class="admin-home-card card">
-            <h3 class="admin-home-card-title">Expiring within 30 days</h3>
-            <ul class="admin-home-list" id="admin-home-expiring"><li class="muted">Loading…</li></ul>
-          </section>
-          <section class="admin-home-card card">
-            <h3 class="admin-home-card-title">Recent public activity</h3>
-            <ul class="admin-home-list" id="admin-home-activity"><li class="muted">Loading…</li></ul>
-          </section>
-        </div>
-      </div>
+    <div class="admin-registry-page">
+      <p class="admin-registry-page-lead">Search and filter the full registry. Select a certificate to open the editor and save.</p>
+      ${renderCertSidebar("", { fullPage: true })}
     </div>
   `;
-}
-
-async function populateDashboardHome() {
-  const expiringEl = document.getElementById("admin-home-expiring");
-  const activityEl = document.getElementById("admin-home-activity");
-  if (!expiringEl || !activityEl) return;
-
-  let rows = [];
-  try {
-    const data = await fetchAdminCertificateList({ page: 1, limit: 100, filters: { sort: "expiry-asc" } });
-    rows = (data?.items ?? []).filter((i) => {
-      const d = i.daysLeft ?? daysUntilExpiry(i.expiryDate);
-      return d != null && d >= 0 && d <= 30;
-    });
-  } catch {
-    rows = [];
-  }
-  const localExpiring = localOnlyCertRows({ q: "", district: "", status: "", expiring: "30", sort: "expiry-asc", quick: "" });
-  const merged = sortCertListItems([...localExpiring, ...rows], "expiry-asc").slice(0, 5);
-
-  expiringEl.innerHTML =
-    merged
-      .map(
-        (item) => `
-      <li>
-        <a href="/admin/dashboard?token=${encodeURIComponent(item.token)}" class="admin-home-link">
-          <strong>${escapeHtml(item.applicant || "—")}</strong>
-          <span>${escapeHtml(item.registrationNumber || "—")} · ${escapeHtml(formatCertListDate(item.expiryDate) || "—")}</span>
-        </a>
-      </li>`
-      )
-      .join("") || `<li class="muted">No certificates expiring in the next 30 days.</li>`;
-
-  expiringEl.querySelectorAll("a.admin-home-link").forEach((link) => {
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      if (!confirmLeaveDirtyEditor()) return;
-      navigate(link.getAttribute("href") || "/admin/dashboard");
-    });
-  });
-
-  const recent = getAnalyticsEvents(8);
-  activityEl.innerHTML =
-    recent
-      .map(
-        (event) => `
-      <li class="admin-home-activity-row">
-        <span>${escapeHtml(formatEventLabel(event))}</span>
-        <time>${formatRelativeTime(event.at)}</time>
-      </li>`
-      )
-      .join("") || `<li class="muted">No activity yet — previews and prints appear here.</li>`;
 }
 
 function isA4PrintSectionCollapsed(values) {
@@ -1658,9 +1601,9 @@ function renderCertEditor(token, data, isCreate) {
   else if (!isCreate) syncBits.push("Not published yet");
   const syncLine = syncBits.length ? `<p class="admin-editor-sync-line">${syncBits.join(" · ")}</p>` : "";
   return `
-    <div class="admin-cert-workspace">
-      ${renderCertSidebar(token)}
+    <div class="admin-editor-page">
       <div class="admin-editor-pane">
+        <a class="admin-back-registry" href="/admin/dashboard" data-action="back-registry">${iconArrowLeft()} Back to all certificates</a>
         <section class="admin-editor-hero">
           <div class="admin-editor-hero-main">
             <p class="admin-editor-kicker">${isCreate ? "New record" : "Editing"}</p>
@@ -2082,8 +2025,8 @@ function adminDashboardPage() {
   if (view === "analytics") {
     return adminDashboardShell(renderAnalyticsDashboard(), "analytics");
   }
-  if (shouldShowDashboardHome()) {
-    return adminDashboardShell(renderDashboardHome(), "certificates");
+  if (!isAdminEditorOpen()) {
+    return adminDashboardShell(renderRegistryPage(), "certificates");
   }
   const isCreate = isCreateMode();
   const token = isCreate ? generateLinkId() : getEditorToken();
@@ -2598,6 +2541,11 @@ async function handleDataActionClick(el, event) {
       deleteInFlight = false;
     }
   }
+  if (action === "back-registry") {
+    event?.preventDefault();
+    if (!confirmLeaveDirtyEditor()) return;
+    navigate("/admin/dashboard", { skipDirtyCheck: true });
+  }
   if (action === "admin-create-new") {
     if (!confirmLeaveDirtyEditor()) return;
     navigate("/admin/dashboard?create=1");
@@ -2812,13 +2760,9 @@ function bindActions() {
   }
 
   if (document.getElementById("cert-list")) {
-    const activeToken = getEditorToken();
+    const activeToken = new URLSearchParams(window.location.search).get("token")?.trim() || "";
     bindAdminCertListControls(activeToken);
     void populateAdminCertList(activeToken);
-  }
-
-  if (document.getElementById("admin-dashboard-home")) {
-    void populateDashboardHome();
   }
 
   if (document.getElementById("admin-context-kpis")) {
@@ -2930,7 +2874,7 @@ async function render() {
     });
     app.innerHTML = certificatePage(verifySlug);
   } else if (path === "/admin/dashboard") {
-    if (isAdminLoggedIn() && !isCreateMode()) {
+    if (isAdminLoggedIn() && isAdminEditorOpen() && !isCreateMode()) {
       const edToken = getEditorToken();
       if (edToken) await hydrateCertificateFromApi(edToken);
     }

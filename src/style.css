@@ -4679,3 +4679,55 @@ html[data-theme="dark"] .admin-login-card-badge {
   color: inherit;
   cursor: pointer;
 }
+
+.admin-registry-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-registry-page-lead {
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.admin-list-panel-full {
+  max-height: none;
+  position: static;
+  width: 100%;
+}
+
+.admin-registry-page .cert-list {
+  max-height: min(70vh, 900px);
+  overflow-y: auto;
+}
+
+.admin-editor-page {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.admin-editor-page .admin-editor-pane {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-back-registry {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0891b2;
+  text-decoration: none;
+}
+
+.admin-back-registry:hover {
+  text-decoration: underline;
+}
+
+.admin-back-registry svg {
+  width: 18px;
+  height: 18px;
+}
