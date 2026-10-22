@@ -1,20 +1,262 @@
+html.is-print-route,
+html.is-print-route body {
+  background: #eef1f4;
+}
+
+html.skip-app-loader.print-pdf-busy #app-loader {
+  display: flex !important;
+}
+
 .print-shell {
   min-height: 100vh;
-  background: #525659;
-  padding: 16px;
+  background:
+    radial-gradient(ellipse 80% 42% at 50% -10%, rgba(0, 195, 217, 0.16), transparent 58%),
+    #eef1f4;
+  padding: 0 0 40px;
+  font-family: "Source Sans Pro", sans-serif;
 }
 
 .print-toolbar {
-  max-width: 210mm;
-  margin: 0 auto 12px;
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  margin: 0 0 12px;
+  padding: 10px 24px;
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom: 1px solid #dfe3ea;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(45, 52, 54, 0.05);
+}
+
+.print-toolbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.print-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.print-lockup-logo {
+  display: block;
+  height: 36px;
+  width: auto;
+  max-width: 118px;
+  object-fit: contain;
+}
+
+.print-lockup-wordmark {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #3d3d3d;
+  line-height: 1;
+}
+
+.print-lockup-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 3px solid #00c3d9;
+  box-sizing: border-box;
+}
+
+.print-toolbar-copy {
+  min-width: 0;
+}
+
+.print-toolbar-kicker {
+  margin: 0 0 2px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #009fb3;
+}
+
+.print-toolbar-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #2d3436;
+  line-height: 1.2;
+}
+
+.print-toolbar-ids {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 4px 0 0;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.print-toolbar-ids span {
+  position: relative;
+  padding-right: 10px;
+}
+
+.print-toolbar-ids span:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #00c3d9;
+  transform: translateY(-50%);
+}
+
+.print-toolbar-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.print-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.print-btn svg {
+  flex-shrink: 0;
+}
+
+.print-btn-primary {
+  background: #00c3d9;
+  border-color: #00c3d9;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(0, 195, 217, 0.28);
+}
+
+.print-btn-primary:hover {
+  background: #00b3c7;
+  border-color: #00b3c7;
+  color: #fff;
+}
+
+.print-btn-teal {
+  background: #e8fbff;
+  border-color: #b7eaf1;
+  color: #0f6f7c;
+}
+
+.print-btn-teal:hover {
+  background: #d7f6fb;
+  color: #0f6f7c;
+}
+
+.print-btn-ghost {
+  background: #fff;
+  border-color: #d5dae3;
+  color: #334155;
+}
+
+.print-btn-ghost:hover {
+  border-color: #00c3d9;
+  color: #0f6f7c;
+}
+
+.print-hint {
+  max-width: 210mm;
+  margin: 0 auto 14px;
+  padding: 0 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.print-stage {
+  padding: 0 20px;
+}
+
+.print-page-frame {
+  container-type: inline-size;
+  width: min(210mm, calc(100vw - 40px));
+  margin: 0 auto;
+}
+
+.print-shell-missing {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding-bottom: 0;
+}
+
+.print-missing-card {
+  max-width: 520px;
+  width: calc(100% - 40px);
+  margin: auto;
+  padding: 32px 28px;
+  background: #fff;
+  border: 1px solid #dfe3ea;
+  border-radius: 18px;
+  box-shadow: 0 18px 40px rgba(45, 52, 54, 0.08);
+}
+
+.print-missing-kicker {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #009fb3;
+}
+
+.print-missing-card h2 {
+  margin: 0 0 10px;
+  font-size: 1.6rem;
+  letter-spacing: -0.03em;
+  color: #2d3436;
+}
+
+.print-missing-card p {
+  margin: 0 0 18px;
+  color: #64748b;
+  line-height: 1.55;
+}
+
+.print-missing-ref {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: #475569;
 }
 
 .a4-cert {
   position: relative;
   width: 210mm;
+  height: 297mm;
   min-height: 297mm;
   margin: 0 auto;
   background: #fff;
@@ -22,7 +264,7 @@
   font-family: "Times New Roman", Times, serif;
   font-size: 11pt;
   line-height: 1.35;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.18);
   box-sizing: border-box;
   overflow: hidden;
   print-color-adjust: exact;
@@ -52,19 +294,22 @@
 
 .a4-header {
   text-align: center;
-  margin-bottom: 8mm;
+  margin-bottom: 7mm;
 }
 
 .a4-header h1 {
   margin: 0;
   font-size: 20pt;
   font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
 }
 
 .a4-header h2 {
   margin: 2px 0 0;
   font-size: 17pt;
   font-weight: 700;
+  line-height: 1.15;
 }
 
 .a4-header p {
@@ -74,6 +319,7 @@
 
 .a4-header .office {
   font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .a4-header .city {
@@ -85,7 +331,7 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 6mm;
+  margin-bottom: 5mm;
   font-size: 10.5pt;
 }
 
@@ -96,23 +342,29 @@
   line-height: 1.25;
 }
 
+.a4-meta-end {
+  text-align: right;
+}
+
 .a4-meta-stacked .a4-meta-label {
   font-weight: 700;
 }
 
 .a4-meta-stacked .a4-meta-value {
   font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .a4-title-block {
   text-align: center;
-  margin-bottom: 6mm;
+  margin-bottom: 5.5mm;
 }
 
 .a4-title-block h3 {
   margin: 0;
   font-size: 11pt;
   font-weight: 700;
+  letter-spacing: 0.12em;
 }
 
 .a4-title-block p {
@@ -124,6 +376,7 @@
   margin: 4px 0 !important;
   font-size: 12pt !important;
   font-weight: 700 !important;
+  letter-spacing: 0.06em;
   text-decoration: underline;
 }
 
@@ -133,14 +386,15 @@
 }
 
 .a4-statement {
-  margin: 0 0 7mm;
+  margin: 0 0 5.5mm;
   text-align: justify;
   font-size: 11.25pt;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .a4-statement u {
   font-weight: 700;
+  text-underline-offset: 1.5px;
 }
 
 .a4-body {
@@ -157,9 +411,9 @@
 
 .a4-spec-row {
   display: grid;
-  grid-template-columns: 42mm 1fr;
-  gap: 4mm;
-  margin-bottom: 2.5mm;
+  grid-template-columns: 48mm 1fr;
+  gap: 3mm;
+  margin-bottom: 2.4mm;
   font-size: 10.5pt;
   font-weight: 700;
 }
@@ -167,6 +421,10 @@
 .a4-spec-row dt {
   margin: 0;
   font-weight: 700;
+}
+
+.a4-spec-row dt::after {
+  content: ":";
 }
 
 .a4-spec-row dd {
@@ -216,8 +474,15 @@
   image-rendering: -webkit-optimize-contrast;
 }
 
+.pdf-capture-root {
+  padding: 0;
+  background: #fff;
+  min-height: 297mm;
+}
+
 .pdf-capture-root .a4-cert {
   box-shadow: none;
+  transform: none;
 }
 
 .a4-qr-caption {
@@ -256,12 +521,50 @@
   margin-top: 1mm;
 }
 
+@media screen {
+  .print-page-frame {
+    aspect-ratio: 210 / 297;
+    overflow: hidden;
+    filter: drop-shadow(0 22px 40px rgba(15, 23, 42, 0.16));
+  }
+
+  .print-page-frame .a4-cert {
+    box-shadow: none;
+    transform: scale(calc(100cqw / 210mm));
+    transform-origin: top left;
+  }
+}
+
+@media (max-width: 1100px) {
+  .print-lockup-wordmark {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .print-toolbar {
+    padding: 12px 14px;
+  }
+
+  .print-toolbar-actions {
+    margin-left: 0;
+  }
+
+  .print-hint,
+  .print-stage {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
 @media print {
   @page {
     size: A4 portrait;
     margin: 0;
   }
 
+  html.is-print-route,
+  html.is-print-route body,
   body {
     background: #fff !important;
   }
@@ -275,11 +578,26 @@
     padding: 0;
   }
 
+  .print-stage {
+    padding: 0;
+  }
+
+  .print-page-frame {
+    width: 210mm;
+    margin: 0;
+    overflow: visible;
+    filter: none;
+    aspect-ratio: auto;
+  }
+
+  .print-page-frame .a4-cert,
   .a4-cert {
     box-shadow: none;
     width: 210mm;
+    height: 297mm;
     min-height: 297mm;
     margin: 0;
+    transform: none;
   }
 
   .a4-cert-bg {

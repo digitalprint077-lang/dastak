@@ -82,7 +82,7 @@ import {
   fetchOverviewRowsMerged,
 } from "./admin-overview.js";
 import { amountToWords } from "./amount-words.js";
-import { renderA4PrintPage } from "./print-a4.js";
+import { renderA4PrintPage, renderA4PrintMissing } from "./print-a4.js";
 import { qrDataUrlWithLogo } from "./qr-with-logo.js";
 import {
   EVENT_TYPES,
@@ -1668,17 +1668,10 @@ function renderEditorSectionNav() {
   return `<nav class="admin-section-nav" aria-label="Form sections">${links}</nav>`;
 }
 
-function renderEditorStickyActions(token, isCreate) {
+function renderEditorStickyActions() {
   return `
     <div class="admin-editor-sticky-bar" id="admin-editor-sticky-bar">
       ${renderEditorSectionNav()}
-      <div class="admin-sticky-actions">
-        <button class="admin-btn-pill admin-btn-pill-compact" type="button" data-action="copy" title="Copy public link">${iconCopy()}</button>
-        <a class="admin-btn-pill admin-btn-pill-compact" id="open-cert-link-sticky" href="${followLinkPublic(publicSiteOrigin(), token)}" target="_blank" rel="noreferrer" title="Preview">${iconPreview()}</a>
-        <a class="admin-btn-pill admin-btn-pill-compact" id="open-print-link-sticky" href="${printPath(token)}" target="_blank" rel="noreferrer" title="Print A4">${iconPrint()}</a>
-        <button class="admin-btn-pill admin-btn-pill-compact admin-btn-pill-teal" type="button" data-action="download-pdf" data-token="${escapeHtml(token)}" title="Download PDF">${iconDownload()}</button>
-        <button class="admin-btn-pill admin-btn-pill-primary admin-btn-pill-compact" type="button" data-action="submit-editor" title="Save">${iconSave()} Save</button>
-      </div>
     </div>
   `;
 }
@@ -1749,7 +1742,7 @@ function renderCertEditor(token, data, isCreate) {
           </div>
         </section>
 
-        ${renderEditorStickyActions(token, isCreate)}
+        ${renderEditorStickyActions()}
 
         <form id="cert-editor" class="admin-editor-card" autocomplete="off">
           <div id="admin-duplicate-reg-alert" class="admin-inline-alert" hidden role="alert"></div>
@@ -2431,12 +2424,8 @@ function updateFollowLinkPreview() {
   if (!form) return;
   const token = form.querySelector('[name="linkToken"]')?.value?.trim() || FOLLOW_TOKEN;
   const verifyLink = followLinkPublic(publicSiteOrigin(), token);
-  for (const id of ["open-cert-link", "open-cert-link-sticky"]) {
-    document.getElementById(id)?.setAttribute("href", verifyLink);
-  }
-  for (const id of ["open-print-link", "open-print-link-sticky"]) {
-    document.getElementById(id)?.setAttribute("href", printPath(token));
-  }
+  document.getElementById("open-cert-link")?.setAttribute("href", verifyLink);
+  document.getElementById("open-print-link")?.setAttribute("href", printPath(token));
   const pdfBtn = form.closest(".admin-editor-pane")?.querySelector('[data-action="download-pdf"]');
   pdfBtn?.setAttribute("data-token", token);
 }
@@ -2575,6 +2564,7 @@ async function handleDataActionClick(el, event) {
     if (!pdfToken) return;
     if (pdfDownloadInFlight) return;
     pdfDownloadInFlight = true;
+    document.documentElement.classList.add("print-pdf-busy");
     showAppLoader();
     try {
       const { downloadCertificatePdf } = await import("./pdf-download.js");
@@ -2585,6 +2575,7 @@ async function handleDataActionClick(el, event) {
       showToast("PDF download failed");
     } finally {
       pdfDownloadInFlight = false;
+      document.documentElement.classList.remove("print-pdf-busy");
       hideAppLoader(true);
     }
   }
@@ -2752,9 +2743,6 @@ async function handleDataActionClick(el, event) {
         /* ignore */
       }
     }
-  }
-  if (action === "submit-editor") {
-    document.getElementById("cert-editor")?.requestSubmit();
   }
   if (action === "analytics-clear") {
     if (!window.confirm("Clear all locally stored analytics events? Certificate data is not affected.")) return;
@@ -2978,6 +2966,11 @@ function bindActions() {
 async function render() {
   await ensurePublishedLoaded();
   let path = window.location.pathname.replace(/\/$/, "") || "/";
+  const isPrintRoute = /^\/vehiclefitness\/[^/]+\/print$/.test(path);
+  if (!isPrintRoute) {
+    document.documentElement.classList.remove("is-print-route");
+    document.title = "Dastak - Citizens platform";
+  }
 
   const redirect = requireAdmin(path);
   if (redirect) {
@@ -2999,13 +2992,7 @@ async function render() {
     const printToken = resolvePublicCertificateToken(printSlug) || printSlug;
     if (!getPublicCertificate(printToken)) {
       recordAnalyticsEvent(EVENT_TYPES.CERT_PRINT, { token: printToken, success: false });
-      app.innerHTML = layout(`
-        <h1 class="page-title">Print certificate</h1>
-        <div class="not-found">
-          <p class="alert">Certificate Status: <strong>Not Found</strong></p>
-          <a class="btn btn-primary" href="/">Back to Home</a>
-        </div>
-      `);
+      app.innerHTML = renderA4PrintMissing(printSlug);
       bindActions();
       hideAppLoader(true);
       return;

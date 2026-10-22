@@ -855,6 +855,7 @@ export function getPrintData(token, origin = publicSiteOrigin()) {
     ladenWeight: v("Registered Laden Weight") || "0.00",
     seating: v("Seating Capacity") || "—",
     fuel: (v("Vehicle Fuel Type") || "—").toUpperCase(),
+    applicant: v("Applicant Name") || "—",
     amountWords: amountLine,
     amountPrintLine1: amountPrint.line1,
     amountPrintLine2: amountPrint.line2,

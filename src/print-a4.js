@@ -13,9 +13,69 @@ function u(text) {
   return `<u>${escapeHtml(text)}</u>`;
 }
 
+function glyph(paths) {
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+}
+
+function specRow(label, value) {
+  return `<div class="a4-spec-row"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`;
+}
+
+function renderPrintLockup() {
+  return `
+    <a class="print-lockup" href="/" aria-label="Dastak">
+      <img class="print-lockup-logo" src="/images/logo-dastak.png" alt="" />
+      <strong class="print-lockup-wordmark">DASTAK</strong>
+      <span class="print-lockup-dot" aria-hidden="true"></span>
+    </a>
+  `;
+}
+
+function renderPrintToolbar(token, d) {
+  const adminHref = `/admin/dashboard?token=${encodeURIComponent(token)}`;
+  return `
+    <header class="print-toolbar no-print">
+      <div class="print-toolbar-brand">
+        ${renderPrintLockup()}
+        <div class="print-toolbar-copy">
+          <p class="print-toolbar-kicker">Form-I · Certificate of Fitness</p>
+          <h1 class="print-toolbar-title">Print preview</h1>
+          <p class="print-toolbar-ids">
+            <span>${escapeHtml(d.vehicleNo)}</span>
+            <span>${escapeHtml(d.applicant)}</span>
+            <span>${escapeHtml(d.certificateNo)}</span>
+          </p>
+        </div>
+      </div>
+      <div class="print-toolbar-actions">
+        <button class="print-btn print-btn-primary" type="button" data-action="print-a4">
+          ${glyph(`<path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>`)}
+          Print A4
+        </button>
+        <button class="print-btn print-btn-teal" type="button" data-action="download-pdf" data-token="${escapeHtml(token)}">
+          ${glyph(`<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>`)}
+          PDF
+        </button>
+        <a class="print-btn print-btn-ghost" href="${d.previewPath}">
+          ${glyph(`<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>`)}
+          Preview
+        </a>
+        <a class="print-btn print-btn-ghost" href="${adminHref}">
+          ${glyph(`<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 10h8"/><path d="M8 14h5"/>`)}
+          Admin
+        </a>
+      </div>
+    </header>
+    <p class="print-hint no-print">Use A4 paper and set printer margins to None so the certificate fills the page.</p>
+  `;
+}
+
 /** Form-I body for browser print, PDF capture, etc. */
 export function renderA4CertificateArticle(token, { qrElementId = "cert-qr" } = {}) {
   const d = getPrintData(token);
+  const amountHtml = d.amountPrintLine2
+    ? `${escapeHtml(d.amountPrintLine1)}<br />${escapeHtml(d.amountPrintLine2)})`
+    : escapeHtml(d.amountPrintLine1);
 
   return `
     <article class="a4-cert">
@@ -33,7 +93,7 @@ export function renderA4CertificateArticle(token, { qrElementId = "cert-qr" } = 
             <strong class="a4-meta-label">Application ID</strong>
             <span class="a4-meta-value">${escapeHtml(d.applicationId)}</span>
           </div>
-          <div class="a4-meta-stacked">
+          <div class="a4-meta-stacked a4-meta-end">
             <strong class="a4-meta-label">Certificate No.</strong>
             <span class="a4-meta-value">${escapeHtml(d.certificateNo)}</span>
           </div>
@@ -57,19 +117,18 @@ export function renderA4CertificateArticle(token, { qrElementId = "cert-qr" } = 
 
         <div class="a4-body">
           <dl class="a4-specs">
-            <div class="a4-spec-row"><dt>Engine Number:</dt><dd>${escapeHtml(d.engine)}</dd></div>
-            <div class="a4-spec-row"><dt>Chassis No :</dt><dd>${escapeHtml(d.chassis)}</dd></div>
-            <div class="a4-spec-row"><dt>Certificate Type:</dt><dd>${escapeHtml(d.certType)}</dd></div>
-            <div class="a4-spec-row"><dt>Type of Vehicle:</dt><dd>${escapeHtml(d.vehicleType)}</dd></div>
-            <div class="a4-spec-row"><dt>Vehicle Model:</dt><dd>${escapeHtml(d.model)}</dd></div>
-            <div class="a4-spec-row"><dt>Registered Laden Weight:</dt><dd>${escapeHtml(d.ladenWeight)}</dd></div>
-            <div class="a4-spec-row"><dt>Seating Capacity :</dt><dd>${escapeHtml(d.seating)}</dd></div>
-            <div class="a4-spec-row"><dt>Vehicle Fuel Type:</dt><dd>${escapeHtml(d.fuel)}</dd></div>
-            <div class="a4-spec-row a4-spec-row-amount"><dt>Amount In Words:</dt><dd class="a4-amount-value">${
-              d.amountPrintLine2
-                ? `${escapeHtml(d.amountPrintLine1)}<br />${escapeHtml(d.amountPrintLine2)})`
-                : escapeHtml(d.amountPrintLine1)
-            }</dd></div>
+            ${specRow("Engine Number", d.engine)}
+            ${specRow("Chassis No.", d.chassis)}
+            ${specRow("Certificate Type", d.certType)}
+            ${specRow("Type of Vehicle", d.vehicleType)}
+            ${specRow("Vehicle Model", d.model)}
+            ${specRow("Registered Laden Weight", d.ladenWeight)}
+            ${specRow("Seating Capacity", d.seating)}
+            ${specRow("Vehicle Fuel Type", d.fuel)}
+            <div class="a4-spec-row a4-spec-row-amount">
+              <dt>Amount In Words</dt>
+              <dd class="a4-amount-value">${amountHtml}</dd>
+            </div>
           </dl>
 
           <div class="a4-qr-wrap">
@@ -92,16 +151,52 @@ export function renderA4CertificateArticle(token, { qrElementId = "cert-qr" } = 
 
 export function renderA4PrintPage(token) {
   const d = getPrintData(token);
+  if (typeof document !== "undefined") {
+    document.title = `${d.vehicleNo} · Form-I · Dastak`;
+    document.documentElement.classList.add("is-print-route");
+  }
 
   return `
     <div class="print-shell">
-      <div class="print-toolbar no-print">
-        <button class="btn btn-primary" type="button" data-action="print-a4">Print A4</button>
-        <a class="btn btn-outline" href="${d.previewPath}">Online preview</a>
-        <a class="btn btn-outline" href="/admin/dashboard?token=${encodeURIComponent(token)}">Admin</a>
+      ${renderPrintToolbar(token, d)}
+      <div class="print-stage">
+        <div class="print-page-frame">
+          ${renderA4CertificateArticle(token)}
+        </div>
       </div>
+      <div class="toast print-toast no-print" id="toast"></div>
+    </div>
+  `;
+}
 
-      ${renderA4CertificateArticle(token)}
+export function renderA4PrintMissing(ref = "") {
+  if (typeof document !== "undefined") {
+    document.title = "Print certificate · Dastak";
+    document.documentElement.classList.add("is-print-route");
+  }
+  const reference = String(ref ?? "").trim();
+
+  return `
+    <div class="print-shell print-shell-missing">
+      <header class="print-toolbar no-print">
+        <div class="print-toolbar-brand">
+          ${renderPrintLockup()}
+          <div class="print-toolbar-copy">
+            <p class="print-toolbar-kicker">Form-I · Certificate of Fitness</p>
+            <h1 class="print-toolbar-title">Print certificate</h1>
+          </div>
+        </div>
+        <div class="print-toolbar-actions">
+          <a class="print-btn print-btn-primary" href="/">Back to Home</a>
+        </div>
+      </header>
+      <div class="print-missing-card">
+        <p class="print-missing-kicker">Certificate status</p>
+        <h2>Not found</h2>
+        <p>This Form-I is not available for print. Ask the issuer to publish it, then open the print link again.</p>
+        ${reference ? `<p class="print-missing-ref">Reference: ${escapeHtml(reference)}</p>` : ""}
+        <a class="print-btn print-btn-primary" href="/">Back to Home</a>
+      </div>
     </div>
   `;
 }

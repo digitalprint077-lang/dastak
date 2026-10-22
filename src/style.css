@@ -4833,19 +4833,6 @@ html[data-theme="dark"] .admin-login-panel-title {
   background: var(--admin-accent-soft);
 }
 
-.admin-sticky-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-
-.admin-btn-pill-compact {
-  min-height: 36px;
-  padding: 6px 10px;
-  font-size: 13px;
-}
-
 .admin-editor-sync-line {
   font-size: 13px;
   color: var(--text-muted);
