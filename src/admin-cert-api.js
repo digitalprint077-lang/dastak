@@ -8,6 +8,8 @@ const DEFAULT_FILTERS = {
   district: "",
   status: "",
   expiring: "",
+  sort: "issue-desc",
+  quick: "",
 };
 
 export function readCertListFilters() {
@@ -43,6 +45,7 @@ export async function fetchAdminCertificateList({ page = 1, limit = 25, filters 
   if (filters.district?.trim()) params.set("district", filters.district.trim());
   if (filters.status?.trim()) params.set("status", filters.status.trim());
   if (filters.expiring?.trim()) params.set("expiring", filters.expiring.trim());
+  if (filters.sort?.trim()) params.set("sort", filters.sort.trim());
 
   const res = await fetch(`/api/certificates?${params}`, { cache: "no-store", credentials: "same-origin" });
   if (!res.ok) throw new Error("list_failed");

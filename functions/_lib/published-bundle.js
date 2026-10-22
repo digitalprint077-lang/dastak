@@ -152,6 +152,7 @@ function summarizeEntry(token, payload) {
     trackingId: String(values["Tracking ID"] ?? "").trim(),
     certificateNumber: String(values["Certificate Number"] ?? "").trim(),
     district: String(values["District"] ?? "").trim(),
+    service: String(values["Service"] ?? "").trim(),
     issueDate,
     expiryDate: expiry,
     daysLeft: daysUntilExpiry(expiry),
@@ -205,7 +206,21 @@ export function listCertificates(bundle, searchParams) {
     });
   }
 
-  items.sort(compareCertsNewestFirst);
+  const sort = String(searchParams.get("sort") || "issue-desc").trim();
+  if (sort === "name-asc") {
+    items.sort((a, b) =>
+      String(a.applicant ?? "").localeCompare(String(b.applicant ?? ""), undefined, { sensitivity: "base" })
+    );
+  } else if (sort === "expiry-asc") {
+    items.sort((a, b) => {
+      const da = a.daysLeft ?? 99999;
+      const db = b.daysLeft ?? 99999;
+      if (da !== db) return da - db;
+      return compareCertsNewestFirst(a, b);
+    });
+  } else {
+    items.sort(compareCertsNewestFirst);
+  }
   const total = items.length;
   const start = (page - 1) * limit;
   const pageItems = items.slice(start, start + limit);

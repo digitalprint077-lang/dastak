@@ -890,6 +890,20 @@ export function parseCertListSortTime(item) {
   return 0;
 }
 
+/** Admin save validation — shown with * on labels. */
+export const ADMIN_REQUIRED_FIELD_LABELS = [
+  "Applicant Name",
+  "Registration Number",
+  "Certificate Number",
+  "Tracking ID",
+  "Issue Date",
+];
+
+export function validateAdminRequiredFields(values) {
+  const missing = ADMIN_REQUIRED_FIELD_LABELS.filter((label) => !String(values[label] ?? "").trim());
+  return { ok: missing.length === 0, missing };
+}
+
 export function compareCertsNewestFirst(a, b) {
   const byDate = parseCertListSortTime(b) - parseCertListSortTime(a);
   if (byDate !== 0) return byDate;
