@@ -2600,18 +2600,24 @@ html[data-theme="dark"] .fitness-badge-danger {
 
 /* ===== Admin UI v2 ===== */
 .admin-shell.admin-ui-v2 {
-  --admin-rail-bg: linear-gradient(180deg, #0f172a 0%, #111827 100%);
-  --admin-rail-text: #e2e8f0;
-  --admin-rail-muted: #94a3b8;
+  --dastak-teal: #00c3d9;
+  --dastak-teal-dark: #009fb3;
+  --dastak-teal-deep: #008da3;
+  --dastak-charcoal: #3d3d3d;
+  --dastak-charcoal-deep: #2d3436;
+  --admin-rail-bg: linear-gradient(180deg, #2d3436 0%, #3d3d3d 42%, #2d3436 100%);
+  --admin-rail-text: #f0fdfa;
+  --admin-rail-muted: #a8b4b8;
   --admin-surface: #ffffff;
-  --admin-surface-muted: #f8fafc;
-  --admin-border: #e2e8f0;
-  --admin-accent: #0891b2;
-  --admin-accent-soft: color-mix(in srgb, #0891b2 14%, #fff);
+  --admin-surface-muted: #f4fbfb;
+  --admin-border: #d4ecef;
+  --admin-accent: var(--dastak-teal);
+  --admin-accent-soft: color-mix(in srgb, var(--dastak-teal) 14%, #fff);
+  --admin-page-bg: linear-gradient(165deg, #e8fbff 0%, #f6f8fa 42%, #eef2f6 100%);
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
   min-height: 100vh;
-  background: #eef2f6;
+  background: var(--admin-page-bg);
 }
 
 html[data-theme="dark"] .admin-shell.admin-ui-v2 {
@@ -2653,7 +2659,7 @@ html[data-theme="dark"] .admin-shell.admin-ui-v2 {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--admin-rail-muted);
+  color: color-mix(in srgb, var(--dastak-teal) 75%, #fff);
 }
 
 .admin-rail-title {
@@ -2689,9 +2695,9 @@ html[data-theme="dark"] .admin-shell.admin-ui-v2 {
 }
 
 .admin-rail-link.is-active {
-  background: linear-gradient(90deg, rgba(8, 145, 178, 0.35), rgba(8, 145, 178, 0.12));
+  background: linear-gradient(90deg, rgba(0, 195, 217, 0.38), rgba(0, 195, 217, 0.12));
   color: #fff;
-  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(0, 195, 217, 0.45);
 }
 
 .admin-rail-link-icon {
@@ -2776,7 +2782,7 @@ html[data-theme="dark"] .admin-shell.admin-ui-v2 {
   font-size: 13px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: #0891b2;
+  color: var(--dastak-teal-dark, #009fb3);
 }
 
 .admin-save-progress[data-mode="delete"] .admin-save-progress-pct {
@@ -3054,8 +3060,8 @@ html[data-theme="dark"] .admin-shell.admin-ui-v2 {
 }
 
 .admin-hero-chip-draft {
-  background: #e0e7ff;
-  color: #3730a3;
+  background: color-mix(in srgb, var(--dastak-teal) 16%, #fff);
+  color: #0e7490;
 }
 
 html[data-theme="dark"] .admin-hero-chip-live {
@@ -3069,8 +3075,8 @@ html[data-theme="dark"] .admin-hero-chip-local {
 }
 
 html[data-theme="dark"] .admin-hero-chip-draft {
-  background: rgba(99, 102, 241, 0.15);
-  color: #c7d2fe;
+  background: rgba(0, 195, 217, 0.15);
+  color: #67e8f9;
 }
 
 .admin-editor-tag {
@@ -3139,22 +3145,22 @@ html[data-theme="dark"] .admin-hero-chip-draft {
 }
 
 .admin-btn-pill-teal {
-  background: #0891b2;
-  border-color: #0891b2;
+  background: var(--dastak-teal, #00c3d9);
+  border-color: var(--dastak-teal-dark, #009fb3);
   color: #fff;
 }
 
 .admin-btn-pill-teal:hover {
-  background: #0e7490;
-  border-color: #0e7490;
+  background: var(--dastak-teal-dark, #009fb3);
+  border-color: var(--dastak-teal-deep, #008da3);
   color: #fff;
 }
 
 .admin-btn-pill-primary {
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  background: linear-gradient(135deg, #00c3d9, #009fb3);
   border: none;
   color: #fff;
-  box-shadow: 0 4px 14px rgba(8, 145, 178, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 195, 217, 0.38);
 }
 
 .admin-btn-pill-primary:hover {
@@ -3268,16 +3274,16 @@ html[data-theme="dark"] .admin-hero-chip-draft {
 .admin-ui-v2 .btn-primary,
 .admin-ui-v2 .admin-save-btn,
 .admin-ui-v2 .admin-context-cta {
-  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 55%, #0e7490 100%);
+  background: linear-gradient(135deg, #00c3d9 0%, #009fb3 55%, #008da3 100%);
   border: none;
   color: #fff;
-  box-shadow: 0 4px 14px rgba(8, 145, 178, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 195, 217, 0.38);
 }
 
 .admin-ui-v2 .btn-primary:hover:not(:disabled),
 .admin-ui-v2 .admin-save-btn:hover,
 .admin-ui-v2 .admin-context-cta:hover {
-  box-shadow: 0 8px 22px rgba(8, 145, 178, 0.42);
+  box-shadow: 0 8px 22px rgba(0, 195, 217, 0.45);
   filter: brightness(1.04);
 }
 
@@ -3336,16 +3342,39 @@ html[data-theme="dark"] .admin-hero-chip-draft {
   border: 1px solid var(--admin-border);
   border-radius: 16px;
   padding: 18px 18px 0;
-  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 14px 40px rgba(45, 52, 54, 0.07);
+}
+
+.admin-ui-v2 .admin-editor-page .admin-editor-hero {
+  border-top: 3px solid var(--dastak-teal);
+}
+
+.admin-ui-v2 .admin-shell .form-control:focus {
+  border-color: var(--dastak-teal);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dastak-teal) 22%, transparent);
 }
 
 .admin-ui-v2 .admin-form-panel {
-  background: var(--admin-surface-muted);
-  border-color: var(--admin-border);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(45, 52, 54, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-ui-v2 .admin-form-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--dastak-teal), color-mix(in srgb, var(--dastak-teal) 20%, transparent));
 }
 
 .admin-ui-v2 .admin-form-panel-accent {
-  background: linear-gradient(135deg, var(--admin-accent-soft), var(--admin-surface-muted));
+  background: linear-gradient(135deg, var(--admin-accent-soft), var(--admin-surface));
 }
 
 .admin-editor-footer {
@@ -4013,6 +4042,8 @@ html[data-theme="dark"] .admin-login-card-badge {
 
 .admin-ui-v2 .admin-context-bar {
   padding: 24px 32px 18px;
+  background: linear-gradient(180deg, var(--admin-surface) 0%, color-mix(in srgb, var(--admin-accent-soft) 40%, var(--admin-surface)) 100%);
+  border-bottom-color: var(--admin-border);
 }
 
 .admin-ui-v2 .admin-context-title {
@@ -4323,8 +4354,8 @@ html[data-theme="dark"] .admin-login-card-badge {
 }
 
 .admin-publish-dot-ok {
-  background: #10b981;
-  color: #10b981;
+  background: var(--dastak-teal);
+  color: var(--dastak-teal);
 }
 
 .admin-publish-dot-warn {
@@ -4360,9 +4391,9 @@ html[data-theme="dark"] .admin-login-card-badge {
 }
 
 .admin-filter-chip.is-active {
-  background: color-mix(in srgb, #00c3d9 14%, var(--surface));
-  border-color: color-mix(in srgb, #00c3d9 40%, var(--border));
-  color: var(--text);
+  background: color-mix(in srgb, var(--dastak-teal, #00c3d9) 16%, var(--surface));
+  border-color: color-mix(in srgb, var(--dastak-teal, #00c3d9) 45%, var(--border));
+  color: var(--dastak-charcoal-deep, #2d3436);
 }
 
 .admin-registry-collapse-btn {
@@ -4500,10 +4531,10 @@ html[data-theme="dark"] .admin-login-card-badge {
   gap: 10px;
   padding: 10px 12px;
   margin-bottom: 12px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--surface-elevated) 94%, transparent);
-  border: 1px solid var(--border);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--admin-surface) 94%, transparent);
+  border: 1px solid var(--admin-border);
+  box-shadow: 0 6px 20px rgba(45, 52, 54, 0.07);
   backdrop-filter: blur(8px);
 }
 
@@ -4554,7 +4585,7 @@ html[data-theme="dark"] .admin-login-card-badge {
   margin-top: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #0891b2;
+  color: var(--dastak-teal-dark, #009fb3);
   text-decoration: none;
 }
 
@@ -4685,16 +4716,59 @@ html[data-theme="dark"] .admin-login-card-badge {
   margin: 0 auto;
 }
 
-.admin-registry-page-lead {
-  margin: 0 0 14px;
+.admin-page-hero {
+  margin-bottom: 18px;
+  padding: 20px 22px;
+  border-radius: 16px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  box-shadow: 0 10px 32px rgba(45, 52, 54, 0.06);
+}
+
+.admin-page-hero-kicker,
+.admin-overview-kicker {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--dastak-teal-dark, #009fb3);
+}
+
+.admin-page-hero-title {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--dastak-charcoal-deep, #2d3436);
+}
+
+.admin-page-hero-lead {
+  margin: 0;
   font-size: 14px;
   color: var(--text-muted);
+  max-width: 56ch;
+  line-height: 1.5;
+}
+
+.admin-overview-hero {
+  padding: 4px 0 8px;
+}
+
+.admin-overview-title {
+  color: var(--dastak-charcoal-deep, #2d3436);
 }
 
 .admin-list-panel-full {
   max-height: none;
   position: static;
   width: 100%;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(45, 52, 54, 0.07);
+  border: 1px solid var(--admin-border);
+}
+
+.admin-list-panel-full .admin-list-panel-head {
+  background: linear-gradient(180deg, var(--admin-accent-soft), var(--admin-surface));
 }
 
 .admin-registry-page .cert-list {
@@ -4719,7 +4793,7 @@ html[data-theme="dark"] .admin-login-card-badge {
   margin-bottom: 14px;
   font-size: 14px;
   font-weight: 600;
-  color: #0891b2;
+  color: var(--dastak-teal-dark, #009fb3);
   text-decoration: none;
 }
 
@@ -4809,8 +4883,8 @@ html[data-theme="dark"] .admin-login-card-badge {
   height: 4px;
 }
 
-.admin-ov-card-blue::before {
-  background: linear-gradient(90deg, #3b82f6, #2563eb);
+.admin-ov-card-teal::before {
+  background: linear-gradient(90deg, #00c3d9, #009fb3);
 }
 
 .admin-ov-card-green::before {
@@ -5089,7 +5163,7 @@ html[data-theme="dark"] .admin-login-card-badge {
 .admin-ov-link-more {
   font-size: 13px;
   font-weight: 600;
-  color: #0891b2;
+  color: var(--dastak-teal-dark, #009fb3);
   text-decoration: none;
 }
 

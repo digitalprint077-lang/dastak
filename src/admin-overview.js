@@ -139,11 +139,11 @@ export function renderAdminOverviewPage(rows) {
 
   return `
     <div id="admin-overview-page" class="admin-overview-page">
-      <header class="admin-overview-hero">
+      <header class="admin-overview-hero admin-page-hero card">
         <div>
-          <p class="admin-overview-kicker">Vehicle fitness · Khyber Pakhtunkhwa</p>
-          <h2 class="admin-overview-title">Dashboard</h2>
-          <p class="admin-overview-lead">Registry health, publish status, and public activity at a glance.</p>
+          <p class="admin-page-hero-kicker">Vehicle fitness · Khyber Pakhtunkhwa</p>
+          <h2 class="admin-page-hero-title">Dashboard</h2>
+          <p class="admin-page-hero-lead">Registry health, publish status, and public activity at a glance.</p>
         </div>
         <div class="admin-overview-hero-actions">
           <a class="btn btn-primary" href="/admin/dashboard?view=registry">Open registry</a>
@@ -152,7 +152,7 @@ export function renderAdminOverviewPage(rows) {
       </header>
 
       <div class="admin-ov-summary-grid">
-        <article class="admin-ov-summary-card admin-ov-card-blue">
+        <article class="admin-ov-summary-card admin-ov-card-teal">
           <div class="admin-ov-summary-icon" aria-hidden="true">📋</div>
           <p class="admin-ov-summary-label">Total certificates</p>
           <p class="admin-ov-summary-value" id="admin-ov-total">${total}</p>

@@ -519,10 +519,6 @@ function adminRailNav(activeView) {
         <span class="admin-rail-link-icon">${iconChart()}</span>
         <span class="admin-rail-link-label">Analytics</span>
       </a>
-      <a class="admin-rail-link" href="/" target="_blank" rel="noreferrer">
-        <span class="admin-rail-link-icon">${iconGlobe()}</span>
-        <span class="admin-rail-link-label">Public site</span>
-      </a>
     </nav>
   `;
 }
@@ -1526,7 +1522,13 @@ function isAdminEditorOpen() {
 function renderRegistryPage() {
   return `
     <div class="admin-registry-page">
-      <p class="admin-registry-page-lead">Search and filter the full registry. Select a certificate to open the editor and save.</p>
+      <header class="admin-page-hero card">
+        <div>
+          <p class="admin-page-hero-kicker">Vehicle fitness registry</p>
+          <h2 class="admin-page-hero-title">All certificates</h2>
+          <p class="admin-page-hero-lead">Search, filter, and open a record to edit or save. Live and local drafts appear together when online.</p>
+        </div>
+      </header>
       ${renderCertSidebar("", { fullPage: true })}
     </div>
   `;
@@ -1625,8 +1627,8 @@ function renderCertEditor(token, data, isCreate) {
   return `
     <div class="admin-editor-page">
       <div class="admin-editor-pane">
-        <a class="admin-back-registry" href="/admin/dashboard" data-action="back-registry">${iconArrowLeft()} Back to all certificates</a>
-        <section class="admin-editor-hero">
+        <a class="admin-back-registry" href="/admin/dashboard?view=registry" data-action="back-registry">${iconArrowLeft()} Back to registry</a>
+        <section class="admin-editor-hero card admin-page-hero-card">
           <div class="admin-editor-hero-main">
             <p class="admin-editor-kicker">${isCreate ? "New record" : "Editing"}</p>
             <h2 class="admin-editor-title">${isCreate ? "New certificate" : escapeHtml(data.values["Applicant Name"] || "Certificate")}</h2>
@@ -2553,7 +2555,7 @@ async function handleDataActionClick(el, event) {
       showAdminProgress("delete", "Delete complete", 100);
       sessionStorage.removeItem("dastak:editor-token");
       window.setTimeout(hideSaveProgress, 500);
-      navigate(`/admin/dashboard`, { skipDirtyCheck: true });
+      navigate(`/admin/dashboard?view=registry`, { skipDirtyCheck: true });
       if (token === FOLLOW_TOKEN) {
         showToastWithUndo("Default link reset", async () => {
           await saveCertificate(token, snapshot);
