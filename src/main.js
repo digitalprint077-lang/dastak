@@ -501,25 +501,44 @@ function iconGlobe() {
   return iconSvg(`<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>`);
 }
 
+function adminRailLinkContent(icon, label) {
+  return `<span class="admin-rail-link-icon">${icon}</span><span class="admin-rail-link-label">${label}</span>`;
+}
+
 function adminRailNav(activeView) {
-  const overviewHref = "/admin/dashboard";
-  const registryHref = "/admin/dashboard?view=registry";
-  const analyticsHref = "/admin/dashboard?view=analytics";
+  const editorOpen = activeView === "certificates";
+  const workspaceOpen = activeView === "registry" || activeView === "analytics" || editorOpen;
+
+  const link = (href, label, icon, active, tone = "") =>
+    `<a class="admin-rail-link${active ? " is-active" : ""}${tone ? ` admin-rail-tone-${tone}` : ""}" href="${href}">${adminRailLinkContent(icon, label)}</a>`;
+
   return `
-    <nav class="admin-rail-nav" aria-label="Admin sections">
-      <a class="admin-rail-link${activeView === "overview" ? " is-active" : ""}" href="${overviewHref}">
-        <span class="admin-rail-link-icon">${iconActivity()}</span>
-        <span class="admin-rail-link-label">Dashboard</span>
-      </a>
-      <a class="admin-rail-link${activeView === "registry" ? " is-active" : ""}" href="${registryHref}">
-        <span class="admin-rail-link-icon">${iconSave()}</span>
-        <span class="admin-rail-link-label">Registry</span>
-      </a>
-      <a class="admin-rail-link${activeView === "analytics" ? " is-active" : ""}" href="${analyticsHref}">
-        <span class="admin-rail-link-icon">${iconChart()}</span>
-        <span class="admin-rail-link-label">Analytics</span>
-      </a>
-    </nav>
+    <div class="admin-rail-body">
+      <div class="admin-rail-primary">
+        ${link("/admin/dashboard", "Dashboard", iconActivity(), activeView === "overview", "teal")}
+        <button type="button" class="admin-rail-link admin-rail-link-btn admin-rail-tone-teal" data-action="admin-create-new">
+          ${adminRailLinkContent(iconPlus(), "New certificate")}
+        </button>
+      </div>
+
+      <p class="admin-rail-section-label">Workspace</p>
+      <details class="admin-rail-menu"${workspaceOpen ? " open" : ""}>
+        <summary class="admin-rail-menu-summary">
+          <span class="admin-rail-link-icon">${iconSave()}</span>
+          <span class="admin-rail-menu-title">Certificates</span>
+          <span class="admin-rail-chevron" aria-hidden="true"></span>
+        </summary>
+        <nav class="admin-rail-subnav" aria-label="Certificate workspace">
+          ${link("/admin/dashboard?view=registry", "Registry", iconSave(), activeView === "registry")}
+          ${link("/admin/dashboard?view=analytics", "Analytics & reports", iconChart(), activeView === "analytics")}
+          ${
+            editorOpen
+              ? `<span class="admin-rail-link admin-rail-sublink is-active admin-rail-link-static admin-rail-tone-teal">${adminRailLinkContent(iconPreview(), "Edit certificate")}</span>`
+              : ""
+          }
+        </nav>
+      </details>
+    </div>
   `;
 }
 
@@ -545,19 +564,20 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
             : "";
   return `
     <div class="app-shell admin-shell admin-ui-v2">
-      <aside class="admin-rail" aria-label="Admin navigation">
-        <div class="admin-rail-brand">
-          <img class="admin-rail-logo" src="/images/logo-dastak.png" alt="Dastak" height="40" />
-          <div class="admin-rail-brand-text">
-            <span class="admin-rail-kicker">Control panel</span>
-            <strong class="admin-rail-title">Dastak Admin</strong>
+      <aside class="admin-rail admin-rail-light" aria-label="Admin navigation">
+        <div class="admin-rail-brand-block">
+          <div class="admin-rail-brand">
+            <img class="admin-rail-logo" src="/images/logo-dastak.png" alt="" width="42" height="42" />
+            <strong class="admin-rail-wordmark">DASTAK</strong>
           </div>
+          <p class="admin-rail-tagline">Vehicle fitness admin</p>
         </div>
         ${adminRailNav(activeView)}
         <div class="admin-rail-foot">
+          <p class="admin-rail-section-label">Account</p>
           <div class="admin-rail-theme">${themeToggleButton()}</div>
-          <button class="admin-rail-logout" type="button" data-action="admin-logout">
-            ${iconLogout()} <span>Log out</span>
+          <button class="admin-rail-link admin-rail-link-btn admin-rail-logout" type="button" data-action="admin-logout">
+            ${adminRailLinkContent(iconLogout(), "Log out")}
           </button>
         </div>
       </aside>
