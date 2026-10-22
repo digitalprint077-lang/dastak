@@ -131,10 +131,14 @@ const ECITIZEN_HOME = "https://ecitizen.kp.gov.pk/";
 const FORM_SECTIONS = [
   {
     title: "Applicant",
+    desc: "Owner name and district for this record",
+    nav: "Applicant",
     fields: ["Applicant Name", "Father Name", "District"],
   },
   {
     title: "Vehicle",
+    desc: "Identity numbers, kind, and service type",
+    nav: "Vehicle",
     fields: [
       "Registration Number",
       "Chassis Number",
@@ -145,6 +149,8 @@ const FORM_SECTIONS = [
   },
   {
     title: "Certificate",
+    desc: "Numbers, dates, and application workflow",
+    nav: "Certificate",
     fields: [
       "Certificate Number",
       "Tracking ID",
@@ -155,6 +161,8 @@ const FORM_SECTIONS = [
   },
   {
     title: "A4 print certificate",
+    desc: "Fields that appear on the printed Form-I",
+    nav: "A4 print",
     fields: [
       "Certificate Type",
       "Renewal From",
@@ -564,8 +572,9 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
       <aside class="admin-rail admin-rail-light" aria-label="Admin navigation">
         <div class="admin-rail-brand-block">
           <div class="admin-rail-brand">
-            <img class="admin-rail-logo" src="/images/logo-dastak.png" alt="" width="42" height="42" />
+            <img class="admin-rail-logo" src="/images/logo-dastak.png" alt="Dastak" />
             <strong class="admin-rail-wordmark">DASTAK</strong>
+            <span class="admin-rail-brand-dot" aria-hidden="true"></span>
           </div>
           <p class="admin-rail-tagline">Vehicle fitness admin</p>
         </div>
@@ -583,11 +592,6 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
           <div class="admin-context-text">
             <h1 class="admin-context-title">${pageTitle}</h1>
             <p class="admin-context-lead">${pageLead}</p>
-            ${
-              activeView === "registry"
-                ? `<div id="admin-context-kpis" class="admin-context-kpis" hidden aria-live="polite"></div>`
-                : ""
-            }
           </div>
           <div class="admin-context-aside">
             ${
@@ -1048,30 +1052,40 @@ function adminLoginPage() {
   return `
     <div class="admin-login-page">
       <aside class="admin-login-brand">
-        <div class="admin-login-brand-grid" aria-hidden="true"></div>
         <div class="admin-login-brand-inner">
-          <div class="admin-login-brand-logo-wrap">
-            <img class="admin-login-brand-logo" src="/images/logo-dastak.png" alt="Dastak" width="52" height="52" />
+          <div class="admin-login-lockup">
+            <img class="admin-login-lockup-logo" src="/images/logo-dastak.png" alt="" />
+            <strong class="admin-login-lockup-wordmark">DASTAK</strong>
+            <span class="admin-login-lockup-dot" aria-hidden="true"></span>
           </div>
           <p class="admin-login-brand-kicker">Government of Khyber Pakhtunkhwa</p>
-          <h1 class="admin-login-brand-title">Dastak admin</h1>
+          <h1 class="admin-login-brand-title">Vehicle fitness admin</h1>
           <p class="admin-login-brand-lead">
-            Secure workspace for vehicle fitness certificates — registry, instant publish, Form-I print, and QR verification.
+            Registry, Form-I print, QR verification, and live publish for authorized staff.
           </p>
-          <div class="admin-login-feature-grid">
-            <div class="admin-login-feature">
+          <ul class="admin-login-features">
+            <li>
               <span class="admin-login-feature-icon">${iconSave()}</span>
-              <span class="admin-login-feature-text">Registry &amp; search</span>
-            </div>
-            <div class="admin-login-feature">
+              <span>
+                <strong>Registry</strong>
+                <em>Search, filter, and open certificates</em>
+              </span>
+            </li>
+            <li>
               <span class="admin-login-feature-icon">${iconPrint()}</span>
-              <span class="admin-login-feature-text">A4 &amp; PDF</span>
-            </div>
-            <div class="admin-login-feature">
+              <span>
+                <strong>A4 &amp; PDF</strong>
+                <em>Print Form-I and download files</em>
+              </span>
+            </li>
+            <li>
               <span class="admin-login-feature-icon">${iconChart()}</span>
-              <span class="admin-login-feature-text">Analytics</span>
-            </div>
-          </div>
+              <span>
+                <strong>Analytics</strong>
+                <em>Views, prints, and expiry risk</em>
+              </span>
+            </li>
+          </ul>
         </div>
         <p class="admin-login-brand-copy">${iconLock()} Authorized personnel only</p>
       </aside>
@@ -1082,10 +1096,14 @@ function adminLoginPage() {
         </div>
         <div class="admin-login-panel-body">
           <div class="admin-login-card">
-            <div class="admin-login-card-badge">Staff sign-in</div>
+            <div class="admin-login-card-lockup" aria-hidden="true">
+              <img src="/images/logo-dastak.png" alt="" />
+              <strong>DASTAK</strong>
+            </div>
             <header class="admin-login-panel-head">
+              <p class="admin-login-card-badge">Staff sign-in</p>
               <h2 class="admin-login-panel-title">Welcome back</h2>
-              <p class="admin-login-panel-sub">Enter your admin password to open the certificate dashboard.</p>
+              <p class="admin-login-panel-sub">Enter your admin password to open the dashboard.</p>
             </header>
             <form id="admin-login-form" class="admin-login-form" autocomplete="off">
               <label class="form-field" for="admin-password">
@@ -1248,6 +1266,7 @@ function renderCertListItemHtml(item, activeToken) {
   const issueLabel = formatCertListDate(item.issueDate);
   const service = String(item.service ?? "").trim();
   const district = String(item.district ?? "").trim();
+  const registration = item.registrationNumber || "No registration";
   return `
     <div class="cert-list-item-row">
       <a
@@ -1263,15 +1282,15 @@ function renderCertListItemHtml(item, activeToken) {
               ${localBadge}
             </span>
           </span>
-          <span class="cert-list-reg">${escapeHtml(item.registrationNumber || "No registration")}</span>
+          <span class="cert-list-reg">${escapeHtml(registration)}</span>
           <span class="cert-list-meta">
-            ${issueLabel ? `<span class="cert-list-date">${escapeHtml(issueLabel)}</span>` : ""}
-            ${service ? `<span class="cert-list-service">${escapeHtml(service)}</span>` : ""}
             ${district ? `<span class="cert-list-district">${escapeHtml(district)}</span>` : ""}
-            <span>${escapeHtml(item.certificateNumber || "—")}</span>
+            ${service ? `<span class="cert-list-service">${escapeHtml(service)}</span>` : ""}
+            ${issueLabel ? `<span class="cert-list-date">Issued ${escapeHtml(issueLabel)}</span>` : ""}
             <span class="cert-list-id">${escapeHtml(item.trackingId || item.token)}</span>
           </span>
         </span>
+        <span class="cert-list-open">${iconArrowRight()} Open</span>
       </a>
       <button
         type="button"
@@ -1290,6 +1309,33 @@ function certQuickFilterChip(id, label, activeQuick) {
   return `<button type="button" class="admin-filter-chip${active}" data-action="cert-quick-filter" data-quick="${id}">${label}</button>`;
 }
 
+function renderRegistryTools() {
+  return `
+    <div class="admin-registry-tools-body">
+      <button class="admin-list-tool" type="button" data-action="export-json">Export JSON</button>
+      <button class="admin-list-tool" type="button" data-action="export-csv">Export CSV</button>
+      <label class="admin-list-tool import-label">
+        Import JSON
+        <input type="file" accept="application/json,.json" data-import="json" hidden />
+      </label>
+      <label class="admin-list-tool import-label">
+        Import CSV
+        <input type="file" accept=".csv,text/csv" data-import="csv" hidden />
+      </label>
+    </div>
+  `;
+}
+
+function renderCertListMessage({ title, body, action = "" }) {
+  return `
+    <div class="admin-registry-empty">
+      <p class="admin-registry-empty-title">${escapeHtml(title)}</p>
+      <p class="admin-registry-empty-body">${escapeHtml(body)}</p>
+      ${action}
+    </div>
+  `;
+}
+
 function renderCertSidebar(activeToken, { fullPage = false } = {}) {
   const filters = readCertListFilters();
   const collapsed = !fullPage && readRegistryCollapsed();
@@ -1300,12 +1346,15 @@ function renderCertSidebar(activeToken, { fullPage = false } = {}) {
     <aside class="admin-list-panel${panelClass}" id="admin-registry-panel">
       <div class="admin-list-panel-head">
         <div>
-          <h2 class="admin-list-panel-title">${fullPage ? "All certificates" : "Registry"}</h2>
+          <h2 class="admin-list-panel-title">${fullPage ? "Certificates" : "Registry"}</h2>
           <p class="admin-list-panel-count" id="cert-list-count">Loading…</p>
         </div>
         ${
           fullPage
-            ? ""
+            ? `<div class="admin-registry-head-aside">
+                <div id="admin-context-kpis" class="admin-context-kpis" hidden aria-live="polite"></div>
+                ${renderRegistryTools()}
+              </div>`
             : `<button
           type="button"
           class="admin-registry-collapse-btn"
@@ -1317,56 +1366,52 @@ function renderCertSidebar(activeToken, { fullPage = false } = {}) {
         }
       </div>
       <div class="admin-registry-panel-body" id="admin-registry-panel-body"${collapsed ? " hidden" : ""}>
-        <div class="admin-list-search">
-          <span class="admin-list-search-icon">${iconSearch()}</span>
-          <input
-            id="cert-list-search"
-            class="form-control admin-list-search-input"
-            type="search"
-            placeholder="Search name, reg, tracking…"
-            autocomplete="off"
-            value="${escapeHtml(filters.q)}"
-          />
-        </div>
-        <div class="admin-list-quick-filters" role="group" aria-label="Quick filters">
-          ${certQuickFilterChip("live", "Live", filters.quick)}
-          ${certQuickFilterChip("local", "Local", filters.quick)}
-          ${certQuickFilterChip("pending", "Pending", filters.quick)}
-          ${certQuickFilterChip("expiring", "Expiring ≤30d", filters.quick)}
-        </div>
-        <div class="admin-list-filters">
-          <select id="cert-list-district" class="form-control form-control-sm" aria-label="District filter">
-            ${districtFilterOptionsHtml(filters.district)}
-          </select>
-          <select id="cert-list-status" class="form-control form-control-sm" aria-label="Status filter">
-            ${statusFilterOptionsHtml(filters.status)}
-          </select>
-          <select id="cert-list-expiring" class="form-control form-control-sm" aria-label="Expiry filter">
-            <option value=""${filters.expiring === "" ? " selected" : ""}>Any expiry</option>
-            <option value="30"${filters.expiring === "30" ? " selected" : ""}>Expiring ≤ 30 days</option>
-          </select>
-          <select id="cert-list-sort" class="form-control form-control-sm" aria-label="Sort order">
-            <option value="issue-desc"${sort === "issue-desc" ? " selected" : ""}>Newest issue date</option>
-            <option value="expiry-asc"${sort === "expiry-asc" ? " selected" : ""}>Expiry soonest</option>
-            <option value="name-asc"${sort === "name-asc" ? " selected" : ""}>Name A–Z</option>
-          </select>
-        </div>
-        <details class="admin-registry-tools">
-          <summary class="admin-registry-tools-summary">Registry tools</summary>
-          <div class="admin-registry-tools-body">
-            <button class="admin-list-tool" type="button" data-action="export-json">Export JSON</button>
-            <button class="admin-list-tool" type="button" data-action="export-csv">Export CSV</button>
-            <label class="admin-list-tool import-label">
-              Import JSON
-              <input type="file" accept="application/json,.json" data-import="json" hidden />
-            </label>
-            <label class="admin-list-tool import-label">
-              Import CSV
-              <input type="file" accept=".csv,text/csv" data-import="csv" hidden />
-            </label>
+        <div class="admin-registry-toolbar">
+          <div class="admin-list-search">
+            <span class="admin-list-search-icon">${iconSearch()}</span>
+            <input
+              id="cert-list-search"
+              class="form-control admin-list-search-input"
+              type="search"
+              placeholder="Search name, registration, or tracking ID…"
+              autocomplete="off"
+              value="${escapeHtml(filters.q)}"
+            />
           </div>
-        </details>
-        <div class="cert-list" id="cert-list">${renderCertListSkeleton()}</div>
+          <div class="admin-list-quick-filters" role="group" aria-label="Quick filters">
+            ${certQuickFilterChip("", "All", filters.quick || "")}
+            ${certQuickFilterChip("live", "Live", filters.quick || "")}
+            ${certQuickFilterChip("local", "Local", filters.quick || "")}
+            ${certQuickFilterChip("pending", "Pending", filters.quick || "")}
+            ${certQuickFilterChip("expiring", "Expiring ≤30d", filters.quick || "")}
+          </div>
+          <div class="admin-list-filters">
+            <select id="cert-list-district" class="form-control form-control-sm" aria-label="District filter">
+              ${districtFilterOptionsHtml(filters.district)}
+            </select>
+            <select id="cert-list-status" class="form-control form-control-sm" aria-label="Status filter">
+              ${statusFilterOptionsHtml(filters.status)}
+            </select>
+            <select id="cert-list-expiring" class="form-control form-control-sm" aria-label="Expiry filter">
+              <option value=""${filters.expiring === "" ? " selected" : ""}>Any expiry</option>
+              <option value="30"${filters.expiring === "30" ? " selected" : ""}>Expiring ≤ 30 days</option>
+            </select>
+            <select id="cert-list-sort" class="form-control form-control-sm" aria-label="Sort order">
+              <option value="issue-desc"${sort === "issue-desc" ? " selected" : ""}>Newest issue date</option>
+              <option value="expiry-asc"${sort === "expiry-asc" ? " selected" : ""}>Expiry soonest</option>
+              <option value="name-asc"${sort === "name-asc" ? " selected" : ""}>Name A–Z</option>
+            </select>
+          </div>
+        </div>
+        ${
+          fullPage
+            ? ""
+            : `<details class="admin-registry-tools">
+          <summary class="admin-registry-tools-summary">Registry tools</summary>
+          ${renderRegistryTools()}
+        </details>`
+        }
+        <div class="cert-list" id="cert-list">${renderCertListSkeleton(fullPage ? 8 : 6)}</div>
         <div class="cert-list-pager" id="cert-list-pager" hidden></div>
       </div>
     </aside>
@@ -1408,8 +1453,11 @@ async function populateAdminCertList(activeToken) {
       : [];
 
   if (!data && !localRows.length) {
-    listEl.innerHTML = `<p class="muted">Could not load certificate list. Use dev with Worker APIs or open a certificate by link ID.</p>`;
-    if (countEl) countEl.textContent = "—";
+    listEl.innerHTML = renderCertListMessage({
+      title: "Registry is offline",
+      body: "Could not load the live list. Start the Worker APIs, or open a certificate by link ID.",
+    });
+    if (countEl) countEl.textContent = "Unavailable";
     if (pagerEl) pagerEl.hidden = true;
     return;
   }
@@ -1421,15 +1469,23 @@ async function populateAdminCertList(activeToken) {
   mergedItems = sortCertListItems(mergedItems, filters.sort || "issue-desc");
   const itemsHtml = mergedItems.map((item) => renderCertListItemHtml(item, activeToken)).join("");
 
-  listEl.innerHTML = itemsHtml || `<p class="muted">No certificates match these filters.</p>`;
+  listEl.innerHTML =
+    itemsHtml ||
+    renderCertListMessage({
+      title: "No certificates match",
+      body: "Try another search, or clear filters to see the full registry.",
+      action: `<button class="btn btn-ghost" type="button" data-action="cert-clear-filters">Clear filters</button>`,
+    });
 
   if (countEl) {
     const total = (data?.total ?? 0) + (page === 1 ? localRows.length : 0);
     const totalPages = data?.totalPages ?? 1;
     countEl.textContent =
       data != null
-        ? `${total} matching · page ${page} of ${totalPages}`
-        : `${localRows.length} on this device only`;
+        ? totalPages > 1
+          ? `${total} certificates · page ${page} of ${totalPages}`
+          : `${total} certificate${total === 1 ? "" : "s"}`
+        : `${localRows.length} on this device`;
   }
 
   if (pagerEl && data && data.totalPages > 1) {
@@ -1523,10 +1579,10 @@ async function refreshAdminContextKpis() {
   local = localOnlyCertRows({ q: "", district: "", status: "", expiring: "", sort: "issue-desc", quick: "" }).length;
   el.hidden = false;
   el.innerHTML = `
-    <span class="admin-kpi-chip"><strong>${live}</strong> live</span>
-    <span class="admin-kpi-chip admin-kpi-warn"><strong>${expiring}</strong> expiring ≤30d</span>
+    <span class="admin-kpi-chip admin-kpi-live"><strong>${live}</strong> live</span>
+    <span class="admin-kpi-chip admin-kpi-warn"><strong>${expiring}</strong> expiring</span>
     <span class="admin-kpi-chip"><strong>${pending}</strong> pending</span>
-    <span class="admin-kpi-chip"><strong>${local}</strong> local only</span>
+    <span class="admin-kpi-chip"><strong>${local}</strong> local</span>
   `;
 }
 
@@ -1557,8 +1613,21 @@ function isA4PrintSectionCollapsed(values) {
   return keys.every((k) => String(values[k] ?? "").trim() === String(tmpl[k] ?? "").trim());
 }
 
+function renderFormSectionHead(step, title, desc, extra = "") {
+  return `
+    <div class="admin-form-panel-head">
+      <span class="admin-form-step">${step}</span>
+      <div class="admin-form-panel-head-text">
+        <h3 class="admin-form-panel-title">${escapeHtml(title)}</h3>
+        ${desc ? `<p class="admin-form-panel-desc">${escapeHtml(desc)}</p>` : ""}
+      </div>
+      ${extra}
+    </div>
+  `;
+}
+
 function renderFormSections(data) {
-  return FORM_SECTIONS.map((section) => {
+  return FORM_SECTIONS.map((section, index) => {
     const slug = formSectionSlug(section.title);
     const isA4 = section.title === "A4 print certificate";
     const collapsed = isA4 && isA4PrintSectionCollapsed(data.values);
@@ -1567,23 +1636,35 @@ function renderFormSections(data) {
     const toggleBtn = isA4
       ? `<button type="button" class="admin-form-panel-toggle" data-action="toggle-a4-panel" aria-expanded="${collapsed ? "false" : "true"}">${collapsed ? "Show" : "Hide"}</button>`
       : "";
+    const fields = section.fields
+      .map((label) => {
+        const html = fieldInput(label, data.values[label] ?? "");
+        return label === "Amount In Words" ? html.replace('class="form-field"', 'class="form-field form-field-span"') : html;
+      })
+      .join("");
     return `
       <section class="admin-form-panel${panelClass}" id="admin-section-${slug}" data-form-section="${slug}">
-        <div class="admin-form-panel-head">
-          <h3 class="admin-form-panel-title">${section.title}</h3>
-          ${toggleBtn}
-        </div>
-        <div class="form-grid admin-form-panel-body"${bodyHidden}>${section.fields.map((label) => fieldInput(label, data.values[label] ?? "")).join("")}</div>
+        ${renderFormSectionHead(index + 2, section.title, section.desc, toggleBtn)}
+        <div class="form-grid admin-form-panel-body"${bodyHidden}>${fields}</div>
       </section>
     `;
   }).join("");
 }
 
 function renderEditorSectionNav() {
-  const links = FORM_SECTIONS.map((section) => {
-    const slug = formSectionSlug(section.title);
-    return `<button type="button" class="admin-section-nav-link" data-action="scroll-form-section" data-section="${slug}">${escapeHtml(section.title)}</button>`;
-  }).join("");
+  const items = [
+    { title: "Link", slug: "link-status" },
+    ...FORM_SECTIONS.map((section) => ({
+      title: section.nav || section.title,
+      slug: formSectionSlug(section.title),
+    })),
+  ];
+  const links = items
+    .map(
+      (item) =>
+        `<button type="button" class="admin-section-nav-link" data-action="scroll-form-section" data-section="${item.slug}">${escapeHtml(item.title)}</button>`
+    )
+    .join("");
   return `<nav class="admin-section-nav" aria-label="Form sections">${links}</nav>`;
 }
 
@@ -1638,7 +1719,7 @@ function renderCertEditor(token, data, isCreate) {
     <div class="admin-editor-page">
       <div class="admin-editor-pane">
         <a class="admin-back-registry" href="/admin/dashboard?view=registry" data-action="back-registry">${iconArrowLeft()} Back to registry</a>
-        <section class="admin-editor-hero card admin-page-hero-card">
+        <section class="admin-editor-hero">
           <div class="admin-editor-hero-main">
             <p class="admin-editor-kicker">${isCreate ? "New record" : "Editing"}</p>
             <h2 class="admin-editor-title">${isCreate ? "New certificate" : escapeHtml(data.values["Applicant Name"] || "Certificate")}</h2>
@@ -1673,10 +1754,7 @@ function renderCertEditor(token, data, isCreate) {
         <form id="cert-editor" class="admin-editor-card" autocomplete="off">
           <div id="admin-duplicate-reg-alert" class="admin-inline-alert" hidden role="alert"></div>
           <section class="admin-form-panel admin-form-panel-accent" id="admin-section-link-status" data-form-section="link-status">
-            <div class="admin-form-panel-head">
-              <h3 class="admin-form-panel-title">Link &amp; status</h3>
-              <p class="admin-form-panel-desc">Share via <strong>Copy link</strong> after save.</p>
-            </div>
+            ${renderFormSectionHead(1, "Link & status", "Public URL slug and certificate status")}
             <div class="form-row form-row-token">
               <label class="form-field" for="link-token">
                 <span class="form-label">Link ID (URL slug)</span>
@@ -2619,8 +2697,31 @@ async function handleDataActionClick(el, event) {
   if (action === "cert-quick-filter") {
     const quick = el.getAttribute("data-quick") || "";
     const prev = readCertListFilters();
-    writeCertListFilters({ ...prev, quick: prev.quick === quick ? "" : quick });
+    writeCertListFilters({ ...prev, quick: !quick || prev.quick === quick ? "" : quick });
     writeCertListPage(1);
+    void populateAdminCertList(getEditorToken());
+    document.querySelectorAll(".admin-filter-chip").forEach((chip) => {
+      const value = chip.getAttribute("data-quick") || "";
+      const current = readCertListFilters().quick || "";
+      chip.classList.toggle("is-active", value === current);
+    });
+  }
+  if (action === "cert-clear-filters") {
+    writeCertListFilters({ q: "", district: "", status: "", expiring: "", sort: "issue-desc", quick: "" });
+    writeCertListPage(1);
+    const search = document.getElementById("cert-list-search");
+    if (search) search.value = "";
+    const district = document.getElementById("cert-list-district");
+    if (district) district.value = "";
+    const status = document.getElementById("cert-list-status");
+    if (status) status.value = "";
+    const expiring = document.getElementById("cert-list-expiring");
+    if (expiring) expiring.value = "";
+    const sortEl = document.getElementById("cert-list-sort");
+    if (sortEl) sortEl.value = "issue-desc";
+    document.querySelectorAll(".admin-filter-chip").forEach((chip) => {
+      chip.classList.toggle("is-active", (chip.getAttribute("data-quick") || "") === "");
+    });
     void populateAdminCertList(getEditorToken());
   }
   if (action === "scroll-form-section") {
