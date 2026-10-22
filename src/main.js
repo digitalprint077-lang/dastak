@@ -76,6 +76,11 @@ import {
   serializeFormSnapshot,
   isFormSnapshotDirty,
 } from "./admin-dashboard-ui.js";
+import {
+  buildLocalOverviewRows,
+  renderAdminOverviewPage,
+  fetchOverviewRowsMerged,
+} from "./admin-overview.js";
 import { amountToWords } from "./amount-words.js";
 import { renderA4PrintPage } from "./print-a4.js";
 import { qrDataUrlWithLogo } from "./qr-with-logo.js";
@@ -487,7 +492,9 @@ function layout(mainHtml, options = {}) {
 
 function getAdminView() {
   const view = new URLSearchParams(window.location.search).get("view")?.trim();
-  return view === "analytics" ? "analytics" : "certificates";
+  if (view === "analytics") return "analytics";
+  if (view === "registry") return "registry";
+  return "overview";
 }
 
 function iconGlobe() {
@@ -495,13 +502,18 @@ function iconGlobe() {
 }
 
 function adminRailNav(activeView) {
-  const certHref = "/admin/dashboard";
+  const overviewHref = "/admin/dashboard";
+  const registryHref = "/admin/dashboard?view=registry";
   const analyticsHref = "/admin/dashboard?view=analytics";
   return `
     <nav class="admin-rail-nav" aria-label="Admin sections">
-      <a class="admin-rail-link${activeView === "certificates" ? " is-active" : ""}" href="${certHref}">
+      <a class="admin-rail-link${activeView === "overview" ? " is-active" : ""}" href="${overviewHref}">
+        <span class="admin-rail-link-icon">${iconActivity()}</span>
+        <span class="admin-rail-link-label">Dashboard</span>
+      </a>
+      <a class="admin-rail-link${activeView === "registry" ? " is-active" : ""}" href="${registryHref}">
         <span class="admin-rail-link-icon">${iconSave()}</span>
-        <span class="admin-rail-link-label">Certificates</span>
+        <span class="admin-rail-link-label">Registry</span>
       </a>
       <a class="admin-rail-link${activeView === "analytics" ? " is-active" : ""}" href="${analyticsHref}">
         <span class="admin-rail-link-icon">${iconChart()}</span>
@@ -515,16 +527,26 @@ function adminRailNav(activeView) {
   `;
 }
 
-function adminDashboardShell(mainHtml, activeView = "certificates") {
+function adminDashboardShell(mainHtml, activeView = "overview") {
   const pageTitle =
-    activeView === "analytics" ? "Analytics & tracking" : "Certificate workspace";
+    activeView === "analytics"
+      ? "Analytics & tracking"
+      : activeView === "registry"
+        ? "Certificate registry"
+        : activeView === "certificates"
+          ? "Edit certificate"
+          : "Admin dashboard";
   const editorOpen = activeView === "certificates" && isAdminEditorOpen();
   const pageLead =
     activeView === "analytics"
       ? "Expiry risk, district breakdown, and verify activity on this device."
-      : editorOpen
-        ? "Edit fields and save — registry is on a separate screen."
-        : "Full certificate registry — open a row to edit and save.";
+      : activeView === "registry"
+        ? "Full certificate registry — open a row to edit and save."
+        : editorOpen
+          ? "Edit fields and save — registry is on a separate screen."
+          : activeView === "overview"
+            ? "Overview of registry health, fitness expiry, and recent public activity."
+            : "";
   return `
     <div class="app-shell admin-shell admin-ui-v2">
       <aside class="admin-rail" aria-label="Admin navigation">
@@ -549,19 +571,19 @@ function adminDashboardShell(mainHtml, activeView = "certificates") {
             <h1 class="admin-context-title">${pageTitle}</h1>
             <p class="admin-context-lead">${pageLead}</p>
             ${
-              activeView === "certificates"
+              activeView === "registry"
                 ? `<div id="admin-context-kpis" class="admin-context-kpis" hidden aria-live="polite"></div>`
                 : ""
             }
           </div>
           <div class="admin-context-aside">
             ${
-              activeView === "certificates"
+              activeView === "overview" || activeView === "registry" || activeView === "certificates"
                 ? `<span id="admin-publish-health-dot" class="admin-publish-dot admin-publish-dot-pending" title="Checking publish status…" aria-label="Publish status"></span>`
                 : ""
             }
             ${
-              activeView === "certificates"
+              activeView === "overview" || activeView === "registry" || activeView === "certificates"
                 ? `<button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-new">${iconPlus()} New certificate</button>`
                 : ""
             }
@@ -1985,6 +2007,18 @@ function renderAnalyticsDashboard() {
   `;
 }
 
+function bindAdminOverviewLinks() {
+  document.querySelectorAll(".admin-overview-page a[href^='/admin']").forEach((link) => {
+    if (link.dataset.ovBound === "1") return;
+    link.dataset.ovBound = "1";
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      const href = link.getAttribute("href");
+      if (href) navigate(href);
+    });
+  });
+}
+
 function bindAnalyticsTableInteractions() {
   const trackBody = document.getElementById("analytics-track-body");
   if (!trackBody) return;
@@ -2025,13 +2059,16 @@ function adminDashboardPage() {
   if (view === "analytics") {
     return adminDashboardShell(renderAnalyticsDashboard(), "analytics");
   }
-  if (!isAdminEditorOpen()) {
-    return adminDashboardShell(renderRegistryPage(), "certificates");
+  if (isAdminEditorOpen()) {
+    const isCreate = isCreateMode();
+    const token = isCreate ? generateLinkId() : getEditorToken();
+    const data = isCreate ? readRenewDraft() || newCertificateTemplate() : getCertificateForEdit(token);
+    return adminDashboardShell(renderCertEditor(token, data, isCreate), "certificates");
   }
-  const isCreate = isCreateMode();
-  const token = isCreate ? generateLinkId() : getEditorToken();
-  const data = isCreate ? readRenewDraft() || newCertificateTemplate() : getCertificateForEdit(token);
-  return adminDashboardShell(renderCertEditor(token, data, isCreate), "certificates");
+  if (view === "registry") {
+    return adminDashboardShell(renderRegistryPage(), "registry");
+  }
+  return adminDashboardShell(renderAdminOverviewPage(buildLocalOverviewRows()), "overview");
 }
 
 function safePathSlug(segment) {
@@ -2767,6 +2804,16 @@ function bindActions() {
 
   if (document.getElementById("admin-context-kpis")) {
     void refreshAdminContextKpis();
+  }
+
+  bindAdminOverviewLinks();
+  if (document.getElementById("admin-overview-page")) {
+    void (async () => {
+      const { rows } = await fetchOverviewRowsMerged();
+      const page = document.getElementById("admin-overview-page");
+      if (page) page.outerHTML = renderAdminOverviewPage(rows);
+      bindAdminOverviewLinks();
+    })();
   }
 
   if (document.getElementById("analytics-page")) {
