@@ -228,6 +228,12 @@ function iconPreview() {
   return iconSvg(`<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>`);
 }
 
+function iconEyeOff() {
+  return iconSvg(
+    `<path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.1A10.9 10.9 0 0 1 12 5c6 0 10 7 10 7a18.5 18.5 0 0 1-4.2 4.6"/><path d="M6.1 6.1C3.3 8.2 2 12 2 12s4 7 10 7a9.7 9.7 0 0 0 4.4-1"/>`
+  );
+}
+
 function iconCopy() {
   return iconSvg(`<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>`);
 }
@@ -1048,68 +1054,60 @@ function handleVerifyLicense(form) {
   navigate(followPath(token));
 }
 
+function loginArtSvg() {
+  return `
+    <svg class="admin-login-art-svg" viewBox="0 0 640 560" fill="none" aria-hidden="true">
+      <ellipse cx="320" cy="486" rx="196" ry="24" fill="#d5e6ec"/>
+      <path d="M86 176c52-92 178-132 286-94 88 32 188 22 230 92 46 76 12 174-78 218-88 42-228 64-330 18-90-42-156-138-108-234Z" fill="#e8f8fb"/>
+      <rect x="214" y="72" width="236" height="304" rx="16" fill="#fff" stroke="#d4e4ea"/>
+      <rect x="238" y="98" width="188" height="16" rx="8" fill="#00c3d9"/>
+      <rect x="238" y="130" width="132" height="8" rx="4" fill="#d5e4ea"/>
+      <rect x="238" y="148" width="168" height="8" rx="4" fill="#e4eef2"/>
+      <rect x="238" y="166" width="110" height="8" rx="4" fill="#e4eef2"/>
+      <rect x="238" y="202" width="72" height="7" rx="3" fill="#c5dce3"/>
+      <rect x="324" y="202" width="102" height="7" rx="3" fill="#eef6f8"/>
+      <rect x="238" y="220" width="72" height="7" rx="3" fill="#c5dce3"/>
+      <rect x="324" y="220" width="102" height="7" rx="3" fill="#eef6f8"/>
+      <rect x="238" y="238" width="72" height="7" rx="3" fill="#c5dce3"/>
+      <rect x="324" y="238" width="102" height="7" rx="3" fill="#eef6f8"/>
+      <rect x="348" y="268" width="70" height="70" rx="8" fill="#f4fbfb" stroke="#b7eaf1"/>
+      <path d="M364 284h8v8h-8zm14 0h8v8h-8zm14 0h8v8h-8zm-28 14h8v8h-8zm28 0h8v8h-8zm-28 14h8v8h-8zm14 0h8v8h-8zm14 0h8v8h-8z" fill="#2d3436"/>
+      <circle cx="278" cy="302" r="20" fill="#e8fbff" stroke="#00c3d9" stroke-width="3"/>
+      <path d="M270 302l6 6 12-12" stroke="#009fb3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M96 360h36l22-30h58l20 30h28v22H96z" fill="#00c3d9"/>
+      <path d="M140 356l16-22h46l14 22z" fill="#e8fbff"/>
+      <rect x="96" y="360" width="170" height="22" rx="6" fill="#00b3c7"/>
+      <circle cx="132" cy="386" r="15" fill="#2d3436"/>
+      <circle cx="132" cy="386" r="6" fill="#d9e4ea"/>
+      <circle cx="226" cy="386" r="15" fill="#2d3436"/>
+      <circle cx="226" cy="386" r="6" fill="#d9e4ea"/>
+      <circle cx="486" cy="368" r="48" fill="#fff" stroke="#d4ecef"/>
+      <circle cx="486" cy="368" r="32" fill="none" stroke="#00c3d9" stroke-width="8"/>
+      <circle cx="486" cy="368" r="5" fill="#00c3d9"/>
+    </svg>
+  `;
+}
+
 function adminLoginPage() {
   return `
     <div class="admin-login-page">
-      <aside class="admin-login-brand">
-        <div class="admin-login-brand-inner">
-          <div class="admin-login-lockup">
-            <img class="admin-login-lockup-logo" src="/images/logo-dastak.png" alt="" />
-            <strong class="admin-login-lockup-wordmark">DASTAK</strong>
-            <span class="admin-login-lockup-dot" aria-hidden="true"></span>
+      <div class="admin-login-stage">
+        <aside class="admin-login-art" aria-hidden="true">
+          ${loginArtSvg()}
+        </aside>
+        <main class="admin-login-panel">
+          <div class="admin-login-panel-top">
+            <a class="admin-login-back-link" href="/">${iconGlobe()} Public site</a>
+            <div class="admin-login-theme">${themeToggleButton()}</div>
           </div>
-          <p class="admin-login-brand-kicker">Government of Khyber Pakhtunkhwa</p>
-          <h1 class="admin-login-brand-title">Vehicle fitness admin</h1>
-          <p class="admin-login-brand-lead">
-            Registry, Form-I print, QR verification, and live publish for authorized staff.
-          </p>
-          <ul class="admin-login-features">
-            <li>
-              <span class="admin-login-feature-icon">${iconSave()}</span>
-              <span>
-                <strong>Registry</strong>
-                <em>Search, filter, and open certificates</em>
-              </span>
-            </li>
-            <li>
-              <span class="admin-login-feature-icon">${iconPrint()}</span>
-              <span>
-                <strong>A4 &amp; PDF</strong>
-                <em>Print Form-I and download files</em>
-              </span>
-            </li>
-            <li>
-              <span class="admin-login-feature-icon">${iconChart()}</span>
-              <span>
-                <strong>Analytics</strong>
-                <em>Views, prints, and expiry risk</em>
-              </span>
-            </li>
-          </ul>
-        </div>
-        <p class="admin-login-brand-copy">${iconLock()} Authorized personnel only</p>
-      </aside>
-      <main class="admin-login-panel">
-        <div class="admin-login-panel-top">
-          <a class="admin-login-back-link" href="/">${iconGlobe()} Back to public site</a>
-          <div class="admin-login-theme">${themeToggleButton()}</div>
-        </div>
-        <div class="admin-login-panel-body">
-          <div class="admin-login-card">
-            <div class="admin-login-card-lockup" aria-hidden="true">
-              <img src="/images/logo-dastak.png" alt="" />
-              <strong>DASTAK</strong>
-            </div>
-            <header class="admin-login-panel-head">
-              <p class="admin-login-card-badge">Staff sign-in</p>
-              <h2 class="admin-login-panel-title">Welcome back</h2>
-              <p class="admin-login-panel-sub">Enter your admin password to open the dashboard.</p>
-            </header>
+          <div class="admin-login-panel-body">
+            <img class="admin-login-mark" src="/images/logo-dastak.png" alt="Dastak" />
+            <p class="admin-login-welcome">Welcome — sign in to vehicle fitness admin</p>
+            <h1 class="admin-login-heading">Login</h1>
             <form id="admin-login-form" class="admin-login-form" autocomplete="off">
               <label class="form-field" for="admin-password">
-                <span class="form-label">Admin password</span>
+                <span class="form-label">Password</span>
                 <div class="form-input-wrap admin-login-pw-wrap">
-                  <span class="form-field-icon">${iconLock()}</span>
                   <input
                     id="admin-password"
                     class="form-control"
@@ -1120,18 +1118,20 @@ function adminLoginPage() {
                     required
                   />
                   <button class="admin-login-pw-toggle" type="button" data-action="admin-login-toggle-pw" aria-label="Show password">
-                    Show
+                    ${iconPreview()}
                   </button>
                 </div>
               </label>
-              <button class="btn btn-primary btn-block admin-login-submit" type="submit">
-                Sign in ${iconArrowRight()}
-              </button>
+              <div class="admin-login-submit-row">
+                <button class="btn btn-primary admin-login-submit" type="submit">
+                  Sign in ${iconArrowRight()}
+                </button>
+              </div>
             </form>
-            <p class="admin-login-panel-foot">Your session is stored on this device until you log out.</p>
+            <p class="admin-login-footnote">${iconLock()} Authorized staff only</p>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
       <div class="toast" id="toast"></div>
     </div>
   `;
@@ -2789,7 +2789,7 @@ async function handleDataActionClick(el, event) {
     if (!input) return;
     const show = input.type === "password";
     input.type = show ? "text" : "password";
-    el.textContent = show ? "Hide" : "Show";
+    el.innerHTML = show ? iconEyeOff() : iconPreview();
     el.setAttribute("aria-label", show ? "Hide password" : "Show password");
   }
 }
