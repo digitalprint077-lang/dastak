@@ -1812,29 +1812,47 @@ function renderHealthBadge(health) {
   return `<span class="fitness-badge fitness-badge-${health.tone}">${escapeHtml(health.label)}</span>`;
 }
 
+function analyticsChartDayParts(key, compact) {
+  const day = new Date(`${key}T12:00:00`);
+  if (Number.isNaN(day.getTime())) {
+    return { weekday: key.slice(5), date: "" };
+  }
+  if (compact) {
+    return { weekday: String(day.getDate()), date: "" };
+  }
+  return {
+    weekday: day.toLocaleDateString(undefined, { weekday: "short" }),
+    date: String(day.getDate()),
+  };
+}
+
 function renderActivityChart(buckets, periodDays) {
   const max = Math.max(1, ...buckets.map((b) => b.total));
+  const compact = periodDays > 14;
   const bars = buckets
-    .map(
-      (b) => `
+    .map((b) => {
+      const parts = analyticsChartDayParts(b.key, compact);
+      const stackH = Math.round((b.total / max) * 100);
+      return `
         <div class="analytics-bar-col" title="${escapeHtml(b.label)}: ${b.total} events">
-          <div class="analytics-bar-stack" style="height: ${Math.round((b.total / max) * 100)}%">
+          <span class="analytics-bar-count">${b.total && !compact ? b.total : ""}</span>
+          <div class="analytics-bar-stack${b.total ? "" : " is-empty"}" style="height: ${b.total ? Math.max(stackH, 8) : 6}%">
             <span class="analytics-bar-seg analytics-bar-views" style="flex-grow: ${b.views || 0.001}"></span>
             <span class="analytics-bar-seg analytics-bar-prints" style="flex-grow: ${b.prints || 0.001}"></span>
             <span class="analytics-bar-seg analytics-bar-lookups" style="flex-grow: ${b.lookups || 0.001}"></span>
             <span class="analytics-bar-seg analytics-bar-saves" style="flex-grow: ${b.saves || 0.001}"></span>
           </div>
-          <span class="analytics-bar-label">${escapeHtml(b.key.slice(5))}</span>
+          <span class="analytics-bar-label"><strong>${escapeHtml(parts.weekday)}</strong>${escapeHtml(parts.date)}</span>
         </div>
-      `
-    )
+      `;
+    })
     .join("");
   const hasData = buckets.some((b) => b.total > 0);
   return `
     <section class="analytics-panel analytics-chart">
       <div class="analytics-chart-head">
         <div>
-          <h3 class="analytics-panel-title">${iconActivity()} Daily activity</h3>
+          <h3 class="analytics-panel-title">Daily activity</h3>
           <p class="analytics-panel-desc">Last ${periodDays} days on this browser</p>
         </div>
         <ul class="analytics-legend">
@@ -1846,8 +1864,8 @@ function renderActivityChart(buckets, periodDays) {
       </div>
       ${
         hasData
-          ? `<div class="analytics-bars">${bars}</div>`
-          : `<div class="analytics-empty"><p class="analytics-empty-title">No activity yet</p><p>Previews, prints, and lookups from this browser will show here.</p></div>`
+          ? `<div class="analytics-bars${compact ? " analytics-bars-compact" : ""}">${bars}</div>`
+          : `<div class="analytics-empty"><span class="analytics-empty-icon">${iconChart()}</span><p>No views, prints, or lookups in this window.</p></div>`
       }
     </section>
   `;
@@ -1862,28 +1880,28 @@ function renderEventMixPanel(mix) {
     { key: "saves", label: "Admin saves", value: mix.saves, cls: "analytics-bar-saves" },
   ];
   const bars = rows
-    .map(
-      (r) => `
+    .filter((r) => r.value > 0)
+    .map((r) => {
+      const p = Math.round((r.value / total) * 100);
+      return `
       <div class="analytics-mix-row">
-        <div class="analytics-mix-meta">
-          <span class="analytics-mix-label">${escapeHtml(r.label)}</span>
-          <strong class="analytics-mix-val">${r.value}</strong>
-        </div>
+        <span class="analytics-mix-label">${escapeHtml(r.label)}</span>
         <div class="analytics-mix-track">
-          <span class="analytics-mix-fill ${r.cls}" style="width: ${Math.round((r.value / total) * 100)}%"></span>
+          <span class="analytics-mix-fill ${r.cls}" style="width: ${Math.max(p, 4)}%"></span>
         </div>
+        <span class="analytics-mix-val">${r.value}<em>${p}%</em></span>
       </div>
-    `
-    )
+    `;
+    })
     .join("");
   return `
     <section class="analytics-panel analytics-mix">
-      <h3 class="analytics-panel-title">${iconChart()} Event mix</h3>
+      <h3 class="analytics-panel-title">Event mix</h3>
       <p class="analytics-panel-desc">${mix.total} event${mix.total === 1 ? "" : "s"} in this window</p>
       ${
         mix.total
           ? `<div class="analytics-mix-list">${bars}</div>`
-          : `<div class="analytics-empty"><p class="analytics-empty-title">Nothing to mix</p><p>Use preview, print, or save to record events.</p></div>`
+          : `<div class="analytics-empty"><p>No events in this window yet.</p></div>`
       }
     </section>
   `;
@@ -1954,7 +1972,7 @@ async function populateAnalyticsFromServer() {
       `<tr><td colspan="11" class="analytics-muted">No certificates match.</td></tr>`;
     cacheAnalyticsRows(merged);
     if (countEl) {
-      countEl.textContent = `${merged.length} records${data?.total > merged.length ? ` (${data.total} on server)` : ""}`;
+      countEl.textContent = `${merged.length} record${merged.length === 1 ? "" : "s"}${data?.total > merged.length ? ` (${data.total} on server)` : ""} · click a row to open`;
     }
     bindAnalyticsTableInteractions();
   } catch {
@@ -1983,7 +2001,7 @@ function renderAnalyticsDashboard() {
       return `
         <li class="analytics-district-row">
           <span class="analytics-district-name">${escapeHtml(name)}</span>
-          <div class="analytics-district-track"><span style="width: ${width}%"></span></div>
+          <div class="analytics-district-track"><span style="width: ${Math.max(width, count ? 4 : 0)}%"></span></div>
           <strong>${count}</strong>
         </li>`;
     })
@@ -1996,6 +2014,7 @@ function renderAnalyticsDashboard() {
       const meta = [event.trackingId, event.token].filter(Boolean).join(" · ");
       return `
         <li class="analytics-activity-item">
+          <span class="analytics-activity-dot" aria-hidden="true"></span>
           <div>
             <p class="analytics-activity-title">${escapeHtml(formatEventLabel(event))}</p>
             ${meta ? `<p class="analytics-activity-meta">${escapeHtml(meta)}</p>` : ""}
@@ -2026,12 +2045,13 @@ function renderAnalyticsDashboard() {
 
   return `
     <div id="analytics-page" class="analytics-page admin-analytics-page analytics-v3">
-      <p class="analytics-note">Counts come from this browser only. They are not an office-wide live report.</p>
-
       <div class="analytics-toolbar">
-        <div class="analytics-period-toggle" role="group" aria-label="Activity period">
-          ${periodBtn(7, "7 days")}
-          ${periodBtn(30, "30 days")}
+        <div class="analytics-toolbar-left">
+          <div class="analytics-period-toggle" role="group" aria-label="Activity period">
+            ${periodBtn(7, "7 days")}
+            ${periodBtn(30, "30 days")}
+          </div>
+          <p class="analytics-toolbar-hint">Counted on this browser</p>
         </div>
         <div class="analytics-toolbar-actions">
           <button class="analytics-tool-btn" type="button" data-action="analytics-export">${iconDownload()} Export CSV</button>
@@ -2050,8 +2070,9 @@ function renderAnalyticsDashboard() {
           <p class="analytics-summary-value">${metrics.total}</p>
           <p class="analytics-summary-sub">${metrics.saved} saved on this device</p>
           <div class="analytics-summary-pills">
-            <span class="analytics-summary-pill">${activeCount} active</span>
-            <span class="analytics-summary-pill analytics-summary-pill-info">${metrics.renewalWindow} in 90-day window</span>
+            <span class="analytics-summary-pill">Active <strong>${activeCount}</strong></span>
+            <span class="analytics-summary-pill analytics-summary-pill-info">90-day window <strong>${metrics.renewalWindow}</strong></span>
+            <span class="analytics-summary-pill">Saves <strong>${metrics.adminSaves}</strong></span>
           </div>
         </article>
         <button type="button" class="analytics-summary-card analytics-card-warn" data-action="analytics-filter" data-filter="expiring">
@@ -2062,21 +2083,20 @@ function renderAnalyticsDashboard() {
           <p class="analytics-summary-value">${metrics.expiringSoon}</p>
           <p class="analytics-summary-sub">Expiring within 30 days</p>
           <div class="analytics-summary-pills">
-            <span class="analytics-summary-pill analytics-summary-pill-danger">${metrics.expired} expired</span>
-            <span class="analytics-summary-pill">${metrics.adminSaves} saves (${periodDays}d)</span>
+            <span class="analytics-summary-pill analytics-summary-pill-danger">Expired <strong>${metrics.expired}</strong></span>
           </div>
         </button>
-        <button type="button" class="analytics-summary-card analytics-card-orange" data-action="analytics-filter" data-filter="active">
+        <button type="button" class="analytics-summary-card analytics-card-activity" data-action="analytics-filter" data-filter="active">
           <div class="analytics-summary-top">
             <span class="analytics-summary-icon">${iconActivity()}</span>
             <p class="analytics-summary-label">Public activity</p>
           </div>
           <p class="analytics-summary-value">${metrics.views7d + metrics.prints7d}</p>
-          <p class="analytics-summary-sub">Views and prints · last ${periodDays} days</p>
+          <p class="analytics-summary-sub">Views and prints · last ${periodDays} days · ${lookupHint}</p>
           <div class="analytics-summary-pills">
-            <span class="analytics-summary-pill">${metrics.views7d} views</span>
-            <span class="analytics-summary-pill">${metrics.prints7d} prints</span>
-            <span class="analytics-summary-pill analytics-summary-pill-info">${metrics.lookups7d} lookups · ${lookupHint}</span>
+            <span class="analytics-summary-pill">Views <strong>${metrics.views7d}</strong></span>
+            <span class="analytics-summary-pill">Prints <strong>${metrics.prints7d}</strong></span>
+            <span class="analytics-summary-pill analytics-summary-pill-info">Lookups <strong>${metrics.lookups7d}</strong></span>
           </div>
         </button>
       </div>
@@ -2088,13 +2108,21 @@ function renderAnalyticsDashboard() {
 
       <div class="analytics-grid-2 analytics-grid-split">
         <section class="analytics-panel">
-          <h3 class="analytics-panel-title">By district</h3>
-          <p class="analytics-panel-desc">Certificates in the current list</p>
+          <div class="analytics-panel-head">
+            <div>
+              <h3 class="analytics-panel-title">By district</h3>
+              <p class="analytics-panel-desc">Certificates in the current list</p>
+            </div>
+          </div>
           <ul class="analytics-district-list">${districtList || '<li class="analytics-empty-row">No district counts yet.</li>'}</ul>
         </section>
         <section class="analytics-panel">
-          <h3 class="analytics-panel-title">Recent activity</h3>
-          <p class="analytics-panel-desc">Latest events on this device</p>
+          <div class="analytics-panel-head">
+            <div>
+              <h3 class="analytics-panel-title">Recent activity</h3>
+              <p class="analytics-panel-desc">Latest events on this device</p>
+            </div>
+          </div>
           <ul class="analytics-activity-list">${activityItems || '<li class="analytics-empty-row">No events yet — previews, prints, and lookups appear here.</li>'}</ul>
         </section>
       </div>
@@ -2102,9 +2130,16 @@ function renderAnalyticsDashboard() {
       <section class="analytics-table-wrap analytics-panel" id="analytics-table-wrap">
         <div class="analytics-table-head">
           <div>
-            <h3 class="analytics-panel-title">${iconTrack()} Certificate activity</h3>
+            <h3 class="analytics-panel-title">Certificate activity</h3>
             <p class="analytics-panel-desc" id="analytics-table-count">${rows.length} record${rows.length === 1 ? "" : "s"} · click a row to open</p>
           </div>
+        </div>
+        <div class="analytics-table-tools">
+          <label class="analytics-search-wrap analytics-table-search">
+            <span class="admin-list-search-icon">${iconSearch()}</span>
+            <span class="visually-hidden">Filter tracking table</span>
+            <input id="analytics-track-filter" class="form-control analytics-search-input" type="search" placeholder="Search tracking ID, name, district…" autocomplete="off" />
+          </label>
           <div class="analytics-table-filters" role="group" aria-label="Table filters">
             <button type="button" class="analytics-filter-chip is-active" data-action="analytics-filter" data-filter="all">All</button>
             <button type="button" class="analytics-filter-chip" data-action="analytics-filter" data-filter="expiring">Expiring</button>
@@ -2112,11 +2147,6 @@ function renderAnalyticsDashboard() {
             <button type="button" class="analytics-filter-chip" data-action="analytics-filter" data-filter="active">With activity</button>
           </div>
         </div>
-        <label class="analytics-search-wrap analytics-table-search">
-          <span class="admin-list-search-icon">${iconSearch()}</span>
-          <span class="visually-hidden">Filter tracking table</span>
-          <input id="analytics-track-filter" class="form-control analytics-search-input" type="search" placeholder="Search tracking ID, name, district…" autocomplete="off" />
-        </label>
         <div class="analytics-table-scroll">
           <table class="analytics-table">
             <thead>

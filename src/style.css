@@ -1786,12 +1786,12 @@ html[data-theme="dark"] .home-card-hint {
 
 .analytics-bar-prints,
 .analytics-legend-dot.analytics-bar-prints {
-  background: #6366f1;
+  background: #f59e0b;
 }
 
 .analytics-bar-lookups,
 .analytics-legend-dot.analytics-bar-lookups {
-  background: #f59e0b;
+  background: #0e7490;
 }
 
 .analytics-bar-saves,
@@ -3413,6 +3413,10 @@ html[data-theme="dark"] .admin-hero-chip-draft {
   background: var(--admin-surface-muted);
   border: 1px solid var(--admin-border);
   color: var(--text-dark);
+}
+
+.admin-ui-v2:has(#analytics-page) #publish-health-banner {
+  display: none !important;
 }
 
 .admin-ui-v2 .btn,
@@ -5793,17 +5797,6 @@ html[data-theme="dark"] .admin-ov-days-chip {
   margin: 0 auto;
 }
 
-.analytics-note {
-  margin: 0 0 14px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, #00c3d9 22%, var(--admin-border));
-  background: color-mix(in srgb, #00c3d9 8%, var(--admin-surface));
-  font-size: 13px;
-  font-weight: 600;
-  color: #0f6f7c;
-}
-
 .analytics-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -5811,6 +5804,25 @@ html[data-theme="dark"] .admin-ov-days-chip {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  box-shadow: 0 6px 18px rgba(45, 52, 54, 0.04);
+}
+
+.analytics-toolbar-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.analytics-toolbar-hint {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 .analytics-toolbar-actions {
@@ -5827,22 +5839,29 @@ html[data-theme="dark"] .admin-ov-days-chip {
   padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid var(--admin-border);
-  background: var(--admin-surface);
+  background: var(--admin-surface-muted, #f8fafc);
   font-family: inherit;
   font-size: 13px;
   font-weight: 700;
   color: var(--text-dark);
   cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 
 .analytics-tool-btn:hover {
   border-color: #00c3d9;
   color: #0f6f7c;
+  background: color-mix(in srgb, #00c3d9 8%, #fff);
 }
 
 .analytics-tool-btn-muted {
   color: var(--text-muted);
   font-weight: 600;
+  background: transparent;
+}
+
+.analytics-v3 .analytics-period-btn {
+  font-family: inherit;
 }
 
 .analytics-v3 .analytics-period-btn.is-active {
@@ -5853,6 +5872,7 @@ html[data-theme="dark"] .admin-ov-days-chip {
 
 .analytics-attention {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   width: 100%;
@@ -5879,6 +5899,7 @@ html[data-theme="dark"] .admin-ov-days-chip {
 
 .analytics-attention-copy {
   flex: 1;
+  min-width: 180px;
   font-size: 13px;
   line-height: 1.45;
 }
@@ -5911,6 +5932,7 @@ html[data-theme="dark"] .admin-ov-days-chip {
   font-family: inherit;
   color: inherit;
   cursor: default;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 button.analytics-summary-card {
@@ -5940,8 +5962,8 @@ button.analytics-summary-card:hover {
   background: linear-gradient(90deg, #f59e0b, #ea580c);
 }
 
-.analytics-card-orange::before {
-  background: linear-gradient(90deg, #00c3d9, #6366f1);
+.analytics-card-activity::before {
+  background: linear-gradient(90deg, #00c3d9, #0e7490);
 }
 
 .analytics-summary-top {
@@ -5971,9 +5993,9 @@ button.analytics-summary-card:hover {
   color: #c2410c;
 }
 
-.analytics-card-orange .analytics-summary-icon {
-  background: color-mix(in srgb, #6366f1 16%, #fff);
-  color: #4f46e5;
+.analytics-card-activity .analytics-summary-icon {
+  background: color-mix(in srgb, #00c3d9 16%, #fff);
+  color: #0e7490;
 }
 
 .analytics-summary-label {
@@ -5986,17 +6008,18 @@ button.analytics-summary-card:hover {
 }
 
 .analytics-summary-value {
-  margin: 0;
-  font-size: 2rem;
+  margin: 0 0 4px;
+  font-size: 2.15rem;
   font-weight: 800;
+  line-height: 1.05;
   letter-spacing: -0.03em;
-  color: var(--text-dark);
-  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--dastak-charcoal-deep, #2d3436);
 }
 
 .analytics-summary-sub {
-  margin: 6px 0 12px;
-  font-size: 13px;
+  margin: 0 0 14px;
+  font-size: 12px;
   color: var(--text-muted);
 }
 
@@ -6004,21 +6027,30 @@ button.analytics-summary-card:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--admin-border);
 }
 
 .analytics-summary-pill {
   display: inline-flex;
-  padding: 4px 8px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
   border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   background: var(--admin-surface-muted);
-  color: var(--text-dark);
+  color: var(--text-muted);
+}
+
+.analytics-summary-pill strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--dastak-charcoal-deep, #2d3436);
 }
 
 .analytics-summary-pill-info {
-  background: color-mix(in srgb, #00c3d9 14%, #fff);
-  color: #0f6f7c;
+  background: color-mix(in srgb, #00c3d9 16%, #fff);
+  color: #0e7490;
 }
 
 .analytics-summary-pill-danger {
@@ -6042,37 +6074,186 @@ button.analytics-summary-card:hover {
   border-radius: 16px;
   border: 1px solid var(--admin-border);
   background: var(--admin-surface);
-  box-shadow: 0 8px 22px rgba(45, 52, 54, 0.04);
+  box-shadow: 0 8px 24px rgba(45, 52, 54, 0.04);
+}
+
+.analytics-v3 .analytics-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.analytics-v3 .analytics-panel-title {
+  margin: 0 0 2px;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--dastak-charcoal-deep, #2d3436);
+}
+
+.analytics-v3 .analytics-panel-desc {
+  color: var(--text-muted);
+}
+
+.analytics-v3 .analytics-chart-head {
+  margin-bottom: 8px;
+}
+
+.analytics-v3 .analytics-legend {
+  color: var(--text-muted);
+}
+
+.analytics-v3 .analytics-bars {
+  align-items: flex-end;
+  gap: 10px;
+  min-height: 176px;
+  padding: 12px 4px 0;
+  border-top: 1px solid var(--admin-border);
+  overflow-x: auto;
+}
+
+.analytics-v3 .analytics-bar-col {
+  height: 156px;
+  gap: 0;
+}
+
+.analytics-bar-count {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-height: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.analytics-v3 .analytics-bar-stack {
+  width: 100%;
+  max-width: 36px;
+  margin-top: auto;
+  background: transparent;
+}
+
+.analytics-v3 .analytics-bar-stack.is-empty {
+  background: color-mix(in srgb, var(--admin-border) 80%, #fff);
+  min-height: 6px;
+}
+
+.analytics-v3 .analytics-bar-stack.is-empty .analytics-bar-seg {
+  display: none;
+}
+
+.analytics-v3 .analytics-bar-label {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.analytics-v3 .analytics-bar-label strong {
+  color: var(--dastak-charcoal-deep, #2d3436);
+  font-weight: 700;
+}
+
+.analytics-bars-compact .analytics-bar-col {
+  min-width: 18px;
+}
+
+.analytics-bars-compact .analytics-bar-stack {
+  max-width: 18px;
+  border-radius: 5px 5px 2px 2px;
+}
+
+.analytics-v3 .analytics-mix-list {
+  margin-top: 14px;
+  gap: 0;
+}
+
+.analytics-v3 .analytics-mix-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1.2fr) minmax(70px, 2fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.analytics-v3 .analytics-mix-label {
+  color: var(--text);
+}
+
+.analytics-v3 .analytics-mix-val {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--dastak-charcoal-deep, #2d3436);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.analytics-v3 .analytics-mix-val em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+.analytics-v3 .analytics-mix-track {
+  background: color-mix(in srgb, var(--admin-border) 70%, #fff);
 }
 
 .analytics-empty,
 .analytics-empty-row {
-  margin: 12px 0 0;
-  padding: 18px 8px;
+  margin: 0;
+  padding: 28px 8px;
   text-align: center;
   color: var(--text-muted);
   font-size: 13px;
   list-style: none;
+  border-top: 1px solid var(--admin-border);
 }
 
-.analytics-empty-title {
-  margin: 0 0 4px;
-  font-weight: 800;
-  color: var(--text-dark);
+.analytics-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 140px;
 }
 
-.analytics-empty p {
+.analytics-empty-icon {
+  display: flex;
+  color: var(--dastak-teal-dark, #009fb3);
+  opacity: 0.7;
+}
+
+.analytics-empty p,
+.analytics-empty-row {
   margin: 0;
+  border-top: none;
 }
 
+.analytics-empty-row {
+  padding: 18px 0 6px;
+  text-align: left;
+}
+
+.analytics-v3 .analytics-district-list li,
 .analytics-district-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(64px, 1.2fr) auto;
+  grid-template-columns: minmax(88px, 1fr) minmax(72px, 1.4fr) auto;
+  justify-content: initial;
   gap: 10px;
   align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border-soft);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--admin-border);
   font-size: 13px;
+}
+
+.analytics-district-row:last-child {
+  border-bottom: none;
 }
 
 .analytics-district-name {
@@ -6080,12 +6261,18 @@ button.analytics-summary-card:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text);
+}
+
+.analytics-district-row strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--dastak-charcoal-deep, #2d3436);
 }
 
 .analytics-district-track {
   height: 8px;
   border-radius: 999px;
-  background: var(--admin-surface-muted, #e2e8f0);
+  background: color-mix(in srgb, var(--admin-border) 70%, #fff);
   overflow: hidden;
 }
 
@@ -6094,12 +6281,40 @@ button.analytics-summary-card:hover {
   height: 100%;
   border-radius: inherit;
   background: #00c3d9;
-  min-width: 4px;
+}
+
+.analytics-v3 .analytics-activity-list {
+  max-height: 280px;
+}
+
+.analytics-v3 .analytics-activity-item {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  border-bottom-color: var(--admin-border);
+}
+
+.analytics-v3 .analytics-activity-item:last-child {
+  border-bottom: none;
+}
+
+.analytics-activity-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--dastak-teal, #00c3d9);
+}
+
+.analytics-v3 .analytics-activity-time {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .analytics-open-link {
   display: inline-flex;
-  padding: 5px 10px;
+  padding: 4px 10px;
   border-radius: 8px;
   font-size: 12px;
   font-weight: 700;
@@ -6112,13 +6327,32 @@ button.analytics-summary-card:hover {
   background: color-mix(in srgb, #00c3d9 20%, #fff);
 }
 
+.analytics-table-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
 .analytics-v3 .analytics-table-search {
-  width: 100%;
-  margin: 0 0 4px;
+  flex: 1 1 240px;
+  margin: 0;
 }
 
 .analytics-v3 .analytics-search-input {
   width: 100%;
+  min-height: 40px;
+  border-radius: 10px;
+}
+
+.analytics-v3 .analytics-table-filters {
+  flex: 0 0 auto;
+}
+
+.analytics-v3 .analytics-filter-chip {
+  font-family: inherit;
+  min-height: 34px;
 }
 
 .analytics-v3 .analytics-filter-chip.is-active {
@@ -6128,15 +6362,49 @@ button.analytics-summary-card:hover {
 }
 
 .analytics-v3 .analytics-table-wrap {
-  padding: 18px 20px 12px;
+  padding: 18px 20px 8px;
+  overflow: hidden;
 }
 
 .analytics-v3 .analytics-table-head {
-  padding: 0 0 12px;
+  padding: 0;
+  margin-bottom: 12px;
 }
 
 .analytics-v3 .analytics-table-scroll {
-  padding: 0 0 8px;
+  padding: 0;
+  margin: 0 -8px;
+}
+
+.analytics-v3 .analytics-table {
+  font-size: 13px;
+}
+
+.analytics-v3 .analytics-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--admin-surface);
+  color: var(--text-muted);
+  font-weight: 700;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.analytics-v3 .analytics-table td {
+  padding: 11px 12px;
+  vertical-align: middle;
+}
+
+.analytics-v3 .analytics-track-row:hover {
+  background: color-mix(in srgb, #00c3d9 7%, var(--admin-surface));
+}
+
+.analytics-v3 .analytics-code {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f6f7c;
+  background: color-mix(in srgb, #00c3d9 10%, #fff);
 }
 
 @media (max-width: 900px) {
@@ -6145,4 +6413,63 @@ button.analytics-summary-card:hover {
   .analytics-grid-split {
     grid-template-columns: 1fr;
   }
+
+  .analytics-v3 .analytics-mix-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .analytics-v3 .analytics-mix-track {
+    grid-column: 1 / -1;
+  }
+}
+
+html[data-theme="dark"] .analytics-summary-value,
+html[data-theme="dark"] .analytics-v3 .analytics-panel-title,
+html[data-theme="dark"] .analytics-v3 .analytics-bar-label strong,
+html[data-theme="dark"] .analytics-v3 .analytics-mix-val,
+html[data-theme="dark"] .analytics-district-row strong,
+html[data-theme="dark"] .analytics-summary-pill strong {
+  color: #f1f5f9;
+}
+
+html[data-theme="dark"] .analytics-toolbar,
+html[data-theme="dark"] .analytics-summary-card,
+html[data-theme="dark"] .analytics-v3 .analytics-panel {
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .analytics-card-teal .analytics-summary-icon {
+  background: color-mix(in srgb, #00c3d9 22%, #1e293b);
+}
+
+html[data-theme="dark"] .analytics-card-warn .analytics-summary-icon {
+  background: color-mix(in srgb, #f59e0b 22%, #1e293b);
+}
+
+html[data-theme="dark"] .analytics-card-activity .analytics-summary-icon {
+  background: color-mix(in srgb, #00c3d9 22%, #1e293b);
+}
+
+html[data-theme="dark"] .analytics-summary-pill-info {
+  background: color-mix(in srgb, #00c3d9 18%, #1e293b);
+  color: #67e8f9;
+}
+
+html[data-theme="dark"] .analytics-summary-pill-danger {
+  background: color-mix(in srgb, #ef4444 20%, #1e293b);
+}
+
+html[data-theme="dark"] .analytics-open-link,
+html[data-theme="dark"] .analytics-v3 .analytics-code {
+  background: color-mix(in srgb, #00c3d9 16%, #1e293b);
+  color: #67e8f9;
+}
+
+html[data-theme="dark"] .analytics-v3 .analytics-table th {
+  background: var(--admin-surface);
+}
+
+html[data-theme="dark"] .analytics-v3 .analytics-period-btn.is-active {
+  background: #1e293b;
+  color: #67e8f9;
 }
