@@ -272,6 +272,12 @@ function iconChart() {
   return iconSvg(`<path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-9"/>`);
 }
 
+function iconAlert() {
+  return iconSvg(
+    `<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>`
+  );
+}
+
 function iconActivity() {
   return iconSvg(`<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`);
 }
@@ -567,7 +573,7 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
   const editorOpen = activeView === "certificates" && isAdminEditorOpen();
   const pageLead =
     activeView === "analytics"
-      ? "Expiry risk, district mix, and public activity on this device."
+      ? "Views, prints, expiry risk, and activity counted on this browser."
       : activeView === "registry"
         ? "Search, filter, and open a record to edit or save."
         : editorOpen
@@ -1823,12 +1829,13 @@ function renderActivityChart(buckets, periodDays) {
       `
     )
     .join("");
+  const hasData = buckets.some((b) => b.total > 0);
   return `
-    <div class="analytics-chart card">
+    <section class="analytics-panel analytics-chart">
       <div class="analytics-chart-head">
         <div>
-          <h3 class="analytics-panel-title">${iconActivity()} Activity (${periodDays} days)</h3>
-          <p class="analytics-panel-desc">Views, prints, public lookups, and admin saves on this device</p>
+          <h3 class="analytics-panel-title">${iconActivity()} Daily activity</h3>
+          <p class="analytics-panel-desc">Last ${periodDays} days on this browser</p>
         </div>
         <ul class="analytics-legend">
           <li><span class="analytics-legend-dot analytics-bar-views"></span> Views</li>
@@ -1837,8 +1844,12 @@ function renderActivityChart(buckets, periodDays) {
           <li><span class="analytics-legend-dot analytics-bar-saves"></span> Saves</li>
         </ul>
       </div>
-      <div class="analytics-bars">${bars}</div>
-    </div>
+      ${
+        hasData
+          ? `<div class="analytics-bars">${bars}</div>`
+          : `<div class="analytics-empty"><p class="analytics-empty-title">No activity yet</p><p>Previews, prints, and lookups from this browser will show here.</p></div>`
+      }
+    </section>
   `;
 }
 
@@ -1866,11 +1877,15 @@ function renderEventMixPanel(mix) {
     )
     .join("");
   return `
-    <div class="analytics-mix card">
+    <section class="analytics-panel analytics-mix">
       <h3 class="analytics-panel-title">${iconChart()} Event mix</h3>
-      <p class="analytics-panel-desc">${mix.total} events in selected period</p>
-      <div class="analytics-mix-list">${bars}</div>
-    </div>
+      <p class="analytics-panel-desc">${mix.total} event${mix.total === 1 ? "" : "s"} in this window</p>
+      ${
+        mix.total
+          ? `<div class="analytics-mix-list">${bars}</div>`
+          : `<div class="analytics-empty"><p class="analytics-empty-title">Nothing to mix</p><p>Use preview, print, or save to record events.</p></div>`
+      }
+    </section>
   `;
 }
 
@@ -1908,7 +1923,7 @@ function renderAnalyticsTrackingRows(rows) {
           <td class="analytics-num">${row.lookups}</td>
           <td class="analytics-muted">${formatRelativeTime(row.lastAt)}</td>
           <td>
-            <a class="btn btn-ghost btn-sm admin-pill-btn" href="/admin/dashboard?token=${encodeURIComponent(row.token)}">Edit</a>
+            <a class="analytics-open-link" href="/admin/dashboard?token=${encodeURIComponent(row.token)}">Open</a>
           </td>
         </tr>
       `;
@@ -1936,7 +1951,7 @@ async function populateAnalyticsFromServer() {
     const merged = sortAnalyticsRows(mergeAnalyticsRows(localRows, data?.items ?? []));
     body.innerHTML =
       renderAnalyticsTrackingRows(merged) ||
-      `<tr><td colspan="11" class="analytics-muted">No certificates in registry.</td></tr>`;
+      `<tr><td colspan="11" class="analytics-muted">No certificates match.</td></tr>`;
     cacheAnalyticsRows(merged);
     if (countEl) {
       countEl.textContent = `${merged.length} records${data?.total > merged.length ? ` (${data.total} on server)` : ""}`;
@@ -1961,19 +1976,17 @@ function renderAnalyticsDashboard() {
   const mix = eventTypeMix(eventsWindow);
   const recent = getAnalyticsEvents(15);
 
-  const kpi = (label, value, hint, tone = "") => `
-    <article class="analytics-kpi card${tone ? ` analytics-kpi-${tone}` : ""}">
-      <p class="analytics-kpi-label">${label}</p>
-      <p class="analytics-kpi-value">${value}</p>
-      ${hint ? `<p class="analytics-kpi-hint">${hint}</p>` : ""}
-    </article>
-  `;
-
+  const maxDistrict = Math.max(1, ...metrics.topDistricts.map(([, count]) => count));
   const districtList = metrics.topDistricts
-    .map(
-      ([name, count]) =>
-        `<li><span>${escapeHtml(name)}</span><strong>${count}</strong></li>`
-    )
+    .map(([name, count]) => {
+      const width = Math.round((count / maxDistrict) * 100);
+      return `
+        <li class="analytics-district-row">
+          <span class="analytics-district-name">${escapeHtml(name)}</span>
+          <div class="analytics-district-track"><span style="width: ${width}%"></span></div>
+          <strong>${count}</strong>
+        </li>`;
+    })
     .join("");
 
   const trackingRows = renderAnalyticsTrackingRows(rows);
@@ -1998,56 +2011,99 @@ function renderAnalyticsDashboard() {
 
   const lookupHint =
     metrics.lookupSuccessRate != null
-      ? `${metrics.successfulLookups7d} matched · ${metrics.lookupSuccessRate}% success`
+      ? `${metrics.successfulLookups7d} matched · ${metrics.lookupSuccessRate}% hit`
       : `${metrics.successfulLookups7d} matched`;
+  const activeCount = Math.max(0, metrics.total - metrics.expired - metrics.expiringSoon);
+  const attentionHtml =
+    metrics.expiringSoon || metrics.expired
+      ? `
+      <button type="button" class="analytics-attention" data-action="analytics-filter" data-filter="${metrics.expiringSoon ? "expiring" : "expired"}">
+        <span class="analytics-attention-icon">${iconAlert()}</span>
+        <span class="analytics-attention-copy"><strong>Fitness needs attention.</strong> ${metrics.expiringSoon} expiring within 30 days · ${metrics.expired} expired.</span>
+        <span class="analytics-attention-go">Filter table</span>
+      </button>`
+      : "";
 
   return `
     <div id="analytics-page" class="analytics-page admin-analytics-page analytics-v3">
-      <header class="analytics-hero analytics-hero-toolbar card">
-        <p class="analytics-hero-toolbar-label">Activity window</p>
-        <div class="analytics-hero-actions">
-          <div class="analytics-period-toggle" role="group" aria-label="Activity period">
-            ${periodBtn(7, "7 days")}
-            ${periodBtn(30, "30 days")}
-          </div>
-          <button class="btn btn-ghost btn-compact" type="button" data-action="analytics-export">Export CSV</button>
-          <button class="btn btn-ghost btn-compact" type="button" data-action="analytics-clear">Clear activity log</button>
+      <p class="analytics-note">Counts come from this browser only. They are not an office-wide live report.</p>
+
+      <div class="analytics-toolbar">
+        <div class="analytics-period-toggle" role="group" aria-label="Activity period">
+          ${periodBtn(7, "7 days")}
+          ${periodBtn(30, "30 days")}
         </div>
-      </header>
-
-      <div class="analytics-kpi-grid analytics-kpi-grid-6">
-        ${kpi("Registry", metrics.total, `${metrics.saved} saved on this device`)}
-        ${kpi("Expiring ≤ 30d", metrics.expiringSoon, `${metrics.expired} expired`, metrics.expiringSoon > 0 ? "warn" : "")}
-        ${kpi("Renewal window", metrics.renewalWindow, "Expires within 90 days")}
-        ${kpi("Public views", metrics.views7d, `Last ${periodDays} days`)}
-        ${kpi("Prints / PDF", metrics.prints7d, `Last ${periodDays} days`)}
-        ${kpi("Lookups", metrics.lookups7d, lookupHint)}
+        <div class="analytics-toolbar-actions">
+          <button class="analytics-tool-btn" type="button" data-action="analytics-export">${iconDownload()} Export CSV</button>
+          <button class="analytics-tool-btn analytics-tool-btn-muted" type="button" data-action="analytics-clear">Clear log</button>
+        </div>
       </div>
 
-      <div class="analytics-expiry-strip card">
-        <span class="analytics-expiry-chip analytics-expiry-ok"><strong>${metrics.total - metrics.expired - metrics.expiringSoon}</strong> active</span>
-        <span class="analytics-expiry-chip analytics-expiry-warn"><strong>${metrics.expiringSoon}</strong> expiring soon</span>
-        <span class="analytics-expiry-chip analytics-expiry-danger"><strong>${metrics.expired}</strong> expired</span>
-        <span class="analytics-expiry-chip analytics-expiry-info"><strong>${metrics.withPublicActivity}</strong> with public activity</span>
-        <span class="analytics-expiry-chip"><strong>${metrics.adminSaves}</strong> admin saves (${periodDays}d)</span>
+      ${attentionHtml}
+
+      <div class="analytics-summary-grid">
+        <article class="analytics-summary-card analytics-card-teal">
+          <div class="analytics-summary-top">
+            <span class="analytics-summary-icon">${iconSave()}</span>
+            <p class="analytics-summary-label">Registry</p>
+          </div>
+          <p class="analytics-summary-value">${metrics.total}</p>
+          <p class="analytics-summary-sub">${metrics.saved} saved on this device</p>
+          <div class="analytics-summary-pills">
+            <span class="analytics-summary-pill">${activeCount} active</span>
+            <span class="analytics-summary-pill analytics-summary-pill-info">${metrics.renewalWindow} in 90-day window</span>
+          </div>
+        </article>
+        <button type="button" class="analytics-summary-card analytics-card-warn" data-action="analytics-filter" data-filter="expiring">
+          <div class="analytics-summary-top">
+            <span class="analytics-summary-icon">${iconAlert()}</span>
+            <p class="analytics-summary-label">Fitness risk</p>
+          </div>
+          <p class="analytics-summary-value">${metrics.expiringSoon}</p>
+          <p class="analytics-summary-sub">Expiring within 30 days</p>
+          <div class="analytics-summary-pills">
+            <span class="analytics-summary-pill analytics-summary-pill-danger">${metrics.expired} expired</span>
+            <span class="analytics-summary-pill">${metrics.adminSaves} saves (${periodDays}d)</span>
+          </div>
+        </button>
+        <button type="button" class="analytics-summary-card analytics-card-orange" data-action="analytics-filter" data-filter="active">
+          <div class="analytics-summary-top">
+            <span class="analytics-summary-icon">${iconActivity()}</span>
+            <p class="analytics-summary-label">Public activity</p>
+          </div>
+          <p class="analytics-summary-value">${metrics.views7d + metrics.prints7d}</p>
+          <p class="analytics-summary-sub">Views and prints · last ${periodDays} days</p>
+          <div class="analytics-summary-pills">
+            <span class="analytics-summary-pill">${metrics.views7d} views</span>
+            <span class="analytics-summary-pill">${metrics.prints7d} prints</span>
+            <span class="analytics-summary-pill analytics-summary-pill-info">${metrics.lookups7d} lookups · ${lookupHint}</span>
+          </div>
+        </button>
       </div>
 
-      <div class="analytics-grid-main analytics-grid-v3">
+      <div class="analytics-grid-2">
         ${renderActivityChart(buckets, periodDays)}
         ${renderEventMixPanel(mix)}
-        <aside class="analytics-side card">
-          <h3 class="analytics-panel-title">By district</h3>
-          <ul class="analytics-district-list">${districtList || "<li><span>—</span><strong>0</strong></li>"}</ul>
-          <h3 class="analytics-panel-title analytics-panel-title-spaced">Recent activity</h3>
-          <ul class="analytics-activity-list">${activityItems || '<li class="analytics-muted">No events yet — previews, prints, and home-page lookups appear here.</li>'}</ul>
-        </aside>
       </div>
 
-      <section class="analytics-table-wrap card">
+      <div class="analytics-grid-2 analytics-grid-split">
+        <section class="analytics-panel">
+          <h3 class="analytics-panel-title">By district</h3>
+          <p class="analytics-panel-desc">Certificates in the current list</p>
+          <ul class="analytics-district-list">${districtList || '<li class="analytics-empty-row">No district counts yet.</li>'}</ul>
+        </section>
+        <section class="analytics-panel">
+          <h3 class="analytics-panel-title">Recent activity</h3>
+          <p class="analytics-panel-desc">Latest events on this device</p>
+          <ul class="analytics-activity-list">${activityItems || '<li class="analytics-empty-row">No events yet — previews, prints, and lookups appear here.</li>'}</ul>
+        </section>
+      </div>
+
+      <section class="analytics-table-wrap analytics-panel" id="analytics-table-wrap">
         <div class="analytics-table-head">
           <div>
-            <h3 class="analytics-panel-title">${iconTrack()} Certificate registry</h3>
-            <p class="analytics-panel-desc" id="analytics-table-count">${rows.length} records · click a row to open the editor</p>
+            <h3 class="analytics-panel-title">${iconTrack()} Certificate activity</h3>
+            <p class="analytics-panel-desc" id="analytics-table-count">${rows.length} record${rows.length === 1 ? "" : "s"} · click a row to open</p>
           </div>
           <div class="analytics-table-filters" role="group" aria-label="Table filters">
             <button type="button" class="analytics-filter-chip is-active" data-action="analytics-filter" data-filter="all">All</button>
