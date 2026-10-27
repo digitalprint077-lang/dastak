@@ -4562,6 +4562,112 @@ html[data-theme="dark"] .admin-login-form .form-control {
   gap: 4px;
 }
 
+.cert-list-select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  cursor: pointer;
+}
+
+.cert-list-select input {
+  width: 16px;
+  height: 16px;
+  accent-color: #009fb3;
+  cursor: pointer;
+}
+
+.cert-list-item-row.is-selected .cert-list-item {
+  border-color: color-mix(in srgb, #00c3d9 45%, var(--admin-border, var(--border)));
+  background: color-mix(in srgb, #00c3d9 7%, var(--admin-surface, var(--surface)));
+}
+
+.registry-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border, var(--border));
+  background: var(--admin-surface, var(--surface));
+}
+
+.registry-bulk-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.registry-bulk-select-all input {
+  width: 16px;
+  height: 16px;
+  accent-color: #009fb3;
+}
+
+.registry-bulk-count {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.registry-bulk-bar[data-empty] .registry-bulk-count {
+  font-weight: 600;
+}
+
+.registry-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.registry-bulk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-border, var(--border));
+  background: var(--admin-surface, var(--surface));
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--dastak-charcoal-deep, #2d3436);
+  cursor: pointer;
+}
+
+.registry-bulk-btn:hover:not(:disabled) {
+  border-color: #00c3d9;
+  color: #0f6f7c;
+}
+
+.registry-bulk-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.registry-bulk-btn-danger {
+  color: #b91c1c;
+}
+
+.registry-bulk-btn-danger:hover:not(:disabled) {
+  border-color: #ef4444;
+  color: #991b1b;
+}
+
+.registry-bulk-btn-ghost {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .cert-list-item-row .cert-list-item {
   flex: 1;
   min-width: 0;
@@ -4995,6 +5101,10 @@ html[data-theme="dark"] .admin-login-form .form-control {
 
 .admin-list-panel-full .cert-list-item-row {
   gap: 8px;
+}
+
+.admin-list-panel-full .cert-list-select {
+  width: 40px;
 }
 
 .admin-list-panel-full .cert-list-item {

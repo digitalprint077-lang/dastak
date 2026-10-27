@@ -26,6 +26,7 @@ import {
   isDefaultDemoLocalSave,
   findDeployedPublishedEntry,
   findPublishedEntry,
+  findPublishedEntryPublic,
   isPublishedSuppressed,
   ensurePublishedLoaded,
   refreshPublishedCertificates,
@@ -1266,6 +1267,8 @@ function registryStatusBadge(item) {
   return `<span class="cert-badge cert-badge-default" title="In registry but not published yet">Pending</span>`;
 }
 
+const registrySelectedTokens = new Set();
+
 function renderCertListItemHtml(item, activeToken) {
   const daysLeft = item.daysLeft ?? daysUntilExpiry(item.expiryDate);
   const localBadge = registryStatusBadge(item);
@@ -1273,8 +1276,13 @@ function renderCertListItemHtml(item, activeToken) {
   const service = String(item.service ?? "").trim();
   const district = String(item.district ?? "").trim();
   const registration = item.registrationNumber || "No registration";
+  const selected = registrySelectedTokens.has(item.token);
   return `
-    <div class="cert-list-item-row">
+    <div class="cert-list-item-row${selected ? " is-selected" : ""}" data-registry-token="${escapeHtml(item.token)}">
+      <label class="cert-list-select" data-action="registry-select" data-token="${escapeHtml(item.token)}">
+        <input type="checkbox" ${selected ? "checked" : ""} />
+        <span class="visually-hidden">Select ${escapeHtml(item.applicant || "certificate")}</span>
+      </label>
       <a
         class="cert-list-item${item.token === activeToken ? " active" : ""}${item.localOnly ? " cert-list-item-local" : ""}"
         href="/admin/dashboard?token=${encodeURIComponent(item.token)}"
@@ -1323,6 +1331,60 @@ function renderCertListItemHtml(item, activeToken) {
 function certQuickFilterChip(id, label, activeQuick) {
   const active = activeQuick === id ? " is-active" : "";
   return `<button type="button" class="admin-filter-chip${active}" data-action="cert-quick-filter" data-quick="${id}">${label}</button>`;
+}
+
+function renderRegistryBulkBar() {
+  const count = registrySelectedTokens.size;
+  return `
+    <div class="registry-bulk-bar" id="registry-bulk-bar"${count ? "" : " data-empty=1"}>
+      <label class="registry-bulk-select-all" data-action="registry-select-page">
+        <input type="checkbox" />
+        Select page
+      </label>
+      <p class="registry-bulk-count" id="registry-bulk-count">${count} selected</p>
+      <div class="registry-bulk-actions">
+        <button class="registry-bulk-btn" type="button" data-action="registry-bulk-download" ${count ? "" : "disabled"}>
+          ${iconDownload()} Download PDF
+        </button>
+        <button class="registry-bulk-btn registry-bulk-btn-danger" type="button" data-action="registry-bulk-delete" ${count ? "" : "disabled"}>
+          ${iconTrash()} Delete
+        </button>
+        <button class="registry-bulk-btn registry-bulk-btn-ghost" type="button" data-action="registry-clear-selection" ${count ? "" : "disabled"}>
+          Clear
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function visibleRegistryTokens() {
+  return [...document.querySelectorAll("#cert-list [data-registry-token]")]
+    .map((row) => row.getAttribute("data-registry-token"))
+    .filter(Boolean);
+}
+
+function updateRegistryBulkBar() {
+  const bar = document.getElementById("registry-bulk-bar");
+  const countEl = document.getElementById("registry-bulk-count");
+  const count = registrySelectedTokens.size;
+  if (countEl) countEl.textContent = `${count} selected`;
+  if (bar) bar.toggleAttribute("data-empty", count === 0);
+  bar?.querySelectorAll("[data-action='registry-bulk-download'], [data-action='registry-bulk-delete'], [data-action='registry-clear-selection']").forEach((btn) => {
+    btn.disabled = count === 0;
+  });
+  const visible = visibleRegistryTokens();
+  const pageBox = bar?.querySelector(".registry-bulk-select-all input");
+  if (pageBox) {
+    pageBox.checked = visible.length > 0 && visible.every((token) => registrySelectedTokens.has(token));
+    pageBox.indeterminate = visible.some((token) => registrySelectedTokens.has(token)) && !pageBox.checked;
+  }
+  document.querySelectorAll("#cert-list [data-registry-token]").forEach((row) => {
+    const token = row.getAttribute("data-registry-token");
+    const on = registrySelectedTokens.has(token);
+    row.classList.toggle("is-selected", on);
+    const box = row.querySelector(".cert-list-select input");
+    if (box) box.checked = on;
+  });
 }
 
 function renderRegistryTools() {
@@ -1419,6 +1481,7 @@ function renderCertSidebar(activeToken, { fullPage = false } = {}) {
             </select>
           </div>
         </div>
+        ${renderRegistryBulkBar()}
         ${
           fullPage
             ? ""
@@ -1524,6 +1587,8 @@ async function populateAdminCertList(activeToken) {
     writeCertListPage(readCertListPage() + 1);
     void populateAdminCertList(activeToken);
   });
+
+  updateRegistryBulkBar();
 
   listEl.querySelectorAll(".cert-list-item").forEach((link) => {
     link.addEventListener("click", (event) => {
@@ -2541,6 +2606,90 @@ let editorBeforeUnloadBound = false;
 let duplicateRegTimer = 0;
 let pendingDeleteUndo = null;
 
+function certReadyForPdf(token) {
+  return Boolean(
+    isCertificateSaved(token) || findPublishedEntry(token) || findPublishedEntryPublic(token)
+  );
+}
+
+async function ensureCertReadyForPdf(token) {
+  if (certReadyForPdf(token)) return;
+  await hydrateCertificateFromApi(token);
+}
+
+async function downloadRegistryPdfs(tokens) {
+  const list = [...new Set(tokens.map((t) => String(t || "").trim()).filter(Boolean))];
+  if (!list.length || pdfDownloadInFlight) return;
+  pdfDownloadInFlight = true;
+  document.documentElement.classList.add("print-pdf-busy");
+  const useAdminProgress = Boolean(document.getElementById("admin-save-progress"));
+  if (useAdminProgress) showAdminProgress("save", list.length > 1 ? `PDF 1 of ${list.length}…` : "Building PDF…", 15);
+  else showAppLoader();
+  try {
+    for (const token of list) await ensureCertReadyForPdf(token);
+    const { downloadCertificatePdfs } = await import("./pdf-download.js");
+    await downloadCertificatePdfs(list, {
+      onProgress: ({ index, total }) => {
+        if (useAdminProgress) {
+          const pct = 20 + Math.round(((index + 1) / total) * 75);
+          showAdminProgress("save", total > 1 ? `PDF ${index + 1} of ${total}…` : "Building PDF…", pct);
+        }
+      },
+    });
+    showToast(list.length > 1 ? `${list.length} certificates saved as one PDF` : "PDF downloaded");
+  } catch (err) {
+    console.error("PDF download failed", err);
+    showToast("PDF download failed");
+  } finally {
+    pdfDownloadInFlight = false;
+    document.documentElement.classList.remove("print-pdf-busy");
+    if (useAdminProgress) window.setTimeout(hideSaveProgress, 400);
+    else hideAppLoader(true);
+  }
+}
+
+async function deleteSelectedRegistryCertificates() {
+  const tokens = [...registrySelectedTokens];
+  if (!tokens.length) {
+    showToast("Select certificates first");
+    return;
+  }
+  if (deleteInFlight || saveInFlight) return;
+  if (
+    !window.confirm(
+      `Delete ${tokens.length} selected certificate${tokens.length === 1 ? "" : "s"}?\nThis removes local data and unpublishes from the live site when connected.`
+    )
+  ) {
+    return;
+  }
+  deleteInFlight = true;
+  showAdminProgress("delete", "Deleting selected certificates…", 10);
+  let failed = 0;
+  try {
+    for (let i = 0; i < tokens.length; i += 1) {
+      showAdminProgress("delete", `Deleting ${i + 1} of ${tokens.length}…`, Math.round(((i + 1) / tokens.length) * 90));
+      try {
+        await deleteCertificate(tokens[i]);
+        registrySelectedTokens.delete(tokens[i]);
+      } catch {
+        failed += 1;
+      }
+    }
+    resetPublishedLoadCache();
+    await refreshPublishedCertificates();
+    showAdminProgress("delete", "Delete complete", 100);
+    window.setTimeout(hideSaveProgress, 500);
+    showToast(failed ? `Deleted ${tokens.length - failed}. ${failed} failed.` : `Deleted ${tokens.length} certificate${tokens.length === 1 ? "" : "s"}`);
+    await populateAdminCertList("");
+  } catch (err) {
+    console.error("Bulk delete failed", err);
+    showToast("Delete failed — try again");
+    hideSaveProgress();
+  } finally {
+    deleteInFlight = false;
+  }
+}
+
 function resetEditorFormBaseline() {
   const form = document.getElementById("cert-editor");
   editorFormBaseline = form ? serializeFormSnapshot(form, readFormValues) : "";
@@ -2658,23 +2807,39 @@ async function handleDataActionClick(el, event) {
       el.getAttribute("data-token") ||
       document.querySelector('[name="linkToken"]')?.value?.trim();
     if (!pdfToken) return;
-    if (pdfDownloadInFlight) return;
-    pdfDownloadInFlight = true;
-    document.documentElement.classList.add("print-pdf-busy");
-    showAppLoader();
-    try {
-      await hydrateCertificateFromApi(pdfToken);
-      const { downloadCertificatePdf } = await import("./pdf-download.js");
-      await downloadCertificatePdf(pdfToken);
-      showToast("PDF downloaded");
-    } catch (err) {
-      console.error("PDF download failed", err);
-      showToast("PDF download failed");
-    } finally {
-      pdfDownloadInFlight = false;
-      document.documentElement.classList.remove("print-pdf-busy");
-      hideAppLoader(true);
+    await downloadRegistryPdfs([pdfToken]);
+  }
+  if (action === "registry-select") {
+    const token = el.getAttribute("data-token");
+    const box = el.matches("input") ? el : el.querySelector("input[type='checkbox']");
+    if (!token || !box) return;
+    if (box.checked) registrySelectedTokens.add(token);
+    else registrySelectedTokens.delete(token);
+    updateRegistryBulkBar();
+  }
+  if (action === "registry-select-page") {
+    const visible = visibleRegistryTokens();
+    const selectAll = visible.some((token) => !registrySelectedTokens.has(token));
+    visible.forEach((token) => {
+      if (selectAll) registrySelectedTokens.add(token);
+      else registrySelectedTokens.delete(token);
+    });
+    updateRegistryBulkBar();
+  }
+  if (action === "registry-clear-selection") {
+    registrySelectedTokens.clear();
+    updateRegistryBulkBar();
+  }
+  if (action === "registry-bulk-download") {
+    const tokens = [...registrySelectedTokens];
+    if (!tokens.length) {
+      showToast("Select certificates first");
+      return;
     }
+    await downloadRegistryPdfs(tokens);
+  }
+  if (action === "registry-bulk-delete") {
+    await deleteSelectedRegistryCertificates();
   }
   if (action === "toggle-lang") {
     setLang(getLang() === "ur" ? "en" : "ur");
@@ -2898,9 +3063,21 @@ function bindActions() {
       const el = event.target.closest("[data-action]");
       if (!el) return;
       const action = el.getAttribute("data-action");
-      if (action === "delete-cert" || action === "renew-cert" || action === "renew-cert-registry" || action === "download-pdf") {
-        event.preventDefault();
+      if (
+        action === "delete-cert" ||
+        action === "renew-cert" ||
+        action === "renew-cert-registry" ||
+        action === "download-pdf" ||
+        action === "registry-select" ||
+        action === "registry-select-page" ||
+        action === "registry-bulk-download" ||
+        action === "registry-bulk-delete" ||
+        action === "registry-clear-selection"
+      ) {
         event.stopPropagation();
+        if (action !== "registry-select" && action !== "registry-select-page") {
+          event.preventDefault();
+        }
       }
       void handleDataActionClick(el, event);
     });

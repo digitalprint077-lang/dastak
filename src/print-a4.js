@@ -201,12 +201,17 @@ export function renderA4PrintMissing(ref = "") {
   `;
 }
 
+let a4BackgroundPromise = null;
+
 export function preloadA4Background() {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(false);
-    img.src = A4_CERT_BACKGROUND;
-  });
+  if (!a4BackgroundPromise) {
+    a4BackgroundPromise = new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = A4_CERT_BACKGROUND;
+    });
+  }
+  return a4BackgroundPromise;
 }

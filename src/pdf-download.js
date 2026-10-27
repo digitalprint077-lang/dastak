@@ -4,13 +4,15 @@ import { getPrintData } from "./certificates.js";
 import { qrDataUrlWithLogo } from "./qr-with-logo.js";
 import { preloadA4Background, renderA4CertificateArticle } from "./print-a4.js";
 
-/** Balanced quality vs speed (~150 DPI on A4); avoids multi‑MB PNG freezes. */
-const PDF_CAPTURE_SCALE = 2;
-const PDF_JPEG_QUALITY = 0.92;
-const PDF_QR_PIXEL_SIZE = 240;
-const PDF_CAPTURE_TIMEOUT_MS = 45000;
+/** ~110 DPI — readable Form-I without the multi-second scale-2 capture. */
+const PDF_CAPTURE_SCALE = 1.4;
+const PDF_JPEG_QUALITY = 0.86;
+const PDF_QR_PIXEL_SIZE = 160;
+const PDF_CAPTURE_TIMEOUT_MS = 25000;
 
-function waitForNextFrames(count = 2) {
+let captureShell = null;
+
+function waitForNextFrames(count = 1) {
   return new Promise((resolve) => {
     let done = 0;
     const step = () => {
@@ -30,8 +32,8 @@ function withTimeout(promise, ms, message) {
   return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
 }
 
-/** In-viewport but invisible — html2canvas often fails on far off-screen nodes. */
-function attachCaptureShell(token) {
+function getCaptureShell() {
+  if (captureShell?.isConnected) return captureShell;
   const shell = document.createElement("div");
   shell.className = "print-shell pdf-capture-root";
   shell.setAttribute("aria-hidden", "true");
@@ -47,90 +49,106 @@ function attachCaptureShell(token) {
     "overflow:hidden",
     "background:#fff",
   ].join(";");
-  shell.innerHTML = renderA4CertificateArticle(token, { qrElementId: "pdf-cert-qr" });
   document.body.appendChild(shell);
+  captureShell = shell;
   return shell;
 }
 
-export async function downloadCertificatePdf(token) {
-  await preloadA4Background();
+async function waitIfIncomplete(img, ms) {
+  if (!img || img.complete) return;
+  await withTimeout(
+    new Promise((resolve) => {
+      img.onload = resolve;
+      img.onerror = resolve;
+    }),
+    ms,
+    "Image timed out"
+  );
+}
 
-  const shell = attachCaptureShell(token);
+async function captureCertificateCanvas(token) {
+  const shell = getCaptureShell();
+  shell.innerHTML = renderA4CertificateArticle(token, { qrElementId: "pdf-cert-qr" });
+
+  await waitIfIncomplete(shell.querySelector(".a4-cert-bg"), 8000);
+
+  const qrImg = shell.querySelector("#pdf-cert-qr");
+  const url = qrImg?.getAttribute("data-url");
+  if (qrImg && url) {
+    try {
+      qrImg.src = await qrDataUrlWithLogo(url, { size: PDF_QR_PIXEL_SIZE });
+      qrImg.classList.add("is-ready");
+      await waitIfIncomplete(qrImg, 5000);
+    } catch {
+      qrImg.classList.add("is-ready");
+    }
+  }
+
+  await waitForNextFrames(1);
+
+  const article = shell.querySelector(".a4-cert");
+  if (!article) throw new Error("Certificate layout missing");
+
+  const canvas = await withTimeout(
+    html2canvas(article, {
+      scale: PDF_CAPTURE_SCALE,
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: "#ffffff",
+      logging: false,
+      imageTimeout: 5000,
+    }),
+    PDF_CAPTURE_TIMEOUT_MS,
+    "PDF capture timed out — try again or use Print"
+  );
+
+  if (!canvas.width || !canvas.height) {
+    throw new Error("PDF capture produced an empty canvas");
+  }
+  return canvas;
+}
+
+function canvasToPdfImage(canvas) {
+  try {
+    return { data: canvas.toDataURL("image/jpeg", PDF_JPEG_QUALITY), format: "JPEG" };
+  } catch {
+    return { data: canvas.toDataURL("image/png"), format: "PNG" };
+  }
+}
+
+function pdfFileName(tokens) {
+  if (tokens.length === 1) {
+    const tracking = getPrintData(tokens[0]).applicationId.replace(/[^\w-]+/g, "_");
+    return `vehicle-fitness-${tracking || tokens[0]}.pdf`;
+  }
+  return `vehicle-fitness-${tokens.length}-certificates.pdf`;
+}
+
+export async function downloadCertificatePdfs(tokens, { onProgress } = {}) {
+  const list = [...new Set((tokens || []).map((t) => String(t || "").trim()).filter(Boolean))];
+  if (!list.length) throw new Error("No certificates to download");
+
+  await preloadA4Background();
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
 
   try {
-    const bgImg = shell.querySelector(".a4-cert-bg");
-    if (bgImg && !bgImg.complete) {
-      await withTimeout(
-        new Promise((resolve) => {
-          bgImg.onload = resolve;
-          bgImg.onerror = resolve;
-        }),
-        12000,
-        "Certificate background image timed out"
-      );
+    for (let i = 0; i < list.length; i += 1) {
+      onProgress?.({ index: i, total: list.length, token: list[i] });
+      if (i > 0) pdf.addPage();
+      const canvas = await captureCertificateCanvas(list[i]);
+      const image = canvasToPdfImage(canvas);
+      pdf.addImage(image.data, image.format, 0, 0, pageW, pageH);
     }
-
-    const qrImg = shell.querySelector("#pdf-cert-qr");
-    const url = qrImg?.getAttribute("data-url");
-    if (qrImg && url) {
-      try {
-        qrImg.src = await qrDataUrlWithLogo(url, { size: PDF_QR_PIXEL_SIZE });
-        qrImg.classList.add("is-ready");
-        await withTimeout(
-          new Promise((resolve) => {
-            if (qrImg.complete) resolve();
-            else {
-              qrImg.onload = resolve;
-              qrImg.onerror = resolve;
-            }
-          }),
-          8000,
-          "QR image timed out"
-        );
-      } catch {
-        qrImg.classList.add("is-ready");
-      }
-    }
-
-    await waitForNextFrames(2);
-
-    const article = shell.querySelector(".a4-cert");
-    if (!article) throw new Error("Certificate layout missing");
-
-    const canvas = await withTimeout(
-      html2canvas(article, {
-        scale: PDF_CAPTURE_SCALE,
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: "#ffffff",
-        logging: false,
-        imageTimeout: 8000,
-      }),
-      PDF_CAPTURE_TIMEOUT_MS,
-      "PDF capture timed out — try again or use Print"
-    );
-
-    if (!canvas.width || !canvas.height) {
-      throw new Error("PDF capture produced an empty canvas");
-    }
-
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-
-    let imgData;
-    let format = "PNG";
-    try {
-      imgData = canvas.toDataURL("image/jpeg", PDF_JPEG_QUALITY);
-      format = "JPEG";
-    } catch {
-      imgData = canvas.toDataURL("image/png");
-    }
-
-    pdf.addImage(imgData, format, 0, 0, pageW, pageH);
-    const tracking = getPrintData(token).applicationId.replace(/[^\w-]+/g, "_");
-    pdf.save(`vehicle-fitness-${tracking || token}.pdf`);
+    pdf.save(pdfFileName(list));
   } finally {
-    shell.remove();
+    if (captureShell?.isConnected) {
+      captureShell.innerHTML = "";
+    }
   }
+}
+
+export async function downloadCertificatePdf(token) {
+  await downloadCertificatePdfs([token]);
 }

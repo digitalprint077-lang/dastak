@@ -3,14 +3,20 @@ import QRCode from "qrcode";
 /** Used only inside the print QR — navbar/admin keep `/images/logo-dastak.png`. */
 const LOGO_SRC = "/images/logo-dastak-qr-only.jpg";
 
+const imageCache = new Map();
+
 function loadImage(src) {
-  return new Promise((resolve, reject) => {
+  const hit = imageCache.get(src);
+  if (hit) return hit;
+  const pending = new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = src;
   });
+  imageCache.set(src, pending);
+  return pending;
 }
 
 function fitRect(innerW, innerH, aspect) {
