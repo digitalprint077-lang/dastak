@@ -4567,11 +4567,20 @@ html[data-theme="dark"] .admin-login-form .form-control {
   min-width: 0;
 }
 
+.cert-list-row-actions {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+.cert-list-action-btn,
 .cert-list-renew-btn {
   flex-shrink: 0;
-  align-self: center;
   width: 36px;
   height: 36px;
+  padding: 0;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface);
@@ -4580,8 +4589,10 @@ html[data-theme="dark"] .admin-login-form .form-control {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: inherit;
 }
 
+.cert-list-action-btn:hover,
 .cert-list-renew-btn:hover {
   background: color-mix(in srgb, #00c3d9 12%, var(--surface));
 }
@@ -5021,6 +5032,11 @@ html[data-theme="dark"] .admin-login-form .form-control {
   opacity: 1;
 }
 
+.admin-list-panel-full .cert-list-row-actions {
+  gap: 6px;
+}
+
+.admin-list-panel-full .cert-list-action-btn,
 .admin-list-panel-full .cert-list-renew-btn {
   width: 40px;
   height: 40px;
@@ -5030,6 +5046,7 @@ html[data-theme="dark"] .admin-login-form .form-control {
   background: var(--admin-surface);
 }
 
+.admin-list-panel-full .cert-list-action-btn:hover,
 .admin-list-panel-full .cert-list-renew-btn:hover {
   border-color: color-mix(in srgb, var(--dastak-teal, #00c3d9) 45%, var(--admin-border));
 }

@@ -1298,14 +1298,24 @@ function renderCertListItemHtml(item, activeToken) {
         </span>
         <span class="cert-list-open">${iconArrowRight()} Open</span>
       </a>
-      <button
-        type="button"
-        class="cert-list-renew-btn"
-        data-action="renew-cert-registry"
-        data-token="${escapeHtml(item.token)}"
-        title="Renew certificate"
-        aria-label="Renew ${escapeHtml(item.applicant || "certificate")}"
-      >${iconPlus()}</button>
+      <div class="cert-list-row-actions">
+        <button
+          type="button"
+          class="cert-list-action-btn"
+          data-action="download-pdf"
+          data-token="${escapeHtml(item.token)}"
+          title="Download PDF"
+          aria-label="Download PDF for ${escapeHtml(item.applicant || "certificate")}"
+        >${iconDownload()}</button>
+        <button
+          type="button"
+          class="cert-list-action-btn cert-list-renew-btn"
+          data-action="renew-cert-registry"
+          data-token="${escapeHtml(item.token)}"
+          title="Renew certificate"
+          aria-label="Renew ${escapeHtml(item.applicant || "certificate")}"
+        >${iconPlus()}</button>
+      </div>
     </div>
   `;
 }
@@ -2653,6 +2663,7 @@ async function handleDataActionClick(el, event) {
     document.documentElement.classList.add("print-pdf-busy");
     showAppLoader();
     try {
+      await hydrateCertificateFromApi(pdfToken);
       const { downloadCertificatePdf } = await import("./pdf-download.js");
       await downloadCertificatePdf(pdfToken);
       showToast("PDF downloaded");
@@ -2887,7 +2898,7 @@ function bindActions() {
       const el = event.target.closest("[data-action]");
       if (!el) return;
       const action = el.getAttribute("data-action");
-      if (action === "delete-cert" || action === "renew-cert" || action === "renew-cert-registry") {
+      if (action === "delete-cert" || action === "renew-cert" || action === "renew-cert-registry" || action === "download-pdf") {
         event.preventDefault();
         event.stopPropagation();
       }
