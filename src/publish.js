@@ -470,9 +470,24 @@ async function ingestCertificateFromApi(slug) {
   }
 }
 
+function promoteOverlayEntryToPublic(slug) {
+  const needle = decodeURIComponent(String(slug ?? "").trim());
+  if (!needle || findPublishedEntryPublic(needle)) return true;
+  const entry = findPublishedEntry(needle);
+  if (!entry?.payload) return false;
+  remotePublished = normalizeBundle(remotePublished);
+  remotePublished.certificates[entry.token] = {
+    status: entry.payload.status || "Issued",
+    values: { ...(entry.payload.values || {}) },
+  };
+  return findPublishedEntryPublic(needle) != null;
+}
+
 export async function hydrateCertificateFromApi(slug) {
   const needle = decodeURIComponent(String(slug ?? "").trim());
-  if (!needle || findPublishedEntry(needle)) return;
+  if (!needle) return;
+  // Do not skip when only the admin overlay has this slug. Overlay is ignored
+  // by public verify, so skipping here makes a second QR scan show Not Found.
   await ingestCertificateFromApi(needle);
 }
 
@@ -497,15 +512,17 @@ export async function waitForCertificateLive(
 
 export async function hydratePublicCertificate(slug) {
   await refreshPublishedCertificates();
+  const needle = decodeURIComponent(String(slug ?? "").trim());
+  promoteOverlayEntryToPublic(needle);
   for (let attempt = 0; attempt < 4; attempt++) {
     await hydrateCertificateFromStatic(slug);
     await hydrateCertificateFromApi(slug);
-    const needle = decodeURIComponent(String(slug ?? "").trim());
     if (!needle || findPublishedEntryPublic(needle)) return;
     if (typeof window !== "undefined" && attempt < 3) {
       await new Promise((resolve) => window.setTimeout(resolve, 350));
     }
   }
+  promoteOverlayEntryToPublic(needle);
 }
 
 export async function upsertPublishedCertificate(token, payload) {

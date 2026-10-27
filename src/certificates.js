@@ -470,6 +470,8 @@ function certificateFromPublicTokenKey(token) {
   if (builtIn) return certificateFromStored(builtIn);
   const published = findPublishedEntryPublic(token);
   if (published?.payload) return certificateFromStored(published.payload);
+  const overlay = findPublishedEntry(token);
+  if (overlay?.payload) return certificateFromStored(overlay.payload);
   const stored = readStoredPayload(token);
   if (stored) return certificateFromStored(stored);
   return null;
