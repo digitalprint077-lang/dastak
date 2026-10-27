@@ -116,12 +116,13 @@ function canvasToPdfImage(canvas) {
   }
 }
 
-function pdfFileName(tokens) {
-  if (tokens.length === 1) {
-    const tracking = getPrintData(tokens[0]).applicationId.replace(/[^\w-]+/g, "_");
-    return `vehicle-fitness-${tracking || tokens[0]}.pdf`;
-  }
-  return `vehicle-fitness-${tokens.length}-certificates.pdf`;
+function pdfFileName(token) {
+  const tracking = getPrintData(token).applicationId.replace(/[^\w-]+/g, "_");
+  return `vehicle-fitness-${tracking || token}.pdf`;
+}
+
+function waitMs(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 export async function downloadCertificatePdfs(tokens, { onProgress } = {}) {
@@ -129,19 +130,19 @@ export async function downloadCertificatePdfs(tokens, { onProgress } = {}) {
   if (!list.length) throw new Error("No certificates to download");
 
   await preloadA4Background();
-  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
 
   try {
     for (let i = 0; i < list.length; i += 1) {
       onProgress?.({ index: i, total: list.length, token: list[i] });
-      if (i > 0) pdf.addPage();
       const canvas = await captureCertificateCanvas(list[i]);
       const image = canvasToPdfImage(canvas);
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
       pdf.addImage(image.data, image.format, 0, 0, pageW, pageH);
+      pdf.save(pdfFileName(list[i]));
+      if (i < list.length - 1) await waitMs(350);
     }
-    pdf.save(pdfFileName(list));
   } finally {
     if (captureShell?.isConnected) {
       captureShell.innerHTML = "";

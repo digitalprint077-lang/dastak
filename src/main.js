@@ -2636,7 +2636,7 @@ async function downloadRegistryPdfs(tokens) {
         }
       },
     });
-    showToast(list.length > 1 ? `${list.length} certificates saved as one PDF` : "PDF downloaded");
+    showToast(list.length > 1 ? `${list.length} PDFs downloaded` : "PDF downloaded");
   } catch (err) {
     console.error("PDF download failed", err);
     showToast("PDF download failed");
