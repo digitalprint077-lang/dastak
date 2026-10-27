@@ -115,6 +115,18 @@ function normalizeRegKey(value) {
     .replace(/[\s.\-_/]/g, "");
 }
 
+function parseTimestampMs(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return 0;
+  const normalized = /^\d{4}-\d{2}-\d{2} /.test(raw) ? `${raw.replace(" ", "T")}Z` : raw;
+  const t = new Date(normalized).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
+function parseUpdatedAtTime(row) {
+  return parseTimestampMs(row?.updatedAt);
+}
+
 function parseCertListSortTime(row) {
   const issue = String(row.issueDate ?? "").trim();
   if (issue) {
@@ -135,6 +147,8 @@ function parseCertListSortTime(row) {
 }
 
 export function compareCertsNewestFirst(a, b) {
+  const byUpdated = parseUpdatedAtTime(b) - parseUpdatedAtTime(a);
+  if (byUpdated !== 0) return byUpdated;
   const byDate = parseCertListSortTime(b) - parseCertListSortTime(a);
   if (byDate !== 0) return byDate;
   return String(b.trackingId ?? b.token ?? "").localeCompare(String(a.trackingId ?? a.token ?? ""));
@@ -156,6 +170,7 @@ function summarizeEntry(token, payload) {
     issueDate,
     expiryDate: expiry,
     daysLeft: daysUntilExpiry(expiry),
+    updatedAt: payload?.updatedAt || null,
   };
 }
 

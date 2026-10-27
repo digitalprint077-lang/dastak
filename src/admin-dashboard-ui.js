@@ -29,16 +29,24 @@ export function recordCertLastSaved(token) {
   }
 }
 
-export function formatCertLastSaved(token) {
+export function readCertLastSavedIso(token) {
+  if (!token) return "";
   try {
     const raw = localStorage.getItem(`${LAST_SAVE_PREFIX}${token}`);
     if (!raw) return "";
-    const d = new Date(raw);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+    const t = new Date(raw).getTime();
+    return Number.isNaN(t) ? "" : raw;
   } catch {
     return "";
   }
+}
+
+export function formatCertLastSaved(token) {
+  const raw = readCertLastSavedIso(token);
+  if (!raw) return "";
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
 export function formSectionSlug(title) {

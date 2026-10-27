@@ -90,6 +90,7 @@ export async function d1LoadBundle(db) {
     certificates[parsed.token] = {
       status: parsed.status,
       values: parsed.values,
+      updatedAt: row.updated_at || null,
     };
     if (row.updated_at && (!updatedAt || row.updated_at > updatedAt)) {
       updatedAt = row.updated_at;

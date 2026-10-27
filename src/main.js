@@ -60,6 +60,7 @@ import {
   serviceToCertificateType,
   expiryFromIssueDate,
   compareCertsNewestFirst,
+  preferNewerUpdatedAt,
   formatCertListDate,
   cssEscape,
   validateAdminRequiredFields,
@@ -69,6 +70,7 @@ import {
   readRegistryCollapsed,
   writeRegistryCollapsed,
   recordCertLastSaved,
+  readCertLastSavedIso,
   formatCertLastSaved,
   formSectionSlug,
   renderCertListSkeleton,
@@ -1187,6 +1189,13 @@ function certSearchTermMatches(term, hay, regNorm) {
   return false;
 }
 
+function isRecentlySaved(token, maxAgeMs = 24 * 60 * 60 * 1000) {
+  const iso = readCertLastSavedIso(token);
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) && Date.now() - t >= 0 && Date.now() - t < maxAgeMs;
+}
+
 function localOnlyCertRows(filters) {
   const q = String(filters.q ?? "").trim();
   const district = String(filters.district ?? "").trim();
@@ -1196,11 +1205,12 @@ function localOnlyCertRows(filters) {
   return listSavedTokens()
     .filter((token) => token !== FOLLOW_TOKEN)
     .filter((token) => !isDefaultDemoLocalSave(token))
-    .filter(
-      (token) =>
-        isCertificateSaved(token) &&
-        !certificateLiveOnSite(token, getCertificateForEdit(token).values["Tracking ID"])
-    )
+    .filter((token) => {
+      if (!isCertificateSaved(token)) return false;
+      const tracking = getCertificateForEdit(token).values["Tracking ID"];
+      if (!certificateLiveOnSite(token, tracking)) return true;
+      return isRecentlySaved(token);
+    })
     .map((token) => {
       const summary = getCertificateSummary(token);
       const { values, status: certStatus } = getCertificateForEdit(token);
@@ -1216,6 +1226,7 @@ function localOnlyCertRows(filters) {
         expiryDate: String(values["Expiry Date"] ?? "").trim(),
         status: certStatus,
         daysLeft: daysUntilExpiry(values["Expiry Date"]),
+        updatedAt: readCertLastSavedIso(token),
         localOnly: true,
       };
     })
@@ -1475,7 +1486,7 @@ function renderCertSidebar(activeToken, { fullPage = false } = {}) {
               <option value="30"${filters.expiring === "30" ? " selected" : ""}>Expiring ≤ 30 days</option>
             </select>
             <select id="cert-list-sort" class="form-control form-control-sm" aria-label="Sort order">
-              <option value="issue-desc"${sort === "issue-desc" ? " selected" : ""}>Newest issue date</option>
+              <option value="issue-desc"${sort === "issue-desc" ? " selected" : ""}>Newest first</option>
               <option value="expiry-asc"${sort === "expiry-asc" ? " selected" : ""}>Expiry soonest</option>
               <option value="name-asc"${sort === "name-asc" ? " selected" : ""}>Name A–Z</option>
             </select>
@@ -1522,7 +1533,11 @@ async function populateAdminCertList(activeToken) {
         !isPublishedSuppressed(item.token) &&
         !isPublishedSuppressed(item.trackingId)
     )
-    .map((item) => ({ ...item, serverPublished: true }));
+    .map((item) => ({
+      ...item,
+      serverPublished: true,
+      updatedAt: preferNewerUpdatedAt(item.updatedAt, readCertLastSavedIso(item.token)),
+    }));
   const deployedTracking = new Set(
     serverItems.map((item) => String(item.trackingId ?? "").trim()).filter(Boolean)
   );
@@ -2552,6 +2567,7 @@ async function saveFromEditor(previewAfter) {
   setSaveFormBusy(false);
   saveInFlight = false;
   recordCertLastSaved(token);
+  writeCertListPage(1);
 
   if (previewAfter) {
     window.open(followLinkPublic(publicSiteOrigin(), token), "_blank", "noopener,noreferrer");

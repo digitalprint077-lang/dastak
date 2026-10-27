@@ -873,7 +873,24 @@ export function cssEscape(value) {
   return CSS.escape(value);
 }
 
-/** Newest issue date first (registry sidebar + API list). */
+function parseTimestampMs(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return 0;
+  const normalized = /^\d{4}-\d{2}-\d{2} /.test(raw) ? `${raw.replace(" ", "T")}Z` : raw;
+  const t = new Date(normalized).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
+/** Last-saved / D1 updated_at — newly generated certificates rank first. */
+export function parseUpdatedAtTime(item) {
+  return parseTimestampMs(item?.updatedAt);
+}
+
+export function preferNewerUpdatedAt(a, b) {
+  return parseTimestampMs(a) >= parseTimestampMs(b) ? a || b || "" : b || a || "";
+}
+
+/** Issue date (then tracking-ID date) when no save timestamp is present. */
 export function parseCertListSortTime(item) {
   const issue = String(item.issueDate ?? "").trim();
   if (issue) {
@@ -908,6 +925,8 @@ export function validateAdminRequiredFields(values) {
 }
 
 export function compareCertsNewestFirst(a, b) {
+  const byUpdated = parseUpdatedAtTime(b) - parseUpdatedAtTime(a);
+  if (byUpdated !== 0) return byUpdated;
   const byDate = parseCertListSortTime(b) - parseCertListSortTime(a);
   if (byDate !== 0) return byDate;
   return String(b.trackingId ?? b.token ?? "").localeCompare(String(a.trackingId ?? a.token ?? ""));

@@ -374,6 +374,7 @@ export function ingestPublishedCertificate(token, payload) {
   const entry = {
     status: payload.status || "Issued",
     values: { ...payload.values },
+    updatedAt: new Date().toISOString(),
   };
   remotePublished = normalizeBundle(remotePublished);
   remotePublished.certificates[token] = entry;
