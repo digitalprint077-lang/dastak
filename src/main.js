@@ -450,7 +450,7 @@ function certSidebarExpiryBadge(daysLeft) {
 }
 
 function layout(mainHtml, options = {}) {
-  const { showWelcome = true } = options;
+  const { showWelcome = true, shellClass = "" } = options;
   const welcome = showWelcome
     ? `
         <div class="welcome-row">
@@ -467,7 +467,7 @@ function layout(mainHtml, options = {}) {
     : "";
 
   return `
-    <div class="app-shell">
+    <div class="app-shell${shellClass ? ` ${shellClass}` : ""}">
       <header class="navbar">
         <div class="navbar-fluid">
           <div class="navbar-menu-wrapper">
@@ -1066,33 +1066,33 @@ function handleVerifyLicense(form) {
 function loginArtSvg() {
   return `
     <svg class="admin-login-art-svg" viewBox="0 0 640 560" fill="none" aria-hidden="true">
-      <ellipse cx="320" cy="486" rx="196" ry="24" fill="#d5e6ec"/>
-      <path d="M86 176c52-92 178-132 286-94 88 32 188 22 230 92 46 76 12 174-78 218-88 42-228 64-330 18-90-42-156-138-108-234Z" fill="#e8f8fb"/>
-      <rect x="214" y="72" width="236" height="304" rx="16" fill="#fff" stroke="#d4e4ea"/>
-      <rect x="238" y="98" width="188" height="16" rx="8" fill="#00c3d9"/>
-      <rect x="238" y="130" width="132" height="8" rx="4" fill="#d5e4ea"/>
-      <rect x="238" y="148" width="168" height="8" rx="4" fill="#e4eef2"/>
-      <rect x="238" y="166" width="110" height="8" rx="4" fill="#e4eef2"/>
-      <rect x="238" y="202" width="72" height="7" rx="3" fill="#c5dce3"/>
-      <rect x="324" y="202" width="102" height="7" rx="3" fill="#eef6f8"/>
-      <rect x="238" y="220" width="72" height="7" rx="3" fill="#c5dce3"/>
-      <rect x="324" y="220" width="102" height="7" rx="3" fill="#eef6f8"/>
-      <rect x="238" y="238" width="72" height="7" rx="3" fill="#c5dce3"/>
-      <rect x="324" y="238" width="102" height="7" rx="3" fill="#eef6f8"/>
-      <rect x="348" y="268" width="70" height="70" rx="8" fill="#f4fbfb" stroke="#b7eaf1"/>
+      <ellipse cx="320" cy="486" rx="196" ry="24" fill="#d5e4dc"/>
+      <path d="M86 176c52-92 178-132 286-94 88 32 188 22 230 92 46 76 12 174-78 218-88 42-228 64-330 18-90-42-156-138-108-234Z" fill="#e8f3ee"/>
+      <rect x="214" y="72" width="236" height="304" rx="16" fill="#fff" stroke="#d4e0d8"/>
+      <rect x="238" y="98" width="188" height="16" rx="8" fill="#6398a9"/>
+      <rect x="238" y="130" width="132" height="8" rx="4" fill="#d5e0d8"/>
+      <rect x="238" y="148" width="168" height="8" rx="4" fill="#e4eee8"/>
+      <rect x="238" y="166" width="110" height="8" rx="4" fill="#e4eee8"/>
+      <rect x="238" y="202" width="72" height="7" rx="3" fill="#c5d8cf"/>
+      <rect x="324" y="202" width="102" height="7" rx="3" fill="#eef4f1"/>
+      <rect x="238" y="220" width="72" height="7" rx="3" fill="#c5d8cf"/>
+      <rect x="324" y="220" width="102" height="7" rx="3" fill="#eef4f1"/>
+      <rect x="238" y="238" width="72" height="7" rx="3" fill="#c5d8cf"/>
+      <rect x="324" y="238" width="102" height="7" rx="3" fill="#eef4f1"/>
+      <rect x="348" y="268" width="70" height="70" rx="8" fill="#f7f4ee" stroke="#96c7b3"/>
       <path d="M364 284h8v8h-8zm14 0h8v8h-8zm14 0h8v8h-8zm-28 14h8v8h-8zm28 0h8v8h-8zm-28 14h8v8h-8zm14 0h8v8h-8zm14 0h8v8h-8z" fill="#2d3436"/>
-      <circle cx="278" cy="302" r="20" fill="#e8fbff" stroke="#00c3d9" stroke-width="3"/>
-      <path d="M270 302l6 6 12-12" stroke="#009fb3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M96 360h36l22-30h58l20 30h28v22H96z" fill="#00c3d9"/>
-      <path d="M140 356l16-22h46l14 22z" fill="#e8fbff"/>
-      <rect x="96" y="360" width="170" height="22" rx="6" fill="#00b3c7"/>
+      <circle cx="278" cy="302" r="20" fill="#eef6f2" stroke="#96c7b3" stroke-width="3"/>
+      <path d="M270 302l6 6 12-12" stroke="#4e7a8a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M96 360h36l22-30h58l20 30h28v22H96z" fill="#6398a9"/>
+      <path d="M140 356l16-22h46l14 22z" fill="#f9b95c"/>
+      <rect x="96" y="360" width="170" height="22" rx="6" fill="#4e7a8a"/>
       <circle cx="132" cy="386" r="15" fill="#2d3436"/>
-      <circle cx="132" cy="386" r="6" fill="#d9e4ea"/>
+      <circle cx="132" cy="386" r="6" fill="#d9e4dc"/>
       <circle cx="226" cy="386" r="15" fill="#2d3436"/>
-      <circle cx="226" cy="386" r="6" fill="#d9e4ea"/>
-      <circle cx="486" cy="368" r="48" fill="#fff" stroke="#d4ecef"/>
-      <circle cx="486" cy="368" r="32" fill="none" stroke="#00c3d9" stroke-width="8"/>
-      <circle cx="486" cy="368" r="5" fill="#00c3d9"/>
+      <circle cx="226" cy="386" r="6" fill="#d9e4dc"/>
+      <circle cx="486" cy="368" r="48" fill="#fff" stroke="#d4e4dc"/>
+      <circle cx="486" cy="368" r="32" fill="none" stroke="#d7897f" stroke-width="8"/>
+      <circle cx="486" cy="368" r="5" fill="#d7897f"/>
     </svg>
   `;
 }
@@ -2339,8 +2339,10 @@ function safePathSlug(segment) {
 function certificatePage(token) {
   const resolved = resolvePublicCertificateToken(token) || token;
   const cert = getPublicCertificate(resolved);
+  const previewLayout = { shellClass: "cert-preview-page" };
   if (!cert) {
-    return layout(`
+    return layout(
+      `
       <h1 class="page-title">${t("certTitle")}</h1>
       <div class="not-found">
         <p class="alert">Certificate Status: <strong>Not Found</strong></p>
@@ -2348,7 +2350,9 @@ function certificatePage(token) {
         <p class="muted cert-not-found-ref">Reference: ${escapeHtml(String(token ?? ""))}</p>
         <a class="btn btn-primary" href="/">${t("backHome")}</a>
       </div>
-    `);
+    `,
+      previewLayout
+    );
   }
 
   const values = Object.fromEntries(cert.fields);
@@ -2371,7 +2375,8 @@ function certificatePage(token) {
       )
       .join("");
 
-    return layout(`
+    return layout(
+      `
       <h1 class="page-title">${t("certTitle")}</h1>
       <div class="card cert-status-card cert-status-${status.toLowerCase()}">
         <div class="card-body">
@@ -2381,7 +2386,9 @@ function certificatePage(token) {
         </div>
       </div>
       <a class="btn btn-primary" href="/">${t("backHome")}</a>
-    `);
+    `,
+      previewLayout
+    );
   }
 
   const fields = FIELD_LABELS.map(
@@ -2393,7 +2400,8 @@ function certificatePage(token) {
       `
   ).join("");
 
-  return layout(`
+  return layout(
+    `
     <h1 class="page-title">${t("certTitle")}</h1>
     ${expiryReminderHtml(values["Expiry Date"])}
     <div class="card">
@@ -2404,7 +2412,9 @@ function certificatePage(token) {
     </div>
     <a class="btn btn-primary" href="/">${t("backHome")}</a>
     <div id="cert-expiry-reminder" hidden data-token="${escapeHtml(token)}" data-expiry="${escapeHtml(values["Expiry Date"] ?? "")}"></div>
-  `);
+  `,
+    previewLayout
+  );
 }
 
 async function mountPrintQr() {
