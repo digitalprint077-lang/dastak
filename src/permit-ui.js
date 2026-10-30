@@ -4,6 +4,11 @@ import {
   PERMIT_DISTRICT_OPTIONS,
   PERMIT_STATUS_OPTIONS,
   PERMIT_DATE_FIELDS,
+  PERMIT_MAKER_OPTIONS,
+  PERMIT_MAKE_OPTIONS,
+  PERMIT_MODEL_OPTIONS,
+  PERMIT_LADEN_WEIGHT_OPTIONS,
+  PERMIT_CUSTOM_VALUE,
   publicPermitLink,
   publicPermitPath,
   printPermitPath,
@@ -131,11 +136,58 @@ function optionList(options, selected) {
     .join("");
 }
 
+function permitChoiceField(label, value, options) {
+  const id = `permit-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+  const name = escapeHtml(label);
+  const raw = String(value ?? "").trim();
+  const isPreset = options.includes(raw);
+  const selectValue = isPreset ? raw : raw ? PERMIT_CUSTOM_VALUE : "";
+  const customHidden = selectValue === PERMIT_CUSTOM_VALUE ? "" : " hidden";
+  const customVal = !isPreset ? escapeHtml(raw) : "";
+  return `
+    <label class="form-field form-field-permit-choice" for="${id}">
+      <span class="form-label">${escapeHtml(label)}</span>
+      <select class="form-control" id="${id}" name="${name}" data-permit-choice-select>
+        <option value=""${selectValue === "" ? " selected" : ""}>Select ${escapeHtml(label.toLowerCase())}</option>
+        ${optionList(options, selectValue)}
+        <option value="${PERMIT_CUSTOM_VALUE}"${selectValue === PERMIT_CUSTOM_VALUE ? " selected" : ""}>Custom…</option>
+      </select>
+      <div class="permit-choice-custom-wrap"${customHidden}>
+        <input class="form-control" id="${id}-custom" name="${escapeHtml(`${label} custom`)}" type="text" value="${customVal}" placeholder="Enter custom ${escapeHtml(label.toLowerCase())}" autocomplete="off" />
+      </div>
+    </label>
+  `;
+}
+
+function permitYearField(label, value, options) {
+  const id = `permit-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+  const name = escapeHtml(label);
+  const raw = String(value ?? "").trim();
+  const extra =
+    raw && !options.includes(raw)
+      ? `<option value="${escapeHtml(raw)}" selected>${escapeHtml(raw)}</option>`
+      : "";
+  return `
+    <label class="form-field" for="${id}">
+      <span class="form-label">${escapeHtml(label)}</span>
+      <select class="form-control" id="${id}" name="${name}">
+        <option value=""${raw ? "" : " selected"}>Select ${escapeHtml(label.toLowerCase())}</option>
+        ${extra}
+        ${optionList(options, raw)}
+      </select>
+    </label>
+  `;
+}
+
 function permitFieldInput(label, value) {
   const id = `permit-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
   const name = escapeHtml(label);
   const isDate = PERMIT_DATE_FIELDS.includes(label);
   const isMultiline = ["Route", "Conditions", "Current Address", "Permanent Address"].includes(label);
+  if (label === "Maker") return permitChoiceField(label, value, PERMIT_MAKER_OPTIONS);
+  if (label === "Make") return permitChoiceField(label, value, PERMIT_MAKE_OPTIONS);
+  if (label === "Model") return permitYearField(label, value, PERMIT_MODEL_OPTIONS);
+  if (label === "Laden Weight") return permitChoiceField(label, value, PERMIT_LADEN_WEIGHT_OPTIONS);
   let control;
   if (label === "Permit Type") {
     control = `<select class="form-control" id="${id}" name="${name}">${optionList(PERMIT_TYPE_OPTIONS, value || PERMIT_TYPE_OPTIONS[0])}</select>`;
@@ -152,6 +204,20 @@ function permitFieldInput(label, value) {
       ${control}
     </label>
   `;
+}
+
+export function bindPermitChoiceSelects() {
+  document.querySelectorAll("[data-permit-choice-select]").forEach((select) => {
+    const wrap = select.closest(".form-field")?.querySelector(".permit-choice-custom-wrap");
+    const customInput = wrap?.querySelector("input");
+    const sync = (focusCustom = false) => {
+      const isCustom = select.value === PERMIT_CUSTOM_VALUE;
+      if (wrap) wrap.hidden = !isCustom;
+      if (focusCustom && isCustom) customInput?.focus();
+    };
+    select.addEventListener("change", () => sync(true));
+    sync();
+  });
 }
 
 export function renderPermitRegistry(items) {

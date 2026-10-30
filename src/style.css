@@ -518,7 +518,8 @@ html[data-theme="dark"] .admin-shell .form-field-icon {
   padding-top: 10px;
 }
 
-.form-field-laden-weight .form-laden-weight-custom-wrap {
+.form-field-laden-weight .form-laden-weight-custom-wrap,
+.form-field-permit-choice .permit-choice-custom-wrap {
   margin-top: 8px;
 }
 

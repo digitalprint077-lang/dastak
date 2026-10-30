@@ -147,6 +147,7 @@ import {
 } from "./permits.js";
 import {
   bindPermitPhotoInput,
+  bindPermitChoiceSelects,
   renderPermitEditor,
   renderPermitNotFound,
   renderPermitPreview,
@@ -3307,6 +3308,7 @@ function bindActions() {
   const permitForm = document.getElementById("permit-editor");
   if (permitForm) {
     bindPermitPhotoInput();
+    bindPermitChoiceSelects();
     permitForm.addEventListener("submit", (event) => {
       event.preventDefault();
       void savePermitFromEditor();

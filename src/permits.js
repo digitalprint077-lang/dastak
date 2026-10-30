@@ -9,6 +9,46 @@ export const PERMIT_TYPE_OPTIONS = [
   "Contract Carriage Permit",
 ];
 
+export const PERMIT_CUSTOM_VALUE = "__custom__";
+
+export const PERMIT_MAKER_OPTIONS = ["DAEWOO", "HINO", "NISSAN", "DONGFENG", "TOYOTA", "SUZUKI"];
+
+export const PERMIT_MAKE_OPTIONS = [
+  "PICKUP",
+  "TRUCK",
+  "TRUCK TRAILER",
+  "SLEEPER BUS",
+  "OIL TANKER",
+  "OIL TANKER TRAILER",
+  "GAS BOWSER",
+  "GAS BOWSER TRAILER",
+  "OPEN TRUCK",
+  "MINI BUS",
+  "MINI TRUCK",
+];
+
+export const PERMIT_MODEL_OPTIONS = Array.from({ length: 2070 - 1950 + 1 }, (_, i) => String(1950 + i));
+
+export const PERMIT_LADEN_WEIGHT_OPTIONS = [
+  "15000",
+  "20000",
+  "17000",
+  "17500",
+  "18000",
+  "18500",
+  "23000",
+  "23200",
+  "14200",
+  "10920",
+  "1250",
+  "39500",
+  "58500",
+  "38500",
+];
+
+export const DEFAULT_PERMIT_ROUTE =
+  "Bannu, Dera Ismail Khan, Hazara, Kohat, Malakand, Mardan, Peshawar";
+
 export const PERMIT_DISTRICT_OPTIONS = [
   "Peshawar",
   "Nowshera",
@@ -159,7 +199,7 @@ const DEFAULT_VALUES = {
   "Current Address Line 2": "",
   "Permanent Address": "",
   "Permanent Address Line 2": "",
-  Route: "",
+  Route: DEFAULT_PERMIT_ROUTE,
   "Chassis No": "",
   "Date of 1st Registration": "",
   "Seating Capacity": "3",
@@ -487,6 +527,11 @@ export function readPermitFormValues(form) {
     const input = form.querySelector(`[name="${cssEscapeName(label)}"]`);
     if (!input) return;
     values[label] = input.value?.trim() ?? "";
+  });
+  ["Maker", "Make", "Laden Weight"].forEach((label) => {
+    if (values[label] !== PERMIT_CUSTOM_VALUE) return;
+    const custom = form.querySelector(`[name="${cssEscapeName(`${label} custom`)}"]`)?.value?.trim() ?? "";
+    values[label] = custom;
   });
   const photo = form.querySelector('[name="Photo"]')?.value?.trim();
   if (photo) values.Photo = photo;
