@@ -160,6 +160,7 @@ import {
   renderPermitPreview,
   renderPermitRegistry,
 } from "./permit-ui.js";
+import { bindDatePickers } from "./date-picker.js";
 
 const ECITIZEN_HOME = "https://ecitizen.kp.gov.pk/";
 
@@ -726,7 +727,10 @@ function fieldControl({ id, name, value, multiline = false, inputType = "text", 
   if (multiline) {
     return `<textarea id="${id}" class="form-control" name="${name}" rows="2"${ro}${req}>${escapeHtml(value)}</textarea>`;
   }
-  return `<input id="${id}" class="form-control${inputType === "date" ? " form-control-date" : ""}" type="${inputType}" name="${name}" value="${escapeHtml(value)}"${ro}${req} />`;
+  if (inputType === "date") {
+    return `<input id="${id}" class="form-control form-control-date" type="text" name="${name}" value="${escapeHtml(value)}" autocomplete="off" spellcheck="false" placeholder="YYYY-MM-DD"${ro}${req} />`;
+  }
+  return `<input id="${id}" class="form-control" type="${inputType}" name="${name}" value="${escapeHtml(value)}"${ro}${req} />`;
 }
 
 function fieldSelect({ id, name, value, options, readonly = false, required = true, placeholder = "" }) {
@@ -3425,6 +3429,8 @@ function bindActions() {
       navigate("/admin/dashboard");
     });
   }
+
+  bindDatePickers();
 
   const permitForm = document.getElementById("permit-editor");
   if (permitForm) {

@@ -1438,21 +1438,167 @@ html[data-theme="dark"] .login-card {
 
 .admin-shell .form-control-date {
   min-height: 42px;
-  padding-right: 8px;
+  padding-right: 12px;
+  cursor: pointer;
+  letter-spacing: 0.01em;
 }
 
 .admin-shell .form-input-wrap-date .form-field-icon {
   pointer-events: none;
 }
 
-.admin-shell input[type="date"]::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  opacity: 0.75;
-  margin-left: 4px;
+.dastak-datepicker {
+  position: fixed;
+  z-index: 5000;
+  width: 308px;
+  filter: drop-shadow(0 18px 40px rgba(28, 36, 48, 0.16));
 }
 
-.admin-shell input[type="date"]::-webkit-calendar-picker-indicator:hover {
-  opacity: 1;
+.dastak-datepicker-card {
+  background: var(--surface-elevated, #fff);
+  border: 1px solid var(--border-soft, #eef4f6);
+  border-radius: 18px;
+  padding: 12px 12px 10px;
+  color: var(--text-dark);
+}
+
+.dastak-datepicker-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.dastak-datepicker-title {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--text-dark);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  border-radius: 10px;
+  padding: 8px 6px;
+}
+
+.dastak-datepicker-title:hover,
+.dastak-datepicker-nav:hover,
+.dastak-datepicker-today:hover {
+  background: var(--surface-muted, #f6fbfc);
+}
+
+.dastak-datepicker-nav {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.dastak-datepicker-weekdays,
+.dastak-datepicker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.dastak-datepicker-weekday {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 4px 0 8px;
+}
+
+.dastak-datepicker-day,
+.dastak-datepicker-chip {
+  border: 0;
+  background: transparent;
+  color: var(--text-dark);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dastak-datepicker-day {
+  height: 36px;
+  border-radius: 999px;
+}
+
+.dastak-datepicker-day.is-outside {
+  color: var(--text-muted);
+  font-weight: 500;
+  opacity: 0.55;
+}
+
+.dastak-datepicker-day.is-today {
+  box-shadow: inset 0 0 0 1.5px var(--dastak-lagune, #6398a9);
+  color: var(--dastak-teal-deep, #3d6673);
+}
+
+.dastak-datepicker-day.is-selected,
+.dastak-datepicker-chip.is-selected {
+  background: var(--dastak-lagune, #6398a9);
+  color: #fff;
+  box-shadow: none;
+}
+
+.dastak-datepicker-day:hover:not(.is-selected),
+.dastak-datepicker-chip:hover:not(.is-selected):not(:disabled) {
+  background: color-mix(in srgb, var(--dastak-menthe, #96c7b3) 28%, var(--surface));
+}
+
+.dastak-datepicker-months {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 6px 2px 8px;
+}
+
+.dastak-datepicker-chip {
+  height: 40px;
+  border-radius: 12px;
+}
+
+.dastak-datepicker-chip:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.dastak-datepicker-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 6px;
+}
+
+.dastak-datepicker-today {
+  border: 0;
+  background: transparent;
+  color: var(--dastak-lagune, #6398a9);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+html[data-theme="dark"] .dastak-datepicker {
+  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.45));
+}
+
+html[data-theme="dark"] .dastak-datepicker-day.is-today {
+  color: var(--outline-text, #67e8f9);
 }
 
 .btn-ghost {
@@ -4415,7 +4561,8 @@ html[data-theme="dark"] .admin-login-form .form-control {
 }
 
 .admin-ui-v2 .form-input-wrap .form-control-date {
-  padding-right: 10px;
+  padding-right: 14px;
+  cursor: pointer;
 }
 
 .admin-ui-v2 .form-input-wrap select.form-control {

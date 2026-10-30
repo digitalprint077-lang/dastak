@@ -4,6 +4,7 @@ import {
   PERMIT_DISTRICT_OPTIONS,
   PERMIT_STATUS_OPTIONS,
   PERMIT_DATE_FIELDS,
+  PERMIT_REQUIRED_FIELDS,
   PERMIT_MAKER_OPTIONS,
   PERMIT_MAKE_OPTIONS,
   PERMIT_MODEL_OPTIONS,
@@ -137,6 +138,65 @@ function optionList(options, selected) {
     .join("");
 }
 
+function iconSvg(paths, size = 17) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+}
+
+const PERMIT_FIELD_ICONS = {
+  Status: `<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m22 4-10 10-3-3"/>`,
+  "Holder photo": `<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="11" r="3"/><path d="M8 19c1.2-1.8 2.9-3 4-3s2.8 1.2 4 3"/>`,
+  "Route Permit No": `<path d="M14 2H6a2 2 0 0 0-2 2v16l8-4 8 4V8z"/><path d="M14 2v6h6"/>`,
+  "Tracking ID": `<path d="M4 9h16"/><path d="M4 15h16"/><path d="M10 9v6"/><path d="M14 9v6"/>`,
+  "Permit Type": `<path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>`,
+  "Issue Date": `<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>`,
+  "Expiry Date": `<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="m9 16 6-6"/>`,
+  Dated: `<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M8 14h8"/>`,
+  "Permit Holder": `<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/>`,
+  "Father Name": `<circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3 2.5-5 6-5"/><path d="M14 19c0-2 1.5-3.5 3.5-3.5"/>`,
+  CNIC: `<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M13 11h5"/><path d="M13 15h3"/>`,
+  Contact: `<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.81.36 1.6.68 2.35a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.75.32 1.54.55 2.35.68A2 2 0 0 1 22 16.92z"/>`,
+  District: `<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>`,
+  "Current Address": `<path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>`,
+  "Current Address Line 2": `<path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v10h14V10"/>`,
+  "Permanent Address": `<rect x="4" y="10" width="16" height="10" rx="1"/><path d="M4 14h16"/><path d="M9 10V7l3-3 3 3v3"/>`,
+  "Permanent Address Line 2": `<rect x="4" y="10" width="16" height="10" rx="1"/><path d="M4 14h16"/>`,
+  "Vehicle Registration No": `<rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 12h3"/><path d="M14 12h3"/>`,
+  "Chassis No": `<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h2v4H6z"/><path d="M16 10h2v4h-2z"/>`,
+  "Date of 1st Registration": `<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h4"/>`,
+  "Seating Capacity": `<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`,
+  "Laden Weight": `<path d="m12 3 7 4v10l-7 4-7-4V7z"/><path d="M12 12 19 8"/><path d="M12 12v9"/><path d="M12 12 5 8"/>`,
+  Maker: `<path d="M3 21h18"/><path d="M5 21V9l7-4 7 4v12"/><path d="M9 21v-6h6v6"/>`,
+  Make: `<path d="M19 17h2c.6 0 1-.4 1-1v-3l-2-5H5L3 13v3c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>`,
+  Model: `<path d="M19 17h2c.6 0 1-.4 1-1v-3l-2-5H5L3 13v3c0 .6.4 1 1 1h2"/><path d="M7 11h10"/>`,
+  Route: `<polygon points="1 6 9 2 15 6 23 2 23 18 15 22 9 18 1 22"/><line x1="9" x2="9" y1="2" y2="18"/><line x1="15" x2="15" y1="6" y2="22"/>`,
+  "Renewed Upto": `<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M7 14h4"/>`,
+  "Renewal Application Date": `<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="m13 16 4-4"/>`,
+  Conditions: `<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>`,
+};
+
+function permitFieldIcon(label) {
+  const paths =
+    PERMIT_FIELD_ICONS[label] || `<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h10"/>`;
+  return iconSvg(paths, 17);
+}
+
+function permitFieldLabel(label) {
+  const req = PERMIT_REQUIRED_FIELDS.includes(label)
+    ? `<span class="form-label-required" aria-hidden="true">*</span>`
+    : "";
+  return `<span class="form-label">${escapeHtml(label)}${req}</span>`;
+}
+
+function permitControlWrap(label, control) {
+  const dateClass = PERMIT_DATE_FIELDS.includes(label) ? " form-input-wrap-date" : "";
+  return `
+    <div class="form-input-wrap${dateClass}">
+      <span class="form-field-icon">${permitFieldIcon(label)}</span>
+      ${control}
+    </div>
+  `;
+}
+
 function permitChoiceField(label, value, options) {
   const id = `permit-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
   const name = escapeHtml(label);
@@ -147,14 +207,20 @@ function permitChoiceField(label, value, options) {
   const customVal = !isPreset ? escapeHtml(raw) : "";
   return `
     <label class="form-field form-field-permit-choice" for="${id}">
-      <span class="form-label">${escapeHtml(label)}</span>
-      <select class="form-control" id="${id}" name="${name}" data-permit-choice-select>
+      ${permitFieldLabel(label)}
+      ${permitControlWrap(
+        label,
+        `<select class="form-control" id="${id}" name="${name}" data-permit-choice-select>
         <option value=""${selectValue === "" ? " selected" : ""}>Select ${escapeHtml(label.toLowerCase())}</option>
         ${optionList(options, selectValue)}
         <option value="${PERMIT_CUSTOM_VALUE}"${selectValue === PERMIT_CUSTOM_VALUE ? " selected" : ""}>Custom…</option>
-      </select>
+      </select>`
+      )}
       <div class="permit-choice-custom-wrap"${customHidden}>
-        <input class="form-control" id="${id}-custom" name="${escapeHtml(`${label} custom`)}" type="text" value="${customVal}" placeholder="Enter custom ${escapeHtml(label.toLowerCase())}" autocomplete="off" />
+        ${permitControlWrap(
+          label,
+          `<input class="form-control" id="${id}-custom" name="${escapeHtml(`${label} custom`)}" type="text" value="${customVal}" placeholder="Enter custom ${escapeHtml(label.toLowerCase())}" autocomplete="off" />`
+        )}
       </div>
     </label>
   `;
@@ -170,12 +236,15 @@ function permitYearField(label, value, options) {
       : "";
   return `
     <label class="form-field" for="${id}">
-      <span class="form-label">${escapeHtml(label)}</span>
-      <select class="form-control" id="${id}" name="${name}">
+      ${permitFieldLabel(label)}
+      ${permitControlWrap(
+        label,
+        `<select class="form-control" id="${id}" name="${name}">
         <option value=""${raw ? "" : " selected"}>Select ${escapeHtml(label.toLowerCase())}</option>
         ${extra}
         ${optionList(options, raw)}
-      </select>
+      </select>`
+      )}
     </label>
   `;
 }
@@ -197,7 +266,9 @@ function permitFieldInput(label, value) {
   } else if (isMultiline) {
     control = `<textarea class="form-control" id="${id}" name="${name}" rows="3">${escapeHtml(value)}</textarea>`;
   } else {
-    control = `<input class="form-control" id="${id}" name="${name}" type="${isDate ? "date" : "text"}" value="${escapeHtml(value)}" autocomplete="off" />`;
+    control = isDate
+      ? `<input class="form-control form-control-date" id="${id}" name="${name}" type="text" value="${escapeHtml(value)}" autocomplete="off" spellcheck="false" placeholder="YYYY-MM-DD" />`
+      : `<input class="form-control" id="${id}" name="${name}" type="text" value="${escapeHtml(value)}" autocomplete="off" />`;
   }
   const expiryHint =
     label === "Expiry Date"
@@ -205,8 +276,8 @@ function permitFieldInput(label, value) {
       : "";
   return `
     <label class="form-field${isMultiline ? " form-field-span" : ""}" for="${id}">
-      <span class="form-label">${escapeHtml(label)}</span>
-      ${control}
+      ${permitFieldLabel(label)}
+      ${permitControlWrap(label, control)}
       ${expiryHint}
     </label>
   `;
@@ -335,12 +406,18 @@ export function renderPermitEditor(token, data, isCreate) {
             </div>
             <div class="form-grid admin-form-panel-body">
               <label class="form-field" for="permit-status">
-                <span class="form-label">Status</span>
-                <select class="form-control" id="permit-status" name="status">${optionList(PERMIT_STATUS_OPTIONS, data.status || "Issued")}</select>
+                ${permitFieldLabel("Status")}
+                ${permitControlWrap(
+                  "Status",
+                  `<select class="form-control" id="permit-status" name="status">${optionList(PERMIT_STATUS_OPTIONS, data.status || "Issued")}</select>`
+                )}
               </label>
               <label class="form-field" for="permit-photo-file">
-                <span class="form-label">Holder photo</span>
-                <input class="form-control" id="permit-photo-file" type="file" accept="image/*" />
+                ${permitFieldLabel("Holder photo")}
+                ${permitControlWrap(
+                  "Holder photo",
+                  `<input class="form-control" id="permit-photo-file" type="file" accept="image/*" />`
+                )}
                 <span class="form-field-hint">Optional. Shown as the circular photo on Route Permit Details.</span>
               </label>
             </div>
