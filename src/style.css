@@ -1816,6 +1816,16 @@ html[data-theme="dark"] .home-card-hint {
   background: #10b981;
 }
 
+.analytics-bar-permit-views,
+.analytics-legend-dot.analytics-bar-permit-views {
+  background: var(--dastak-teal-deep, #0e7490);
+}
+
+.analytics-bar-permit-prints,
+.analytics-legend-dot.analytics-bar-permit-prints {
+  background: #e07a5f;
+}
+
 .analytics-bar-label {
   font-size: 11px;
   color: var(--text);
@@ -3865,6 +3875,12 @@ html[data-theme="dark"] .admin-form-step {
   margin-bottom: 12px;
 }
 
+.analytics-table-head-permit {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--admin-border);
+}
+
 .analytics-table-filters {
   display: flex;
   flex-wrap: wrap;
@@ -5310,7 +5326,7 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
 
 /* Admin overview dashboard (post-login landing) */
 .admin-overview-page {
-  max-width: 1180px;
+  max-width: 1280px;
   margin: 0 auto;
 }
 
@@ -5426,12 +5442,18 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
 
 .admin-ov-summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 18px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
+  .admin-ov-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
   .admin-ov-summary-grid {
     grid-template-columns: 1fr;
   }
@@ -5478,6 +5500,10 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
   background: linear-gradient(90deg, var(--dastak-peche), #e0a045);
 }
 
+.admin-ov-card-navy::before {
+  background: linear-gradient(90deg, var(--dastak-teal-deep, #0e7490), var(--dastak-lagune));
+}
+
 .admin-ov-summary-top {
   display: flex;
   align-items: center;
@@ -5508,6 +5534,11 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
 .admin-ov-card-orange .admin-ov-summary-icon {
   background: color-mix(in srgb, var(--dastak-peche) 26%, #fff);
   color: #9a6b1e;
+}
+
+.admin-ov-card-navy .admin-ov-summary-icon {
+  background: color-mix(in srgb, var(--dastak-teal-deep, #0e7490) 18%, #fff);
+  color: var(--dastak-teal-deep, #0e7490);
 }
 
 .admin-ov-summary-label {
@@ -5936,6 +5967,10 @@ html[data-theme="dark"] .admin-ov-card-orange .admin-ov-summary-icon {
   background: color-mix(in srgb, var(--dastak-peche) 22%, #1e293b);
 }
 
+html[data-theme="dark"] .admin-ov-card-navy .admin-ov-summary-icon {
+  background: color-mix(in srgb, var(--dastak-teal-deep, #0e7490) 22%, #1e293b);
+}
+
 html[data-theme="dark"] .admin-ov-pill-ok {
   background: color-mix(in srgb, var(--dastak-menthe) 18%, #1e293b);
 }
@@ -5971,7 +6006,7 @@ html[data-theme="dark"] .admin-ov-days-chip {
 }
 
 .analytics-v3 {
-  max-width: 1180px;
+  max-width: 1280px;
   margin: 0 auto;
 }
 
@@ -6091,9 +6126,15 @@ html[data-theme="dark"] .admin-ov-days-chip {
 
 .analytics-summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 18px;
+}
+
+@media (max-width: 1100px) {
+  .analytics-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .analytics-summary-card {
@@ -6144,6 +6185,14 @@ button.analytics-summary-card:hover {
   background: linear-gradient(90deg, var(--dastak-lagune), var(--dastak-teal-deep));
 }
 
+.analytics-card-green::before {
+  background: linear-gradient(90deg, var(--dastak-menthe), #6eaa97);
+}
+
+.analytics-card-permit::before {
+  background: linear-gradient(90deg, var(--dastak-teal-deep, #0e7490), var(--dastak-lagune));
+}
+
 .analytics-summary-top {
   display: flex;
   align-items: center;
@@ -6174,6 +6223,16 @@ button.analytics-summary-card:hover {
 .analytics-card-activity .analytics-summary-icon {
   background: color-mix(in srgb, var(--dastak-menthe) 28%, #fff);
   color: var(--dastak-teal-dark);
+}
+
+.analytics-card-green .analytics-summary-icon {
+  background: color-mix(in srgb, var(--dastak-menthe) 28%, #fff);
+  color: #3d7a66;
+}
+
+.analytics-card-permit .analytics-summary-icon {
+  background: color-mix(in srgb, var(--dastak-teal-deep, #0e7490) 18%, #fff);
+  color: var(--dastak-teal-deep, #0e7490);
 }
 
 .analytics-summary-label {
@@ -6626,6 +6685,14 @@ html[data-theme="dark"] .analytics-card-warn .analytics-summary-icon {
 
 html[data-theme="dark"] .analytics-card-activity .analytics-summary-icon {
   background: color-mix(in srgb, var(--dastak-menthe) 22%, #1e293b);
+}
+
+html[data-theme="dark"] .analytics-card-green .analytics-summary-icon {
+  background: color-mix(in srgb, var(--dastak-menthe) 22%, #1e293b);
+}
+
+html[data-theme="dark"] .analytics-card-permit .analytics-summary-icon {
+  background: color-mix(in srgb, var(--dastak-teal-deep, #0e7490) 22%, #1e293b);
 }
 
 html[data-theme="dark"] .analytics-summary-pill-info {

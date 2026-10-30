@@ -82,6 +82,7 @@ import {
 } from "./admin-dashboard-ui.js";
 import {
   buildLocalOverviewRows,
+  buildLocalPermitOverviewRows,
   renderAdminOverviewPage,
   fetchOverviewRowsMerged,
 } from "./admin-overview.js";
@@ -92,6 +93,7 @@ import { qrDataUrlWithLogo } from "./qr-with-logo.js";
 import {
   EVENT_TYPES,
   buildFitnessTrackingRows,
+  buildPermitTrackingRows,
   clearAnalyticsEvents,
   computeOverviewMetrics,
   dailyActivityBuckets,
@@ -103,6 +105,7 @@ import {
   daysUntilExpiry,
   eventTypeMix,
   mergeAnalyticsRows,
+  mergePermitAnalyticsRows,
   exportAnalyticsCsv,
   aggregateTokenStats,
 } from "./analytics.js";
@@ -135,6 +138,8 @@ import {
   getPermitForEdit,
   getPublicPermit,
   hydratePublicPermit,
+  isPermitSaved,
+  listSavedPermitTokens,
   newPermitTemplate,
   publicPermitPath,
   readPermitFormValues,
@@ -621,7 +626,7 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
   const editorOpen = activeView === "certificates" && isAdminEditorOpen();
   const pageLead =
     activeView === "analytics"
-      ? "Views, prints, expiry risk, and activity counted on this browser."
+      ? "Fitness and route permit views, prints, expiry, and activity counted on this browser."
       : activeView === "registry"
         ? "Search, filter, and open a record to edit or save."
         : activeView === "permits"
@@ -630,7 +635,7 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
             ? "Edit permit fields and save. Public preview uses /routepermits."
             : editorOpen
               ? "Edit fields and save. Registry stays on its own screen."
-              : "Registry health, fitness expiry, and recent public activity.";
+              : "Overall, fitness, and route permit health plus recent public activity.";
   return `
     <div class="app-shell admin-shell admin-ui-v2">
       <aside class="admin-rail admin-rail-light" aria-label="Admin navigation">
@@ -1068,6 +1073,12 @@ function handleTrackApplication(form) {
     findPermitTokenByField("Route Permit No", trackingId);
   if (!token && permitToken) {
     recordLookupAttempt();
+    recordAnalyticsEvent(EVENT_TYPES.TRACK_LOOKUP, {
+      success: true,
+      trackingId,
+      token: permitToken,
+      kind: "permit",
+    });
     navigate(publicPermitPath(permitToken));
     return;
   }
@@ -1075,6 +1086,7 @@ function handleTrackApplication(form) {
     recordAnalyticsEvent(EVENT_TYPES.TRACK_LOOKUP, {
       success: false,
       trackingId,
+      kind: "fitness",
     });
     showToast("No application found for this Tracking ID");
     return;
@@ -1083,6 +1095,7 @@ function handleTrackApplication(form) {
     success: true,
     trackingId,
     token,
+    kind: "fitness",
   });
   navigate(followPath(token));
 }
@@ -1109,9 +1122,20 @@ function handleVerifyLicense(form) {
       resolvePermitToken(documentNumber);
     const permit = permitToken ? getPublicPermit(permitToken) : null;
     if (!permit) {
+      recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
+        success: false,
+        licenseType,
+        kind: "permit",
+      });
       showToast("No route permit found for this document number");
       return;
     }
+    recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
+      success: true,
+      licenseType,
+      token: permit.token,
+      kind: "permit",
+    });
     navigate(publicPermitPath(permit.token));
     return;
   }
@@ -1125,6 +1149,7 @@ function handleVerifyLicense(form) {
     recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
       success: false,
       licenseType,
+      kind: "fitness",
     });
     showToast("No certificate found for this document number");
     return;
@@ -1133,6 +1158,7 @@ function handleVerifyLicense(form) {
     success: true,
     licenseType,
     token,
+    kind: "fitness",
   });
   navigate(followPath(token));
 }
@@ -2051,8 +2077,10 @@ function renderActivityChart(buckets, periodDays) {
 function renderEventMixPanel(mix) {
   const total = Math.max(1, mix.total);
   const rows = [
-    { key: "views", label: "Certificate views", value: mix.views, cls: "analytics-bar-views" },
-    { key: "prints", label: "Print / PDF opens", value: mix.prints, cls: "analytics-bar-prints" },
+    { key: "fitnessViews", label: "Fitness views", value: mix.fitnessViews, cls: "analytics-bar-views" },
+    { key: "permitViews", label: "Permit views", value: mix.permitViews, cls: "analytics-bar-permit-views" },
+    { key: "fitnessPrints", label: "Fitness prints", value: mix.fitnessPrints, cls: "analytics-bar-prints" },
+    { key: "permitPrints", label: "Permit prints", value: mix.permitPrints, cls: "analytics-bar-permit-prints" },
     { key: "lookups", label: "Track & verify", value: mix.lookups, cls: "analytics-bar-lookups" },
     { key: "saves", label: "Admin saves", value: mix.saves, cls: "analytics-bar-saves" },
   ];
@@ -2093,7 +2121,14 @@ function sortAnalyticsRows(rows) {
   });
 }
 
-function renderAnalyticsTrackingRows(rows) {
+function analyticsEditorHref(row) {
+  return row.kind === "permit"
+    ? `/admin/dashboard?view=permits&token=${encodeURIComponent(row.token)}`
+    : `/admin/dashboard?token=${encodeURIComponent(row.token)}`;
+}
+
+function renderAnalyticsTrackingRows(rows, options = {}) {
+  const includePermitNo = Boolean(options.includePermitNo);
   return rows
     .map((row) => {
       const daysLabel =
@@ -2105,10 +2140,12 @@ function renderAnalyticsTrackingRows(rows) {
       ]
         .filter(Boolean)
         .join(" ");
+      const kind = row.kind === "permit" ? "permit" : "fitness";
       return `
-        <tr class="analytics-track-row" data-token="${escapeHtml(row.token)}" data-days-left="${row.daysLeft ?? ""}" data-analytics-tags="${filterTags}">
+        <tr class="analytics-track-row" data-token="${escapeHtml(row.token)}" data-kind="${kind}" data-days-left="${row.daysLeft ?? ""}" data-analytics-tags="${filterTags}">
           <td><code class="analytics-code">${escapeHtml(row.trackingId)}</code></td>
           <td>${escapeHtml(row.applicant)}</td>
+          ${includePermitNo ? `<td>${escapeHtml(row.permitNo || "—")}</td>` : ""}
           <td>${escapeHtml(row.district)}</td>
           <td>${renderHealthBadge(row.health)}</td>
           <td><span class="analytics-status-pill">${escapeHtml(row.certStatus || "—")}</span></td>
@@ -2118,7 +2155,7 @@ function renderAnalyticsTrackingRows(rows) {
           <td class="analytics-num">${row.lookups}</td>
           <td class="analytics-muted">${formatRelativeTime(row.lastAt)}</td>
           <td>
-            <a class="analytics-open-link" href="/admin/dashboard?token=${encodeURIComponent(row.token)}">Open</a>
+            <a class="analytics-open-link" href="${escapeHtml(analyticsEditorHref(row))}">Open</a>
           </td>
         </tr>
       `;
@@ -2136,25 +2173,50 @@ function cacheAnalyticsRows(rows) {
 
 async function populateAnalyticsFromServer() {
   const body = document.getElementById("analytics-track-body");
+  const permitBody = document.getElementById("analytics-permit-body");
   const countEl = document.getElementById("analytics-table-count");
-  if (!body) return;
+  const permitCountEl = document.getElementById("analytics-permit-count");
+  if (!body && !permitBody) return;
+  const localRows = sortAnalyticsRows(
+    buildFitnessTrackingRows(listSavedTokens(), getCertificateForEdit, isCertificateSaved)
+  );
+  const localPermits = sortAnalyticsRows(
+    buildPermitTrackingRows(listSavedPermitTokens(), getPermitForEdit, isPermitSaved)
+  );
+  let merged = localRows;
+  let mergedPermits = localPermits;
+  let certTotal = 0;
   try {
     const data = await fetchAdminCertificateList({ page: 1, limit: 100, filters: {} });
-    const localRows = sortAnalyticsRows(
-      buildFitnessTrackingRows(listSavedTokens(), getCertificateForEdit, isCertificateSaved)
-    );
-    const merged = sortAnalyticsRows(mergeAnalyticsRows(localRows, data?.items ?? []));
-    body.innerHTML =
-      renderAnalyticsTrackingRows(merged) ||
-      `<tr><td colspan="11" class="analytics-muted">No certificates match.</td></tr>`;
-    cacheAnalyticsRows(merged);
-    if (countEl) {
-      countEl.textContent = `${merged.length} record${merged.length === 1 ? "" : "s"}${data?.total > merged.length ? ` (${data.total} on server)` : ""} · click a row to open`;
-    }
-    bindAnalyticsTableInteractions();
+    merged = sortAnalyticsRows(mergeAnalyticsRows(localRows, data?.items ?? []));
+    certTotal = data?.total ?? 0;
   } catch {
     /* offline / no API */
   }
+  try {
+    const items = await fetchPermitList();
+    mergedPermits = sortAnalyticsRows(mergePermitAnalyticsRows(localPermits, items));
+  } catch {
+    /* offline / no API */
+  }
+  if (body) {
+    body.innerHTML =
+      renderAnalyticsTrackingRows(merged) ||
+      `<tr><td colspan="11" class="analytics-muted">No certificates match.</td></tr>`;
+  }
+  if (permitBody) {
+    permitBody.innerHTML =
+      renderAnalyticsTrackingRows(mergedPermits, { includePermitNo: true }) ||
+      `<tr><td colspan="12" class="analytics-muted">No route permits match.</td></tr>`;
+  }
+  cacheAnalyticsRows([...merged, ...mergedPermits]);
+  if (countEl) {
+    countEl.textContent = `${merged.length} record${merged.length === 1 ? "" : "s"}${certTotal > merged.length ? ` (${certTotal} on server)` : ""} · click a row to open`;
+  }
+  if (permitCountEl) {
+    permitCountEl.textContent = `${mergedPermits.length} record${mergedPermits.length === 1 ? "" : "s"} · click a row to open`;
+  }
+  bindAnalyticsTableInteractions();
 }
 
 function renderAnalyticsDashboard() {
@@ -2163,16 +2225,21 @@ function renderAnalyticsDashboard() {
 
   const tokens = listSavedTokens();
   const rows = sortAnalyticsRows(buildFitnessTrackingRows(tokens, getCertificateForEdit, isCertificateSaved));
-  cacheAnalyticsRows(rows);
+  const permitRows = sortAnalyticsRows(
+    buildPermitTrackingRows(listSavedPermitTokens(), getPermitForEdit, isPermitSaved)
+  );
+  cacheAnalyticsRows([...rows, ...permitRows]);
 
   const eventsWindow = eventsSince(periodDays);
-  const metrics = computeOverviewMetrics(rows, eventsWindow);
+  const overall = computeOverviewMetrics([...rows, ...permitRows], eventsWindow, { kind: "all" });
+  const fitnessMetrics = computeOverviewMetrics(rows, eventsWindow, { kind: "fitness" });
+  const permitMetrics = computeOverviewMetrics(permitRows, eventsWindow, { kind: "permit" });
   const buckets = dailyActivityBuckets(periodDays);
   const mix = eventTypeMix(eventsWindow);
   const recent = getAnalyticsEvents(15);
 
-  const maxDistrict = Math.max(1, ...metrics.topDistricts.map(([, count]) => count));
-  const districtList = metrics.topDistricts
+  const maxDistrict = Math.max(1, ...overall.topDistricts.map(([, count]) => count));
+  const districtList = overall.topDistricts
     .map(([name, count]) => {
       const width = Math.round((count / maxDistrict) * 100);
       return `
@@ -2185,6 +2252,7 @@ function renderAnalyticsDashboard() {
     .join("");
 
   const trackingRows = renderAnalyticsTrackingRows(rows);
+  const permitTrackingRows = renderAnalyticsTrackingRows(permitRows, { includePermitNo: true });
 
   const activityItems = recent
     .map((event) => {
@@ -2206,19 +2274,30 @@ function renderAnalyticsDashboard() {
     `<button type="button" class="analytics-period-btn${periodDays === days ? " is-active" : ""}" data-action="analytics-period" data-days="${days}">${label}</button>`;
 
   const lookupHint =
-    metrics.lookupSuccessRate != null
-      ? `${metrics.successfulLookups7d} matched · ${metrics.lookupSuccessRate}% hit`
-      : `${metrics.successfulLookups7d} matched`;
-  const activeCount = Math.max(0, metrics.total - metrics.expired - metrics.expiringSoon);
-  const attentionHtml =
-    metrics.expiringSoon || metrics.expired
-      ? `
-      <button type="button" class="analytics-attention" data-action="analytics-filter" data-filter="${metrics.expiringSoon ? "expiring" : "expired"}">
+    overall.lookupSuccessRate != null
+      ? `${overall.successfulLookups7d} matched · ${overall.lookupSuccessRate}% hit`
+      : `${overall.successfulLookups7d} matched`;
+  const fitnessActive = Math.max(0, fitnessMetrics.total - fitnessMetrics.expired - fitnessMetrics.expiringSoon);
+  const permitActive = Math.max(0, permitMetrics.total - permitMetrics.expired - permitMetrics.expiringSoon);
+  const attentionBits = [];
+  if (fitnessMetrics.expiringSoon || fitnessMetrics.expired) {
+    attentionBits.push(
+      `Fitness: ${fitnessMetrics.expiringSoon} expiring within 30 days · ${fitnessMetrics.expired} expired`
+    );
+  }
+  if (permitMetrics.expiringSoon || permitMetrics.expired) {
+    attentionBits.push(
+      `Permits: ${permitMetrics.expiringSoon} expiring within 30 days · ${permitMetrics.expired} expired`
+    );
+  }
+  const attentionHtml = attentionBits.length
+    ? `
+      <button type="button" class="analytics-attention" data-action="analytics-filter" data-filter="${overall.expiringSoon ? "expiring" : "expired"}">
         <span class="analytics-attention-icon">${iconAlert()}</span>
-        <span class="analytics-attention-copy"><strong>Fitness needs attention.</strong> ${metrics.expiringSoon} expiring within 30 days · ${metrics.expired} expired.</span>
-        <span class="analytics-attention-go">Filter table</span>
+        <span class="analytics-attention-copy"><strong>Records need attention.</strong> ${escapeHtml(attentionBits.join(" · "))}.</span>
+        <span class="analytics-attention-go">Filter tables</span>
       </button>`
-      : "";
+    : "";
 
   return `
     <div id="analytics-page" class="analytics-page admin-analytics-page analytics-v3">
@@ -2242,25 +2321,38 @@ function renderAnalyticsDashboard() {
         <article class="analytics-summary-card analytics-card-teal">
           <div class="analytics-summary-top">
             <span class="analytics-summary-icon">${iconSave()}</span>
-            <p class="analytics-summary-label">Registry</p>
+            <p class="analytics-summary-label">Overall</p>
           </div>
-          <p class="analytics-summary-value">${metrics.total}</p>
-          <p class="analytics-summary-sub">${metrics.saved} saved on this device</p>
+          <p class="analytics-summary-value">${overall.total}</p>
+          <p class="analytics-summary-sub">${overall.saved} saved on this device</p>
           <div class="analytics-summary-pills">
-            <span class="analytics-summary-pill">Active <strong>${activeCount}</strong></span>
-            <span class="analytics-summary-pill analytics-summary-pill-info">90-day window <strong>${metrics.renewalWindow}</strong></span>
-            <span class="analytics-summary-pill">Saves <strong>${metrics.adminSaves}</strong></span>
+            <span class="analytics-summary-pill">Fitness <strong>${fitnessMetrics.total}</strong></span>
+            <span class="analytics-summary-pill analytics-summary-pill-info">Permits <strong>${permitMetrics.total}</strong></span>
+            <span class="analytics-summary-pill">Saves <strong>${overall.adminSaves}</strong></span>
           </div>
         </article>
-        <button type="button" class="analytics-summary-card analytics-card-warn" data-action="analytics-filter" data-filter="expiring">
+        <button type="button" class="analytics-summary-card analytics-card-green" data-action="analytics-filter" data-filter="expiring">
           <div class="analytics-summary-top">
             <span class="analytics-summary-icon">${iconAlert()}</span>
-            <p class="analytics-summary-label">Fitness risk</p>
+            <p class="analytics-summary-label">Fitness</p>
           </div>
-          <p class="analytics-summary-value">${metrics.expiringSoon}</p>
-          <p class="analytics-summary-sub">Expiring within 30 days</p>
+          <p class="analytics-summary-value">${fitnessMetrics.total}</p>
+          <p class="analytics-summary-sub">${fitnessActive} active · ${fitnessMetrics.expiringSoon} expiring within 30 days</p>
           <div class="analytics-summary-pills">
-            <span class="analytics-summary-pill analytics-summary-pill-danger">Expired <strong>${metrics.expired}</strong></span>
+            <span class="analytics-summary-pill analytics-summary-pill-danger">Expired <strong>${fitnessMetrics.expired}</strong></span>
+            <span class="analytics-summary-pill">Views <strong>${fitnessMetrics.views7d}</strong></span>
+          </div>
+        </button>
+        <button type="button" class="analytics-summary-card analytics-card-permit" data-action="analytics-filter" data-filter="expiring">
+          <div class="analytics-summary-top">
+            <span class="analytics-summary-icon">${iconSave()}</span>
+            <p class="analytics-summary-label">Route permits</p>
+          </div>
+          <p class="analytics-summary-value">${permitMetrics.total}</p>
+          <p class="analytics-summary-sub">${permitActive} valid · ${permitMetrics.expiringSoon} expiring within 30 days</p>
+          <div class="analytics-summary-pills">
+            <span class="analytics-summary-pill analytics-summary-pill-danger">Expired <strong>${permitMetrics.expired}</strong></span>
+            <span class="analytics-summary-pill">Views <strong>${permitMetrics.views7d}</strong></span>
           </div>
         </button>
         <button type="button" class="analytics-summary-card analytics-card-activity" data-action="analytics-filter" data-filter="active">
@@ -2268,12 +2360,12 @@ function renderAnalyticsDashboard() {
             <span class="analytics-summary-icon">${iconActivity()}</span>
             <p class="analytics-summary-label">Public activity</p>
           </div>
-          <p class="analytics-summary-value">${metrics.views7d + metrics.prints7d}</p>
+          <p class="analytics-summary-value">${overall.views7d + overall.prints7d}</p>
           <p class="analytics-summary-sub">Views and prints · last ${periodDays} days · ${lookupHint}</p>
           <div class="analytics-summary-pills">
-            <span class="analytics-summary-pill">Views <strong>${metrics.views7d}</strong></span>
-            <span class="analytics-summary-pill">Prints <strong>${metrics.prints7d}</strong></span>
-            <span class="analytics-summary-pill analytics-summary-pill-info">Lookups <strong>${metrics.lookups7d}</strong></span>
+            <span class="analytics-summary-pill">Fitness <strong>${fitnessMetrics.views7d + fitnessMetrics.prints7d}</strong></span>
+            <span class="analytics-summary-pill analytics-summary-pill-info">Permits <strong>${permitMetrics.views7d + permitMetrics.prints7d}</strong></span>
+            <span class="analytics-summary-pill">Lookups <strong>${overall.lookups7d}</strong></span>
           </div>
         </button>
       </div>
@@ -2288,7 +2380,7 @@ function renderAnalyticsDashboard() {
           <div class="analytics-panel-head">
             <div>
               <h3 class="analytics-panel-title">By district</h3>
-              <p class="analytics-panel-desc">Certificates in the current list</p>
+              <p class="analytics-panel-desc">Fitness and permits in the current list</p>
             </div>
           </div>
           <ul class="analytics-district-list">${districtList || '<li class="analytics-empty-row">No district counts yet.</li>'}</ul>
@@ -2315,7 +2407,7 @@ function renderAnalyticsDashboard() {
           <label class="analytics-search-wrap analytics-table-search">
             <span class="admin-list-search-icon">${iconSearch()}</span>
             <span class="visually-hidden">Filter tracking table</span>
-            <input id="analytics-track-filter" class="form-control analytics-search-input" type="search" placeholder="Search tracking ID, name, district…" autocomplete="off" />
+            <input id="analytics-track-filter" class="form-control analytics-search-input" type="search" placeholder="Search fitness or permit records…" autocomplete="off" />
           </label>
           <div class="analytics-table-filters" role="group" aria-label="Table filters">
             <button type="button" class="analytics-filter-chip is-active" data-action="analytics-filter" data-filter="all">All</button>
@@ -2344,6 +2436,33 @@ function renderAnalyticsDashboard() {
             <tbody id="analytics-track-body">${trackingRows || `<tr><td colspan="11" class="analytics-muted">No certificates yet.</td></tr>`}</tbody>
           </table>
         </div>
+        <div class="analytics-table-head analytics-table-head-permit">
+          <div>
+            <h3 class="analytics-panel-title">Route permit activity</h3>
+            <p class="analytics-panel-desc" id="analytics-permit-count">${permitRows.length} record${permitRows.length === 1 ? "" : "s"} · click a row to open</p>
+          </div>
+        </div>
+        <div class="analytics-table-scroll">
+          <table class="analytics-table">
+            <thead>
+              <tr>
+                <th>Tracking ID</th>
+                <th>Holder</th>
+                <th>Permit No</th>
+                <th>District</th>
+                <th>Validity</th>
+                <th>Status</th>
+                <th>Expiry</th>
+                <th>Views</th>
+                <th>Prints</th>
+                <th>Lookups</th>
+                <th>Last activity</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="analytics-permit-body">${permitTrackingRows || `<tr><td colspan="12" class="analytics-muted">No route permits yet.</td></tr>`}</tbody>
+          </table>
+        </div>
       </section>
     </div>
   `;
@@ -2362,14 +2481,16 @@ function bindAdminOverviewLinks() {
 }
 
 function bindAnalyticsTableInteractions() {
-  const trackBody = document.getElementById("analytics-track-body");
-  if (!trackBody) return;
-
-  trackBody.querySelectorAll(".analytics-track-row").forEach((row) => {
+  document.querySelectorAll("#analytics-track-body .analytics-track-row, #analytics-permit-body .analytics-track-row").forEach((row) => {
     row.addEventListener("click", (event) => {
       if (event.target.closest("a, button")) return;
       const token = row.getAttribute("data-token");
       if (!token) return;
+      const kind = row.getAttribute("data-kind");
+      if (kind === "permit") {
+        navigate(`/admin/dashboard?view=permits&token=${encodeURIComponent(token)}`);
+        return;
+      }
       sessionStorage.setItem("dastak:editor-token", token);
       navigate(`/admin/dashboard?token=${encodeURIComponent(token)}`);
     });
@@ -2377,11 +2498,9 @@ function bindAnalyticsTableInteractions() {
 }
 
 function applyAnalyticsTableFilter(mode) {
-  const trackBody = document.getElementById("analytics-track-body");
   const trackFilter = document.getElementById("analytics-track-filter");
-  if (!trackBody) return;
   const q = trackFilter?.value.trim().toLowerCase() ?? "";
-  trackBody.querySelectorAll(".analytics-track-row").forEach((row) => {
+  document.querySelectorAll(".analytics-track-row").forEach((row) => {
     const tags = row.getAttribute("data-analytics-tags") || "";
     let tagOk = true;
     if (mode === "expiring") tagOk = tags.includes("expiring");
@@ -2420,7 +2539,10 @@ function adminDashboardPage() {
   if (view === "registry") {
     return adminDashboardShell(renderRegistryPage(), "registry");
   }
-  return adminDashboardShell(renderAdminOverviewPage(buildLocalOverviewRows()), "overview");
+  return adminDashboardShell(
+    renderAdminOverviewPage(buildLocalOverviewRows(), buildLocalPermitOverviewRows()),
+    "overview"
+  );
 }
 
 function safePathSlug(segment) {
@@ -2600,6 +2722,11 @@ async function savePermitFromEditor() {
   showAdminProgress("save", "Saving route permit…", 20);
   try {
     const result = await savePermit(token, payload);
+    recordAnalyticsEvent(EVENT_TYPES.PERMIT_SAVE, {
+      token,
+      trackingId: payload.values["Tracking ID"] || payload.values["Route Permit No"],
+      kind: "permit",
+    });
     showAdminProgress("save", result.publishedOnline ? "Published" : "Saved on this device", 100);
     showToast(result.publishedOnline ? "Route permit saved" : "Saved locally — live publish when D1 is bound");
     window.setTimeout(hideSaveProgress, 400);
@@ -3213,10 +3340,10 @@ async function handleDataActionClick(el, event) {
       const raw = sessionStorage.getItem(ANALYTICS_ROWS_CACHE_KEY);
       const rows = raw ? JSON.parse(raw) : [];
       if (!Array.isArray(rows) || !rows.length) {
-        showToast("No registry data to export");
+        showToast("No analytics data to export");
         return;
       }
-      downloadTextFile("dastak-analytics-registry.csv", exportAnalyticsCsv(rows), "text/csv");
+      downloadTextFile("dastak-analytics.csv", exportAnalyticsCsv(rows), "text/csv");
       showToast("Analytics CSV downloaded");
     } catch {
       showToast("Export failed");
@@ -3383,9 +3510,9 @@ function bindActions() {
   bindAdminOverviewLinks();
   if (document.getElementById("admin-overview-page")) {
     void (async () => {
-      const { rows } = await fetchOverviewRowsMerged();
+      const { rows, permitRows } = await fetchOverviewRowsMerged();
       const page = document.getElementById("admin-overview-page");
-      if (page) page.outerHTML = renderAdminOverviewPage(rows);
+      if (page) page.outerHTML = renderAdminOverviewPage(rows, permitRows);
       bindAdminOverviewLinks();
     })();
   }
@@ -3489,11 +3616,22 @@ async function render() {
     await hydratePublicPermit(printSlug);
     const permit = getPublicPermit(printSlug);
     if (!permit) {
+      recordAnalyticsEvent(EVENT_TYPES.PERMIT_PRINT, {
+        token: printSlug,
+        success: false,
+        kind: "permit",
+      });
       app.innerHTML = renderPermitPrintMissing(printSlug);
       bindActions();
       hideAppLoader(true);
       return;
     }
+    recordAnalyticsEvent(EVENT_TYPES.PERMIT_PRINT, {
+      token: permit.token,
+      success: true,
+      kind: "permit",
+      trackingId: permit.values?.["Tracking ID"] || permit.values?.["Route Permit No"],
+    });
     app.innerHTML = renderPermitPrintPage(permit.token);
     bindActions();
     mountPrintQr();
@@ -3506,6 +3644,12 @@ async function render() {
     const permitSlug = safePathSlug(permitMatch[1]);
     await hydratePublicPermit(permitSlug);
     const permit = getPublicPermit(permitSlug);
+    recordAnalyticsEvent(EVENT_TYPES.PERMIT_VIEW, {
+      token: permit?.token || permitSlug,
+      success: !!permit,
+      kind: "permit",
+      trackingId: permit?.values?.["Tracking ID"] || permit?.values?.["Route Permit No"],
+    });
     app.innerHTML = permit
       ? renderPermitPreview((html, options) => layout(html, options), permit)
       : renderPermitNotFound((html, options) => layout(html, options), permitSlug);

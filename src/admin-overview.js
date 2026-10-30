@@ -1,6 +1,8 @@
 import {
   buildFitnessTrackingRows,
+  buildPermitTrackingRows,
   mergeAnalyticsRows,
+  mergePermitAnalyticsRows,
   computeOverviewMetrics,
   dailyActivityBuckets,
   eventsSince,
@@ -10,6 +12,12 @@ import {
 } from "./analytics.js";
 import { listSavedTokens, getCertificateForEdit, isCertificateSaved } from "./certificates.js";
 import { fetchAdminCertificateList } from "./admin-cert-api.js";
+import {
+  listSavedPermitTokens,
+  getPermitForEdit,
+  isPermitSaved,
+  fetchPermitList,
+} from "./permits.js";
 
 function pct(part, whole) {
   if (!whole) return 0;
@@ -77,6 +85,10 @@ export function buildLocalOverviewRows() {
   return buildFitnessTrackingRows(listSavedTokens(), getCertificateForEdit, isCertificateSaved);
 }
 
+export function buildLocalPermitOverviewRows() {
+  return buildPermitTrackingRows(listSavedPermitTokens(), getPermitForEdit, isPermitSaved);
+}
+
 export function computeRegistryPublishCounts(rows) {
   let live = 0;
   let local = 0;
@@ -142,26 +154,53 @@ function renderActivityChartOverview(buckets) {
   return `<div class="admin-ov-chart-bars">${bars}</div>`;
 }
 
-export function renderAdminOverviewPage(rows) {
+function editorHref(row) {
+  return row.kind === "permit"
+    ? `/admin/dashboard?view=permits&token=${encodeURIComponent(row.token)}`
+    : `/admin/dashboard?token=${encodeURIComponent(row.token)}`;
+}
+
+function attentionBanner(copy, href, goLabel) {
+  return `
+      <a class="admin-ov-attention" href="${escapeHtml(href)}">
+        <span class="admin-ov-attention-icon" aria-hidden="true">${ovIcon(`<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>`)}</span>
+        <span class="admin-ov-attention-copy">${copy}</span>
+        <span class="admin-ov-attention-go">${escapeHtml(goLabel)}</span>
+      </a>`;
+}
+
+export function renderAdminOverviewPage(rows, permitRows = []) {
   const eventsWindow = eventsSince(7);
-  const metrics = computeOverviewMetrics(rows, eventsWindow);
-  const publish = computeRegistryPublishCounts(rows);
-  const total = Math.max(metrics.total, rows.length);
-  const fitness = countByFitness(rows);
-  const fitnessTotal = Math.max(1, rows.length);
-  const statusMap = countByStatus(rows);
-  const statusTotal = Math.max(1, rows.length);
+  const fitnessRows = rows;
+  const permitList = permitRows;
+  const overallRows = [...fitnessRows, ...permitList];
+  const overall = computeOverviewMetrics(overallRows, eventsWindow, { kind: "all" });
+  const fitnessMetrics = computeOverviewMetrics(fitnessRows, eventsWindow, { kind: "fitness" });
+  const permitMetrics = computeOverviewMetrics(permitList, eventsWindow, { kind: "permit" });
+  const publish = computeRegistryPublishCounts(fitnessRows);
+  const permitPublish = computeRegistryPublishCounts(permitList);
+  const fitness = countByFitness(fitnessRows);
+  const permits = countByFitness(permitList);
+  const fitnessTotal = Math.max(1, fitnessRows.length);
+  const permitTotal = Math.max(1, permitList.length);
+  const statusMap = countByStatus(fitnessRows);
+  const permitStatusMap = countByStatus(permitList);
+  const statusTotal = Math.max(1, fitnessRows.length);
+  const permitStatusTotal = Math.max(1, permitList.length);
   const buckets = dailyActivityBuckets(7);
   const recent = getAnalyticsEvents(12);
 
   const statusRows = Object.entries(statusMap)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6);
+  const permitStatusRows = Object.entries(permitStatusMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6);
 
-  const expiringList = [...rows]
+  const expiringList = overallRows
     .filter((r) => r.daysLeft != null && r.daysLeft >= 0 && r.daysLeft <= 30)
     .sort((a, b) => (a.daysLeft ?? 999) - (b.daysLeft ?? 999))
-    .slice(0, 5);
+    .slice(0, 8);
 
   const activityHtml = recent
     .map(
@@ -177,17 +216,28 @@ export function renderAdminOverviewPage(rows) {
     )
     .join("");
 
-  const attentionBits = [];
-  if (fitness.expiring) attentionBits.push(`${fitness.expiring} expiring within 30 days`);
-  if (fitness.expired) attentionBits.push(`${fitness.expired} already expired`);
-  const attentionHtml = attentionBits.length
-    ? `
-      <a class="admin-ov-attention" href="/admin/dashboard?view=registry">
-        <span class="admin-ov-attention-icon" aria-hidden="true">${ovIcon(`<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>`)}</span>
-        <span class="admin-ov-attention-copy"><strong>Fitness needs attention.</strong> ${escapeHtml(attentionBits.join(" · "))}.</span>
-        <span class="admin-ov-attention-go">Review registry</span>
-      </a>`
-    : "";
+  const fitnessBits = [];
+  if (fitness.expiring) fitnessBits.push(`${fitness.expiring} expiring within 30 days`);
+  if (fitness.expired) fitnessBits.push(`${fitness.expired} already expired`);
+  const permitBits = [];
+  if (permits.expiring) permitBits.push(`${permits.expiring} expiring within 30 days`);
+  if (permits.expired) permitBits.push(`${permits.expired} already expired`);
+  const attentionHtml = [
+    fitnessBits.length
+      ? attentionBanner(
+          `<strong>Fitness needs attention.</strong> ${escapeHtml(fitnessBits.join(" · "))}.`,
+          "/admin/dashboard?view=registry",
+          "Review registry"
+        )
+      : "",
+    permitBits.length
+      ? attentionBanner(
+          `<strong>Permits need attention.</strong> ${escapeHtml(permitBits.join(" · "))}.`,
+          "/admin/dashboard?view=permits",
+          "Review permits"
+        )
+      : "",
+  ].join("");
 
   const emptyState = (text) => `
     <li class="admin-ov-empty-row">
@@ -209,6 +259,13 @@ export function renderAdminOverviewPage(rows) {
               <em>Search and open records</em>
             </span>
           </a>
+          <a class="admin-ov-shortcut" href="/admin/dashboard?view=permits">
+            <span class="admin-ov-shortcut-icon">${ovIcon(`<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10"/><path d="M7 12h6"/>`)}</span>
+            <span>
+              <strong>Permits</strong>
+              <em>Route permit records</em>
+            </span>
+          </a>
           <a class="admin-ov-shortcut" href="/admin/dashboard?view=analytics">
             <span class="admin-ov-shortcut-icon">${ovIcon(`<path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-9"/>`)}</span>
             <span>
@@ -222,32 +279,41 @@ export function renderAdminOverviewPage(rows) {
       ${attentionHtml}
 
       <div class="admin-ov-summary-grid">
-        <a class="admin-ov-summary-card admin-ov-card-teal" href="/admin/dashboard?view=registry">
+        <a class="admin-ov-summary-card admin-ov-card-teal" href="/admin/dashboard?view=analytics">
           <div class="admin-ov-summary-top">
             <span class="admin-ov-summary-icon" aria-hidden="true">${ovIcon(`<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/>`)}</span>
-            <p class="admin-ov-summary-label">Total certificates</p>
+            <p class="admin-ov-summary-label">Overall records</p>
           </div>
-          <p class="admin-ov-summary-value" id="admin-ov-total">${total}</p>
-          <p class="admin-ov-summary-sub">Live site plus local drafts</p>
-          ${summaryPills("Live", publish.live, "Local / pending", publish.pending + publish.local, "ok", "warn")}
+          <p class="admin-ov-summary-value" id="admin-ov-total">${overall.total}</p>
+          <p class="admin-ov-summary-sub">Fitness certificates and route permits</p>
+          ${summaryPills("Fitness", fitnessRows.length, "Permits", permitList.length, "ok", "info")}
         </a>
-        <a class="admin-ov-summary-card admin-ov-card-green" href="/admin/dashboard?view=analytics">
+        <a class="admin-ov-summary-card admin-ov-card-green" href="/admin/dashboard?view=registry">
           <div class="admin-ov-summary-top">
             <span class="admin-ov-summary-icon" aria-hidden="true">${ovIcon(`<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m22 4-10 10-3-3"/>`)}</span>
-            <p class="admin-ov-summary-label">Fit to operate</p>
+            <p class="admin-ov-summary-label">Fitness certificates</p>
           </div>
-          <p class="admin-ov-summary-value">${fitness.active + fitness.renewal}</p>
-          <p class="admin-ov-summary-sub">Active and 31–90 day renewal window</p>
-          ${summaryPills("Expiring ≤30d", fitness.expiring, "Expired", fitness.expired, "warn", "danger")}
+          <p class="admin-ov-summary-value">${fitnessRows.length}</p>
+          <p class="admin-ov-summary-sub">${fitness.active + fitness.renewal} fit to operate · live plus local drafts</p>
+          ${summaryPills("Live", publish.live, "Expiring ≤30d", fitness.expiring, "ok", "warn")}
+        </a>
+        <a class="admin-ov-summary-card admin-ov-card-navy" href="/admin/dashboard?view=permits">
+          <div class="admin-ov-summary-top">
+            <span class="admin-ov-summary-icon" aria-hidden="true">${ovIcon(`<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10"/><path d="M7 12h6"/>`)}</span>
+            <p class="admin-ov-summary-label">Route permits</p>
+          </div>
+          <p class="admin-ov-summary-value">${permitList.length}</p>
+          <p class="admin-ov-summary-sub">${permits.active + permits.renewal} valid · live plus local drafts</p>
+          ${summaryPills("Live", permitPublish.live, "Expiring ≤30d", permits.expiring, "ok", "warn")}
         </a>
         <a class="admin-ov-summary-card admin-ov-card-orange" href="/admin/dashboard?view=analytics">
           <div class="admin-ov-summary-top">
             <span class="admin-ov-summary-icon" aria-hidden="true">${ovIcon(`<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`)}</span>
             <p class="admin-ov-summary-label">Public activity</p>
           </div>
-          <p class="admin-ov-summary-value">${metrics.views7d + metrics.prints7d}</p>
-          <p class="admin-ov-summary-sub">Last 7 days on this device</p>
-          ${summaryPills("Views", metrics.views7d, "Prints / PDF", metrics.prints7d, "info", "warn")}
+          <p class="admin-ov-summary-value">${overall.views7d + overall.prints7d}</p>
+          <p class="admin-ov-summary-sub">Last 7 days on this device · fitness and permits</p>
+          ${summaryPills("Fitness", fitnessMetrics.views7d + fitnessMetrics.prints7d, "Permits", permitMetrics.views7d + permitMetrics.prints7d, "ok", "info")}
         </a>
       </div>
 
@@ -268,8 +334,21 @@ export function renderAdminOverviewPage(rows) {
         <section class="admin-ov-panel">
           <div class="admin-ov-panel-head">
             <div>
+              <h3 class="admin-ov-panel-title">Permit breakdown</h3>
+              <p class="admin-ov-panel-desc">By expiry timeline</p>
+            </div>
+          </div>
+          ${breakdownBar("Active (>90 days)", permits.active, permitTotal, "ok")}
+          ${breakdownBar("Renewal window (31–90d)", permits.renewal, permitTotal, "info")}
+          ${breakdownBar("Expiring ≤30 days", permits.expiring, permitTotal, "warn")}
+          ${breakdownBar("Expired", permits.expired, permitTotal, "danger")}
+          ${breakdownBar("Unknown expiry", permits.unknown, permitTotal, "muted")}
+        </section>
+        <section class="admin-ov-panel">
+          <div class="admin-ov-panel-head">
+            <div>
               <h3 class="admin-ov-panel-title">Certificate status</h3>
-              <p class="admin-ov-panel-desc">Workflow / record status</p>
+              <p class="admin-ov-panel-desc">Fitness workflow / record status</p>
             </div>
           </div>
           ${
@@ -282,13 +361,30 @@ export function renderAdminOverviewPage(rows) {
               : breakdownBar("Issued", 0, 1, "muted")
           }
         </section>
+        <section class="admin-ov-panel">
+          <div class="admin-ov-panel-head">
+            <div>
+              <h3 class="admin-ov-panel-title">Permit status</h3>
+              <p class="admin-ov-panel-desc">Route permit record status</p>
+            </div>
+          </div>
+          ${
+            permitStatusRows.length
+              ? permitStatusRows
+                  .map(([label, count], i) =>
+                    breakdownBar(label, count, permitStatusTotal, ["ok", "info", "warn", "danger", "muted", "muted"][i] || "muted")
+                  )
+                  .join("")
+              : breakdownBar("Issued", 0, 1, "muted")
+          }
+        </section>
       </div>
 
       <section class="admin-ov-panel admin-ov-chart-panel">
         <div class="admin-ov-chart-head">
           <div>
             <h3 class="admin-ov-panel-title">Last 7 days</h3>
-            <p class="admin-ov-panel-desc">Certificate views and print / PDF opens on this browser</p>
+            <p class="admin-ov-panel-desc">Fitness and route permit views and print / PDF opens on this browser</p>
           </div>
           <ul class="admin-ov-chart-legend">
             <li><span class="admin-ov-legend-dot admin-ov-chart-views"></span> Views</li>
@@ -315,7 +411,7 @@ export function renderAdminOverviewPage(rows) {
               <h3 class="admin-ov-panel-title">Expiring soon</h3>
               <p class="admin-ov-panel-desc">Within the next 30 days</p>
             </div>
-            <a class="admin-ov-link-more" href="/admin/dashboard?view=registry">Registry</a>
+            <a class="admin-ov-link-more" href="/admin/dashboard?view=analytics&filter=expiring">Analytics</a>
           </div>
           <ul class="admin-ov-expiring-list">
             ${
@@ -323,16 +419,16 @@ export function renderAdminOverviewPage(rows) {
                 .map(
                   (r) => `
               <li>
-                <a href="/admin/dashboard?token=${encodeURIComponent(r.token)}">
+                <a href="${escapeHtml(editorHref(r))}">
                   <span>
                     <strong>${escapeHtml(r.applicant)}</strong>
-                    <em>${escapeHtml(r.trackingId)}</em>
+                    <em>${escapeHtml(r.kind === "permit" ? "Permit" : "Fitness")} · ${escapeHtml(r.trackingId)}</em>
                   </span>
                   <span class="admin-ov-days-chip">${r.daysLeft}d</span>
                 </a>
               </li>`
                 )
-                .join("") || emptyState("No certificates expiring in the next 30 days.")
+                .join("") || emptyState("No records expiring in the next 30 days.")
             }
           </ul>
         </section>
@@ -343,11 +439,22 @@ export function renderAdminOverviewPage(rows) {
 
 export async function fetchOverviewRowsMerged() {
   const localRows = buildLocalOverviewRows();
+  const localPermits = buildLocalPermitOverviewRows();
+  let rows = localRows;
+  let permitRows = localPermits;
+  let listItems = [];
   try {
     const data = await fetchAdminCertificateList({ page: 1, limit: 100, filters: {} });
-    const merged = mergeAnalyticsRows(localRows, data?.items ?? []);
-    return { rows: merged, listItems: data?.items ?? [] };
+    rows = mergeAnalyticsRows(localRows, data?.items ?? []);
+    listItems = data?.items ?? [];
   } catch {
-    return { rows: localRows, listItems: [] };
+    /* offline / no API */
   }
+  try {
+    const items = await fetchPermitList();
+    permitRows = mergePermitAnalyticsRows(localPermits, items);
+  } catch {
+    /* offline / no API */
+  }
+  return { rows, permitRows, listItems };
 }

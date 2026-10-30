@@ -7,7 +7,37 @@ export const EVENT_TYPES = {
   TRACK_LOOKUP: "track_lookup",
   VERIFY_LOOKUP: "verify_lookup",
   ADMIN_SAVE: "admin_save",
+  PERMIT_VIEW: "permit_view",
+  PERMIT_PRINT: "permit_print",
+  PERMIT_SAVE: "permit_save",
 };
+
+function isViewType(type) {
+  return type === EVENT_TYPES.CERT_VIEW || type === EVENT_TYPES.PERMIT_VIEW;
+}
+
+function isPrintType(type) {
+  return type === EVENT_TYPES.CERT_PRINT || type === EVENT_TYPES.PERMIT_PRINT;
+}
+
+function isSaveType(type) {
+  return type === EVENT_TYPES.ADMIN_SAVE || type === EVENT_TYPES.PERMIT_SAVE;
+}
+
+function isLookupType(type) {
+  return type === EVENT_TYPES.TRACK_LOOKUP || type === EVENT_TYPES.VERIFY_LOOKUP;
+}
+
+function eventRecordKind(event) {
+  if (event?.kind === "permit" || event?.kind === "fitness") return event.kind;
+  if (String(event?.type || "").startsWith("permit_")) return "permit";
+  return "fitness";
+}
+
+function matchesMetricKind(event, kind) {
+  if (!kind || kind === "all") return true;
+  return eventRecordKind(event) === kind;
+}
 
 function loadEvents() {
   try {
@@ -79,25 +109,47 @@ export function dailyActivityBuckets(days = 7) {
     const bucket = byKey[key];
     if (!bucket) continue;
     bucket.total += 1;
-    if (e.type === EVENT_TYPES.CERT_VIEW) bucket.views += 1;
-    if (e.type === EVENT_TYPES.CERT_PRINT) bucket.prints += 1;
-    if (e.type === EVENT_TYPES.TRACK_LOOKUP || e.type === EVENT_TYPES.VERIFY_LOOKUP) {
-      bucket.lookups += 1;
-    }
-    if (e.type === EVENT_TYPES.ADMIN_SAVE) bucket.saves += 1;
+    if (isViewType(e.type)) bucket.views += 1;
+    if (isPrintType(e.type)) bucket.prints += 1;
+    if (isLookupType(e.type)) bucket.lookups += 1;
+    if (isSaveType(e.type)) bucket.saves += 1;
   }
   return buckets;
 }
 
 /** @returns {{ views: number, prints: number, lookups: number, saves: number, total: number }} */
 export function eventTypeMix(events) {
-  const mix = { views: 0, prints: 0, lookups: 0, saves: 0, total: 0 };
+  const mix = {
+    views: 0,
+    prints: 0,
+    lookups: 0,
+    saves: 0,
+    total: 0,
+    fitnessViews: 0,
+    permitViews: 0,
+    fitnessPrints: 0,
+    permitPrints: 0,
+  };
   for (const e of events) {
     mix.total += 1;
-    if (e.type === EVENT_TYPES.CERT_VIEW) mix.views += 1;
-    if (e.type === EVENT_TYPES.CERT_PRINT) mix.prints += 1;
-    if (e.type === EVENT_TYPES.TRACK_LOOKUP || e.type === EVENT_TYPES.VERIFY_LOOKUP) mix.lookups += 1;
-    if (e.type === EVENT_TYPES.ADMIN_SAVE) mix.saves += 1;
+    if (e.type === EVENT_TYPES.CERT_VIEW) {
+      mix.views += 1;
+      mix.fitnessViews += 1;
+    }
+    if (e.type === EVENT_TYPES.PERMIT_VIEW) {
+      mix.views += 1;
+      mix.permitViews += 1;
+    }
+    if (e.type === EVENT_TYPES.CERT_PRINT) {
+      mix.prints += 1;
+      mix.fitnessPrints += 1;
+    }
+    if (e.type === EVENT_TYPES.PERMIT_PRINT) {
+      mix.prints += 1;
+      mix.permitPrints += 1;
+    }
+    if (isLookupType(e.type)) mix.lookups += 1;
+    if (isSaveType(e.type)) mix.saves += 1;
   }
   return mix;
 }
@@ -118,6 +170,7 @@ export function buildRowFromApiItem(item, events) {
     health: fitnessHealthLabel(daysLeft),
     saved: true,
     fromServer: true,
+    kind: "fitness",
     ...stats,
   };
 }
@@ -136,6 +189,7 @@ export function mergeAnalyticsRows(localRows, apiItems) {
 
 export function exportAnalyticsCsv(rows) {
   const headers = [
+    "Kind",
     "Tracking ID",
     "Applicant",
     "District",
@@ -157,6 +211,7 @@ export function exportAnalyticsCsv(rows) {
     headers.join(","),
     ...rows.map((r) =>
       [
+        r.kind === "permit" ? "Permit" : "Fitness",
         r.trackingId,
         r.applicant,
         r.district,
@@ -213,9 +268,9 @@ export function aggregateTokenStats(events, token) {
     if (e.token !== token) continue;
     const t = new Date(e.at).getTime();
     if (!lastAt || t > lastAt) lastAt = t;
-    if (e.type === EVENT_TYPES.CERT_VIEW) views += 1;
-    if (e.type === EVENT_TYPES.CERT_PRINT) prints += 1;
-    if (e.type === EVENT_TYPES.TRACK_LOOKUP || e.type === EVENT_TYPES.VERIFY_LOOKUP) lookups += 1;
+    if (isViewType(e.type)) views += 1;
+    if (isPrintType(e.type)) prints += 1;
+    if (isLookupType(e.type)) lookups += 1;
   }
   return {
     views,
@@ -250,26 +305,89 @@ export function buildFitnessTrackingRows(tokens, getCertificateForEdit, isCertif
       daysLeft,
       health,
       saved: isCertificateSaved(token),
+      kind: "fitness",
       ...stats,
     };
   });
 }
 
-export function computeOverviewMetrics(rows, eventsWindow) {
+export function buildPermitRowFromApiItem(item, events) {
+  const stats = aggregateTokenStats(events, item.token);
+  const daysLeft = item.daysLeft ?? daysUntilExpiry(item.expiryDate);
+  return {
+    token: item.token,
+    trackingId: item.trackingId || item.permitNo || "—",
+    applicant: item.holder || "—",
+    permitNo: item.permitNo || "—",
+    certStatus: item.status || "Issued",
+    appStatus: "—",
+    district: item.district || "—",
+    issue: item.issueDate || "",
+    expiry: item.expiryDate || "",
+    daysLeft,
+    health: fitnessHealthLabel(daysLeft),
+    saved: true,
+    fromServer: true,
+    kind: "permit",
+    ...stats,
+  };
+}
+
+export function mergePermitAnalyticsRows(localRows, apiItems) {
+  const events = loadEvents();
+  const byToken = new Map(localRows.map((r) => [r.token, r]));
+  for (const item of apiItems || []) {
+    if (!item?.token) continue;
+    if (!byToken.has(item.token)) {
+      byToken.set(item.token, buildPermitRowFromApiItem(item, events));
+    }
+  }
+  return [...byToken.values()];
+}
+
+export function buildPermitTrackingRows(tokens, getPermitForEdit, isPermitSaved) {
+  const events = loadEvents();
+  return tokens.map((token) => {
+    const { status, values } = getPermitForEdit(token);
+    const trackingId = values["Tracking ID"] || values["Route Permit No"] || "—";
+    const applicant = values["Permit Holder"] || "—";
+    const district = values.District || "—";
+    const issue = values["Issue Date"] || "";
+    const expiry = values["Expiry Date"] || values["Renewed Upto"] || "";
+    const daysLeft = daysUntilExpiry(expiry);
+    const health = fitnessHealthLabel(daysLeft);
+    const stats = aggregateTokenStats(events, token);
+    return {
+      token,
+      trackingId,
+      applicant,
+      permitNo: values["Route Permit No"] || "—",
+      certStatus: status,
+      appStatus: "—",
+      district,
+      issue,
+      expiry,
+      daysLeft,
+      health,
+      saved: isPermitSaved(token),
+      kind: "permit",
+      ...stats,
+    };
+  });
+}
+
+export function computeOverviewMetrics(rows, eventsWindow, options = {}) {
+  const kind = options.kind || "all";
+  const scopedEvents = eventsWindow.filter((e) => matchesMetricKind(e, kind));
   const total = rows.length;
   const saved = rows.filter((r) => r.saved).length;
   const expiringSoon = rows.filter((r) => r.daysLeft != null && r.daysLeft >= 0 && r.daysLeft <= 30).length;
   const expired = rows.filter((r) => r.daysLeft != null && r.daysLeft < 0).length;
-  const views7d = eventsWindow.filter((e) => e.type === EVENT_TYPES.CERT_VIEW).length;
-  const prints7d = eventsWindow.filter((e) => e.type === EVENT_TYPES.CERT_PRINT).length;
-  const adminSaves = eventsWindow.filter((e) => e.type === EVENT_TYPES.ADMIN_SAVE).length;
-  const lookups7d = eventsWindow.filter(
-    (e) => e.type === EVENT_TYPES.TRACK_LOOKUP || e.type === EVENT_TYPES.VERIFY_LOOKUP
-  ).length;
-  const successfulLookups7d = eventsWindow.filter(
-    (e) =>
-      (e.type === EVENT_TYPES.TRACK_LOOKUP || e.type === EVENT_TYPES.VERIFY_LOOKUP) && e.success === true
-  ).length;
+  const views7d = scopedEvents.filter((e) => isViewType(e.type)).length;
+  const prints7d = scopedEvents.filter((e) => isPrintType(e.type)).length;
+  const adminSaves = scopedEvents.filter((e) => isSaveType(e.type)).length;
+  const lookups7d = scopedEvents.filter((e) => isLookupType(e.type)).length;
+  const successfulLookups7d = scopedEvents.filter((e) => isLookupType(e.type) && e.success === true).length;
   const lookupSuccessRate =
     lookups7d > 0 ? Math.round((successfulLookups7d / lookups7d) * 100) : null;
   const renewalWindow = rows.filter((r) => r.daysLeft != null && r.daysLeft >= 0 && r.daysLeft <= 90).length;
@@ -313,6 +431,12 @@ export function formatEventLabel(event) {
       return event.success ? "License verify (found)" : "License verify (not found)";
     case EVENT_TYPES.ADMIN_SAVE:
       return "Certificate saved in admin";
+    case EVENT_TYPES.PERMIT_VIEW:
+      return event.success === false ? "Permit view (not found)" : "Route permit preview opened";
+    case EVENT_TYPES.PERMIT_PRINT:
+      return "Permit print layout opened";
+    case EVENT_TYPES.PERMIT_SAVE:
+      return "Route permit saved in admin";
     default:
       return event.type || "Event";
   }
