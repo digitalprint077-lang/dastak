@@ -2,7 +2,7 @@ const LOADER_ID = "app-loader";
 
 function isPrintRoute() {
   const path = window.location.pathname.replace(/\/$/, "") || "/";
-  return /^\/vehiclefitness\/[^/]+\/print$/i.test(path);
+  return /^\/vehiclefitness\/[^/]+\/print$/i.test(path) || /^\/routepermits\/[^/]+\/print$/i.test(path);
 }
 
 export function showAppLoader() {

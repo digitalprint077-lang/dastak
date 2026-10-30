@@ -1,5 +1,6 @@
 import "./style.css";
 import "./print-a4.css";
+import "./permit-print.css";
 import { hideAppLoader, showAppLoader } from "./loader.js";
 import { showSaveProgress, showAdminProgress, hideSaveProgress, setSaveFormBusy } from "./save-progress.js";
 import { applyTheme, syncThemeToggleUI, themeToggleButton, toggleTheme } from "./theme.js";
@@ -86,6 +87,7 @@ import {
 } from "./admin-overview.js";
 import { amountToWords } from "./amount-words.js";
 import { renderA4PrintPage, renderA4PrintMissing } from "./print-a4.js";
+import { renderPermitPrintPage, renderPermitPrintMissing } from "./permit-print.js";
 import { qrDataUrlWithLogo } from "./qr-with-logo.js";
 import {
   EVENT_TYPES,
@@ -128,6 +130,28 @@ import {
   districtFilterOptionsHtml,
   statusFilterOptionsHtml,
 } from "./admin-cert-api.js";
+import {
+  generatePermitLinkId,
+  getPermitForEdit,
+  getPublicPermit,
+  hydratePublicPermit,
+  newPermitTemplate,
+  publicPermitPath,
+  readPermitFormValues,
+  resolvePermitToken,
+  savePermit,
+  deletePermit,
+  fetchPermitList,
+  findPermitTokenByField,
+  validatePermitRequired,
+} from "./permits.js";
+import {
+  bindPermitPhotoInput,
+  renderPermitEditor,
+  renderPermitNotFound,
+  renderPermitPreview,
+  renderPermitRegistry,
+} from "./permit-ui.js";
 
 const ECITIZEN_HOME = "https://ecitizen.kp.gov.pk/";
 
@@ -283,6 +307,10 @@ function iconAlert() {
 
 function iconActivity() {
   return iconSvg(`<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`);
+}
+
+function iconMap() {
+  return iconSvg(`<polygon points="1 6 9 2 15 6 23 2 23 18 15 22 9 18 1 22"/><line x1="9" x2="9" y1="2" y2="18"/><line x1="15" x2="15" y1="6" y2="22"/>`);
 }
 
 function iconSearch() {
@@ -517,6 +545,7 @@ function getAdminView() {
   const view = new URLSearchParams(window.location.search).get("view")?.trim();
   if (view === "analytics") return "analytics";
   if (view === "registry") return "registry";
+  if (view === "permits") return "permits";
   return "overview";
 }
 
@@ -560,6 +589,19 @@ function adminRailNav(activeView) {
           }
         </nav>
       </details>
+      <details class="admin-rail-menu" ${activeView === "permits" || activeView === "permit-editor" ? "open" : ""}>
+        <summary class="admin-rail-menu-summary">
+          <span class="admin-rail-link-icon">${iconMap()}</span>
+          <span class="admin-rail-menu-title">Route Permits</span>
+          <span class="admin-rail-chevron" aria-hidden="true"></span>
+        </summary>
+        <nav class="admin-rail-subnav" aria-label="Route permit workspace">
+          ${link("/admin/dashboard?view=permits", "Permit registry", iconMap(), activeView === "permits" || activeView === "permit-editor")}
+          <button type="button" class="admin-rail-link admin-rail-sublink admin-rail-link-btn" data-action="admin-create-permit">
+            ${adminRailLinkContent(iconPlus(), "New permit")}
+          </button>
+        </nav>
+      </details>
     </div>
   `;
 }
@@ -572,16 +614,22 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
         ? "Certificate registry"
         : activeView === "certificates"
           ? "Edit certificate"
-          : "Dashboard";
+          : activeView === "permits" || activeView === "permit-editor"
+            ? "Route permits"
+            : "Dashboard";
   const editorOpen = activeView === "certificates" && isAdminEditorOpen();
   const pageLead =
     activeView === "analytics"
       ? "Views, prints, expiry risk, and activity counted on this browser."
       : activeView === "registry"
         ? "Search, filter, and open a record to edit or save."
-        : editorOpen
-          ? "Edit fields and save. Registry stays on its own screen."
-          : "Registry health, fitness expiry, and recent public activity.";
+        : activeView === "permits"
+          ? "Issue and manage route permits separately from vehicle fitness certificates."
+          : activeView === "permit-editor"
+            ? "Edit permit fields and save. Public preview uses /routepermits."
+            : editorOpen
+              ? "Edit fields and save. Registry stays on its own screen."
+              : "Registry health, fitness expiry, and recent public activity.";
   return `
     <div class="app-shell admin-shell admin-ui-v2">
       <aside class="admin-rail admin-rail-light" aria-label="Admin navigation">
@@ -617,7 +665,9 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
             ${
               activeView === "overview" || activeView === "registry" || activeView === "certificates"
                 ? `<button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-new">${iconPlus()} New certificate</button>`
-                : ""
+                : activeView === "permits" || activeView === "permit-editor"
+                  ? `<button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-permit">${iconPlus()} New permit</button>`
+                  : ""
             }
           </div>
         </header>
@@ -1012,6 +1062,14 @@ function handleTrackApplication(form) {
   const token =
     findTokenByField("Tracking ID", trackingId) ||
     (listSavedTokens().includes(trackingId) ? trackingId : null);
+  const permitToken =
+    findPermitTokenByField("Tracking ID", trackingId) ||
+    findPermitTokenByField("Route Permit No", trackingId);
+  if (!token && permitToken) {
+    recordLookupAttempt();
+    navigate(publicPermitPath(permitToken));
+    return;
+  }
   if (!token) {
     recordAnalyticsEvent(EVENT_TYPES.TRACK_LOOKUP, {
       success: false,
@@ -1041,8 +1099,23 @@ function handleVerifyLicense(form) {
     showToast("Enter a valid 13-digit CNIC without dashes");
     return;
   }
+  if (licenseType === "routepermits") {
+    recordLookupAttempt();
+    const permitToken =
+      findPermitTokenByField("Route Permit No", documentNumber) ||
+      findPermitTokenByField("Vehicle Registration No", documentNumber) ||
+      findPermitTokenByField("Tracking ID", documentNumber) ||
+      resolvePermitToken(documentNumber);
+    const permit = permitToken ? getPublicPermit(permitToken) : null;
+    if (!permit) {
+      showToast("No route permit found for this document number");
+      return;
+    }
+    navigate(publicPermitPath(permit.token));
+    return;
+  }
   if (licenseType !== "vehicle_fitness") {
-    showToast("This demo supports Vehicle Fitness Certificate verification only");
+    showToast("This demo supports Vehicle Fitness Certificate and Route Permit verification");
     return;
   }
   recordLookupAttempt();
@@ -1684,8 +1757,19 @@ async function refreshAdminContextKpis() {
 
 function isAdminEditorOpen() {
   const params = new URLSearchParams(window.location.search);
+  if (params.get("view") === "permits") return false;
   if (params.get("create") === "1") return true;
   return Boolean(params.get("token")?.trim());
+}
+
+function isPermitSectionOpen() {
+  return new URLSearchParams(window.location.search).get("view") === "permits";
+}
+
+function isPermitEditorOpen() {
+  if (!isPermitSectionOpen()) return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get("create") === "1" || Boolean(params.get("token")?.trim());
 }
 
 function renderRegistryPage() {
@@ -1895,7 +1979,9 @@ function renderCertEditor(token, data, isCreate) {
 }
 
 function isCreateMode() {
-  return new URLSearchParams(window.location.search).get("create") === "1";
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("view") === "permits") return false;
+  return params.get("create") === "1";
 }
 
 function renderHealthBadge(health) {
@@ -2314,6 +2400,16 @@ function adminDashboardPage() {
   if (view === "analytics") {
     return adminDashboardShell(renderAnalyticsDashboard(), "analytics");
   }
+  if (view === "permits") {
+    if (isPermitEditorOpen()) {
+      const params = new URLSearchParams(window.location.search);
+      const isCreate = params.get("create") === "1";
+      const token = isCreate ? generatePermitLinkId() : params.get("token")?.trim();
+      const data = isCreate ? newPermitTemplate() : getPermitForEdit(token);
+      return adminDashboardShell(renderPermitEditor(token, data, isCreate), "permit-editor");
+    }
+    return adminDashboardShell(renderPermitRegistry(listPermitRegistryCache), "permits");
+  }
   if (isAdminEditorOpen()) {
     const isCreate = isCreateMode();
     const token = isCreate ? generateLinkId() : getEditorToken();
@@ -2418,7 +2514,7 @@ function certificatePage(token) {
 }
 
 async function mountPrintQr() {
-  const img = document.getElementById("cert-qr");
+  const img = document.getElementById("cert-qr") || document.getElementById("permit-qr");
   if (!img) return;
   const url = img.getAttribute("data-url");
   if (!url) return;
@@ -2481,6 +2577,39 @@ async function refreshPublishHealthBanner() {
       el.textContent = "Could not check publish status — try again after redeploy.";
     }
     setPublishHealthDot("bad", "Publish status unknown");
+  }
+}
+
+async function savePermitFromEditor() {
+  const form = document.getElementById("permit-editor");
+  if (!form || saveInFlight) return;
+  const token = form.querySelector('[name="linkToken"]')?.value?.trim();
+  if (!token) {
+    showToast("Permit link ID is required");
+    return;
+  }
+  const payload = readPermitFormValues(form);
+  const required = validatePermitRequired(payload.values);
+  if (!required.ok) {
+    showToast(`Required: ${required.missing.join(", ")}`);
+    return;
+  }
+  saveInFlight = true;
+  setSaveFormBusy(true);
+  showAdminProgress("save", "Saving route permit…", 20);
+  try {
+    const result = await savePermit(token, payload);
+    showAdminProgress("save", result.publishedOnline ? "Published" : "Saved on this device", 100);
+    showToast(result.publishedOnline ? "Route permit saved" : "Saved locally — live publish when D1 is bound");
+    window.setTimeout(hideSaveProgress, 400);
+    navigate(`/admin/dashboard?view=permits&token=${encodeURIComponent(token)}`, { skipDirtyCheck: true });
+  } catch (err) {
+    console.error("Permit save failed", err);
+    showToast("Could not save route permit");
+    hideSaveProgress();
+  } finally {
+    setSaveFormBusy(false);
+    saveInFlight = false;
   }
 }
 
@@ -2623,6 +2752,7 @@ function navigate(path, { skipDirtyCheck = false } = {}) {
   void render();
 }
 
+let listPermitRegistryCache = [];
 let dataActionClickBound = false;
 let pdfDownloadInFlight = false;
 let saveInFlight = false;
@@ -2835,6 +2965,21 @@ async function handleDataActionClick(el, event) {
     if (!pdfToken) return;
     await downloadRegistryPdfs([pdfToken]);
   }
+  if (action === "download-permit-pdf") {
+    const pdfToken =
+      el.getAttribute("data-token") ||
+      document.querySelector('[name="linkToken"]')?.value?.trim();
+    if (!pdfToken) return;
+    showToast("Preparing permit PDF…");
+    try {
+      const { downloadPermitPdf } = await import("./permit-print.js");
+      await downloadPermitPdf(pdfToken);
+      showToast("Permit PDF downloaded");
+    } catch (err) {
+      console.error(err);
+      showToast("Permit PDF failed — use Print A4");
+    }
+  }
   if (action === "registry-select") {
     const token = el.getAttribute("data-token");
     const box = el.matches("input") ? el : el.querySelector("input[type='checkbox']");
@@ -2951,6 +3096,25 @@ async function handleDataActionClick(el, event) {
   if (action === "admin-create-new") {
     if (!confirmLeaveDirtyEditor()) return;
     navigate("/admin/dashboard?create=1");
+  }
+  if (action === "admin-create-permit") {
+    if (!confirmLeaveDirtyEditor()) return;
+    navigate("/admin/dashboard?view=permits&create=1");
+  }
+  if (action === "delete-permit") {
+    const token = el.getAttribute("data-delete-token")?.trim();
+    if (!token) return;
+    const snapshot = getPermitForEdit(token);
+    if (
+      !window.confirm(
+        `Delete route permit for ${snapshot.values["Permit Holder"] || token}?\nPermit no: ${snapshot.values["Route Permit No"] || "—"}\n\nThis does not change fitness certificates.`
+      )
+    ) {
+      return;
+    }
+    await deletePermit(token);
+    showToast("Route permit deleted");
+    navigate("/admin/dashboard?view=permits", { skipDirtyCheck: true });
   }
   if (action === "renew-cert" || action === "renew-cert-registry") {
     const sourceToken =
@@ -3091,9 +3255,11 @@ function bindActions() {
       const action = el.getAttribute("data-action");
       if (
         action === "delete-cert" ||
+        action === "delete-permit" ||
         action === "renew-cert" ||
         action === "renew-cert-registry" ||
         action === "download-pdf" ||
+        action === "download-permit-pdf" ||
         action === "registry-select" ||
         action === "registry-select-page" ||
         action === "registry-bulk-download" ||
@@ -3135,6 +3301,15 @@ function bindActions() {
         return;
       }
       navigate("/admin/dashboard");
+    });
+  }
+
+  const permitForm = document.getElementById("permit-editor");
+  if (permitForm) {
+    bindPermitPhotoInput();
+    permitForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void savePermitFromEditor();
     });
   }
 
@@ -3266,7 +3441,8 @@ function bindActions() {
 async function render() {
   await ensurePublishedLoaded();
   let path = window.location.pathname.replace(/\/$/, "") || "/";
-  const isPrintRoute = /^\/vehiclefitness\/[^/]+\/print$/.test(path);
+  const isPrintRoute =
+    /^\/vehiclefitness\/[^/]+\/print$/.test(path) || /^\/routepermits\/[^/]+\/print$/.test(path);
   if (!isPrintRoute) {
     document.documentElement.classList.remove("is-print-route");
     document.title = "Dastak - Citizens platform";
@@ -3305,6 +3481,39 @@ async function render() {
     return;
   }
 
+  const permitPrintMatch = path.match(/^\/routepermits\/([^/]+)\/print$/);
+  if (permitPrintMatch) {
+    const printSlug = safePathSlug(permitPrintMatch[1]);
+    await hydratePublicPermit(printSlug);
+    const permit = getPublicPermit(printSlug);
+    if (!permit) {
+      app.innerHTML = renderPermitPrintMissing(printSlug);
+      bindActions();
+      hideAppLoader(true);
+      return;
+    }
+    app.innerHTML = renderPermitPrintPage(permit.token);
+    bindActions();
+    mountPrintQr();
+    hideAppLoader(true);
+    return;
+  }
+
+  const permitMatch = path.match(/^\/routepermits\/([^/]+)$/);
+  if (permitMatch) {
+    const permitSlug = safePathSlug(permitMatch[1]);
+    await hydratePublicPermit(permitSlug);
+    const permit = getPublicPermit(permitSlug);
+    app.innerHTML = permit
+      ? renderPermitPreview((html, options) => layout(html, options), permit)
+      : renderPermitNotFound((html, options) => layout(html, options), permitSlug);
+    bindActions();
+    syncThemeToggleUI();
+    applyDocumentLang();
+    scheduleHideAppLoader();
+    return;
+  }
+
   const certMatch = path.match(/^\/vehiclefitness\/([^/]+)$/);
   if (certMatch) {
     const verifySlug = safePathSlug(certMatch[1]);
@@ -3320,6 +3529,9 @@ async function render() {
     if (isAdminLoggedIn() && isAdminEditorOpen() && !isCreateMode()) {
       const edToken = getEditorToken();
       if (edToken) await hydrateCertificateFromApi(edToken);
+    }
+    if (isAdminLoggedIn() && isPermitSectionOpen() && !isPermitEditorOpen()) {
+      listPermitRegistryCache = await fetchPermitList();
     }
     app.innerHTML = adminDashboardPage();
   } else if (path === "/admin") {

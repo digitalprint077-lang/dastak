@@ -1,0 +1,174 @@
+.pta-sheet {
+  position: relative;
+  width: 210mm;
+  height: 297mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  background: #fff;
+  color: #111;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10pt;
+  line-height: 1.25;
+  box-sizing: border-box;
+  overflow: hidden;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.pta-sheet-inner {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 297mm;
+  min-height: 297mm;
+  padding: 28mm 18mm 16mm 20mm;
+}
+
+.pta-title {
+  text-align: center;
+  margin: 0 0 11mm;
+}
+
+.pta-title h1 {
+  margin: 0;
+  font-size: 13pt;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.pta-title h2 {
+  margin: 1px 0 0;
+  font-size: 11.5pt;
+  font-weight: 400;
+}
+
+.pta-title p {
+  margin: 4px 0 0;
+  font-size: 9pt;
+  font-weight: 400;
+}
+
+.pta-type {
+  margin: 0 0 6mm;
+  font-size: 10.5pt;
+  font-weight: 700;
+}
+
+.pta-flow {
+  position: relative;
+  margin: 0 0 6mm;
+  padding-right: 36mm;
+}
+
+.pta-qr {
+  position: absolute;
+  top: 5mm;
+  right: 4mm;
+  width: 30mm;
+  text-align: center;
+}
+
+.pta-qr-img {
+  display: block;
+  width: 30mm;
+  height: 30mm;
+  margin: 0 auto 2px;
+  background: #fff;
+}
+
+.pta-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.pta-table th,
+.pta-table td {
+  padding: 2mm 3.5mm 2mm 0;
+  vertical-align: top;
+  text-align: left;
+  font-weight: 400;
+}
+
+.pta-table td:nth-child(2) {
+  padding-right: 14mm;
+}
+
+.pta-table th {
+  width: 1%;
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.pta-table td {
+  white-space: nowrap;
+}
+
+.pta-qr p {
+  margin: 0;
+  font-size: 7pt;
+}
+
+.pta-section {
+  margin: 1mm 0 4.5mm;
+}
+
+.pta-section h3 {
+  margin: 0 0 2mm;
+  font-size: 10.5pt;
+  font-weight: 700;
+}
+
+.pta-section p {
+  margin: 0;
+}
+
+.pta-renew,
+.pta-note {
+  margin: 0 0 2.4mm;
+  font-weight: 700;
+}
+
+.pta-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 28mm;
+  padding-top: 0;
+}
+
+.pta-foot > p {
+  margin: 0;
+}
+
+.pta-sign {
+  text-align: center;
+  min-width: 68mm;
+}
+
+.pta-sign p {
+  margin: 0;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+@media screen {
+  .print-page-frame .pta-sheet {
+    box-shadow: none;
+    transform: scale(calc(100cqw / 210mm));
+    transform-origin: top left;
+  }
+}
+
+@media print {
+  .print-page-frame .pta-sheet,
+  .pta-sheet {
+    box-shadow: none;
+    width: 210mm;
+    height: 297mm;
+    min-height: 297mm;
+    margin: 0;
+    transform: none;
+  }
+}

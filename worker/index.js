@@ -55,6 +55,27 @@ export default {
       return new Response("Method Not Allowed", { status: 405 });
     }
 
+    if (pathname === "/api/permits") {
+      const { onRequestGet: permitsGet, onRequestPut: permitsPut } = await import("../functions/api/permits.js");
+      const context = { env, request };
+      if (request.method === "GET") return permitsGet(context);
+      if (request.method === "PUT") return permitsPut(context);
+      return new Response("Method Not Allowed", { status: 405 });
+    }
+
+    const permitPrefix = "/api/permit/";
+    if (pathname.startsWith(permitPrefix)) {
+      const slug = decodeURIComponent(pathname.slice(permitPrefix.length).split("/")[0] || "");
+      const { onRequestGet: permitGet, onRequestPut: permitPut, onRequestDelete: permitDelete } = await import(
+        "../functions/api/permit/[slug].js"
+      );
+      const context = { env, request, params: { slug } };
+      if (request.method === "GET") return permitGet(context);
+      if (request.method === "PUT") return permitPut(context);
+      if (request.method === "DELETE") return permitDelete(context);
+      return new Response("Method Not Allowed", { status: 405 });
+    }
+
     return env.ASSETS.fetch(request);
   },
 };
