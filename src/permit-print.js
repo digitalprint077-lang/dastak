@@ -22,6 +22,17 @@ function routeHtml(value) {
   return `${escapeHtml(match[1])}<strong>${escapeHtml(match[2])}</strong>`;
 }
 
+function secretaryHtml(value) {
+  const lines = String(value ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const use = lines.length
+    ? lines
+    : ["Secretary", "Provincial Transport Authority", "Khyber Pakhtunkhwa"];
+  return use.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+}
+
 function rowWide(label, value) {
   return `
     <tr>
@@ -113,9 +124,7 @@ export function renderPermitPrintArticle(token, { qrElementId = "permit-qr" } = 
         <footer class="pta-foot">
           <p>Dated: ${escapeHtml(dash(d.dated))}</p>
           <div class="pta-sign">
-            <p>Secretary</p>
-            <p>Provincial Transport Authority</p>
-            <p>Khyber Pakhtunkhwa</p>
+            ${secretaryHtml(d.secretary)}
           </div>
         </footer>
       </div>

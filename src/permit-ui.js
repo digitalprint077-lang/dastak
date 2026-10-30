@@ -151,6 +151,7 @@ const PERMIT_FIELD_ICONS = {
   "Issue Date": `<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>`,
   "Expiry Date": `<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="m9 16 6-6"/>`,
   Dated: `<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M8 14h8"/>`,
+  Secretary: `<path d="M4 20h16"/><path d="M8 20v-6h8v6"/><path d="M12 4 4 9h16L12 4z"/><path d="M10 11h4"/>`,
   "Permit Holder": `<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/>`,
   "Father Name": `<circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3 2.5-5 6-5"/><path d="M14 19c0-2 1.5-3.5 3.5-3.5"/>`,
   CNIC: `<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M13 11h5"/><path d="M13 15h3"/>`,
@@ -253,7 +254,7 @@ function permitFieldInput(label, value) {
   const id = `permit-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
   const name = escapeHtml(label);
   const isDate = PERMIT_DATE_FIELDS.includes(label);
-  const isMultiline = ["Route", "Conditions", "Current Address", "Permanent Address"].includes(label);
+  const isMultiline = ["Route", "Conditions", "Current Address", "Permanent Address", "Secretary"].includes(label);
   if (label === "Maker") return permitChoiceField(label, value, PERMIT_MAKER_OPTIONS);
   if (label === "Make") return permitChoiceField(label, value, PERMIT_MAKE_OPTIONS);
   if (label === "Model") return permitYearField(label, value, PERMIT_MODEL_OPTIONS);
