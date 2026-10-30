@@ -269,7 +269,14 @@ export function renderAdminOverviewPage(rows, permitRows = []) {
           <a class="admin-ov-shortcut" href="/admin/dashboard?view=analytics">
             <span class="admin-ov-shortcut-icon">${ovIcon(`<path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-9"/>`)}</span>
             <span>
-              <strong>Analytics</strong>
+              <strong>Fitness analytics</strong>
+              <em>Views, prints, expiry</em>
+            </span>
+          </a>
+          <a class="admin-ov-shortcut" href="/admin/dashboard?view=permit-analytics">
+            <span class="admin-ov-shortcut-icon">${ovIcon(`<path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-9"/>`)}</span>
+            <span>
+              <strong>Permit analytics</strong>
               <em>Views, prints, expiry</em>
             </span>
           </a>
@@ -297,7 +304,7 @@ export function renderAdminOverviewPage(rows, permitRows = []) {
           <p class="admin-ov-summary-sub">${fitness.active + fitness.renewal} fit to operate · live plus local drafts</p>
           ${summaryPills("Live", publish.live, "Expiring ≤30d", fitness.expiring, "ok", "warn")}
         </a>
-        <a class="admin-ov-summary-card admin-ov-card-navy" href="/admin/dashboard?view=permits">
+        <a class="admin-ov-summary-card admin-ov-card-navy" href="/admin/dashboard?view=permit-analytics">
           <div class="admin-ov-summary-top">
             <span class="admin-ov-summary-icon" aria-hidden="true">${ovIcon(`<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10"/><path d="M7 12h6"/>`)}</span>
             <p class="admin-ov-summary-label">Route permits</p>

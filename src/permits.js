@@ -139,7 +139,7 @@ export const PERMIT_REQUIRED_FIELDS = [
 export const PERMIT_FORM_SECTIONS = [
   {
     title: "Permit",
-    desc: "Permit number, type, and validity",
+    desc: "Permit number, type, and 3-year validity from issue date",
     fields: ["Route Permit No", "Tracking ID", "Permit Type", "Issue Date", "Expiry Date", "Dated"],
   },
   {
@@ -216,8 +216,11 @@ const DEFAULT_VALUES = {
 
 let overlayPermits = { version: 1, permits: {} };
 
+export const PERMIT_VALIDITY_YEARS = 3;
+
 function todayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function addCalendarYears(iso, years) {
@@ -234,6 +237,35 @@ function addCalendarDays(iso, days) {
   const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + days);
   if (Number.isNaN(d.getTime())) return "";
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Expiry date = issue date + {@link PERMIT_VALIDITY_YEARS} years (calendar). */
+export function expiryFromPermitIssueDate(issueValue) {
+  return addCalendarYears(issueValue, PERMIT_VALIDITY_YEARS);
+}
+
+export function applyPermitValidity(values) {
+  if (!values || !values["Issue Date"]) return values;
+  values["Expiry Date"] = expiryFromPermitIssueDate(values["Issue Date"]);
+  values["Renewed Upto"] = values["Expiry Date"];
+  values["Renewal Application Date"] = addCalendarDays(values["Expiry Date"], -30);
+  if (!values.Dated) values.Dated = values["Issue Date"];
+  return values;
+}
+
+export function fillPermitValidityFields(form) {
+  const issue = form?.querySelector(`[name="${cssEscapeName("Issue Date")}"]`)?.value?.trim();
+  if (!issue) return;
+  const expiry = expiryFromPermitIssueDate(issue);
+  const set = (label, value) => {
+    const input = form.querySelector(`[name="${cssEscapeName(label)}"]`);
+    if (input) input.value = value;
+  };
+  set("Expiry Date", expiry);
+  set("Renewed Upto", expiry);
+  set("Renewal Application Date", addCalendarDays(expiry, -30));
+  const dated = form.querySelector(`[name="${cssEscapeName("Dated")}"]`);
+  if (dated && !dated.value?.trim()) dated.value = issue;
 }
 
 export function generatePermitLinkId() {
@@ -326,7 +358,7 @@ export function defaultPermitValues() {
 
 export function newPermitTemplate() {
   const issue = todayIsoDate();
-  const expiry = addCalendarYears(issue, 3);
+  const expiry = expiryFromPermitIssueDate(issue);
   return {
     status: "Issued",
     values: {
@@ -535,14 +567,7 @@ export function readPermitFormValues(form) {
   });
   const photo = form.querySelector('[name="Photo"]')?.value?.trim();
   if (photo) values.Photo = photo;
-  if (values["Issue Date"] && !values["Expiry Date"]) {
-    values["Expiry Date"] = addCalendarYears(values["Issue Date"], 3);
-  }
-  if (values["Expiry Date"]) {
-    if (!values["Renewed Upto"]) values["Renewed Upto"] = values["Expiry Date"];
-    if (!values["Renewal Application Date"]) values["Renewal Application Date"] = addCalendarDays(values["Expiry Date"], -30);
-  }
-  if (values["Issue Date"] && !values.Dated) values.Dated = values["Issue Date"];
+  applyPermitValidity(values);
   values["Vehicle Registration No"] = String(values["Vehicle Registration No"] ?? "").toUpperCase();
   values["Chassis No"] = String(values["Chassis No"] ?? "").toUpperCase();
   return { status, values };

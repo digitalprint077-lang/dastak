@@ -28,7 +28,7 @@ function isLookupType(type) {
   return type === EVENT_TYPES.TRACK_LOOKUP || type === EVENT_TYPES.VERIFY_LOOKUP;
 }
 
-function eventRecordKind(event) {
+export function eventRecordKind(event) {
   if (event?.kind === "permit" || event?.kind === "fitness") return event.kind;
   if (String(event?.type || "").startsWith("permit_")) return "permit";
   return "fitness";
@@ -80,19 +80,27 @@ function startOfDay(date) {
   return d;
 }
 
+function localDayKey(date) {
+  const d = startOfDay(date);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function eventsSince(days) {
   const cutoff = startOfDay(new Date()).getTime() - (days - 1) * 86400000;
   return loadEvents().filter((e) => new Date(e.at).getTime() >= cutoff);
 }
 
 /** @returns {{ key: string, label: string, total: number, views: number, prints: number, lookups: number }[]} */
-export function dailyActivityBuckets(days = 7) {
+export function dailyActivityBuckets(days = 7, kind = "all") {
   const buckets = [];
   const today = startOfDay(new Date());
   for (let i = days - 1; i >= 0; i--) {
     const day = new Date(today);
     day.setDate(day.getDate() - i);
-    const key = day.toISOString().slice(0, 10);
+    const key = localDayKey(day);
     buckets.push({
       key,
       label: day.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
@@ -105,7 +113,8 @@ export function dailyActivityBuckets(days = 7) {
   }
   const byKey = Object.fromEntries(buckets.map((b) => [b.key, b]));
   for (const e of loadEvents()) {
-    const key = e.at?.slice(0, 10);
+    if (!matchesMetricKind(e, kind)) continue;
+    const key = e.at ? localDayKey(e.at) : "";
     const bucket = byKey[key];
     if (!bucket) continue;
     bucket.total += 1;

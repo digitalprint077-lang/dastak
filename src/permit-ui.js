@@ -13,6 +13,7 @@ import {
   publicPermitPath,
   printPermitPath,
 } from "./permits.js";
+import { aggregateTokenStats, getAnalyticsEvents } from "./analytics.js";
 
 function escapeHtml(text) {
   return String(text ?? "")
@@ -198,10 +199,15 @@ function permitFieldInput(label, value) {
   } else {
     control = `<input class="form-control" id="${id}" name="${name}" type="${isDate ? "date" : "text"}" value="${escapeHtml(value)}" autocomplete="off" />`;
   }
+  const expiryHint =
+    label === "Expiry Date"
+      ? `<span class="form-field-hint" id="permit-expiry-hint">Valid for 3 years from issue date.</span>`
+      : "";
   return `
     <label class="form-field${isMultiline ? " form-field-span" : ""}" for="${id}">
       <span class="form-label">${escapeHtml(label)}</span>
       ${control}
+      ${expiryHint}
     </label>
   `;
 }
@@ -266,8 +272,11 @@ export function renderPermitRegistry(items) {
 export function renderPermitEditor(token, data, isCreate) {
   const values = data.values || {};
   const permitNo = escapeHtml(values["Route Permit No"] || "—");
-  const tracking = escapeHtml(values["Tracking ID"] || "—");
+  const trackingRaw = String(values["Tracking ID"] ?? "").trim();
+  const tracking = escapeHtml(trackingRaw || "—");
   const publicUrl = publicPermitLink(token);
+  const tokenStats = !isCreate ? aggregateTokenStats(getAnalyticsEvents(), token) : { views: 0, prints: 0 };
+  const analyticsHref = `/admin/dashboard?view=permit-analytics${trackingRaw ? `&track=${encodeURIComponent(trackingRaw)}` : ""}`;
   const sections = PERMIT_FORM_SECTIONS.map((section, index) => {
     const fields = section.fields.map((label) => permitFieldInput(label, values[label] ?? "")).join("");
     return `
@@ -297,6 +306,11 @@ export function renderPermitEditor(token, data, isCreate) {
               <span class="admin-editor-tag">${tracking}</span>
             </div>
             ${isCreate ? "" : `<p class="admin-editor-status-detail"><span class="admin-hero-url">${escapeHtml(publicUrl)}</span></p>`}
+            ${
+              isCreate
+                ? ""
+                : `<a class="admin-editor-analytics-link" href="${escapeHtml(analyticsHref)}">Views &amp; prints (${tokenStats.views} / ${tokenStats.prints})</a>`
+            }
           </div>
           <div class="admin-action-bar">
             ${
