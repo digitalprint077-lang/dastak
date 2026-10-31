@@ -661,7 +661,7 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
             <strong class="admin-rail-wordmark">DASTAK</strong>
             <span class="admin-rail-brand-dot" aria-hidden="true"></span>
           </div>
-          <p class="admin-rail-tagline">Vehicle fitness admin</p>
+          <p class="admin-rail-tagline">Citizens platform</p>
         </div>
         ${adminRailNav(activeView)}
         <div class="admin-rail-foot">
@@ -1189,46 +1189,20 @@ async function handleVerifyLicense(form) {
   navigate(followPath(token));
 }
 
-function loginArtSvg() {
-  return `
-    <svg class="admin-login-art-svg" viewBox="0 0 640 560" fill="none" aria-hidden="true">
-      <ellipse cx="320" cy="486" rx="196" ry="24" fill="#d5e4dc"/>
-      <path d="M86 176c52-92 178-132 286-94 88 32 188 22 230 92 46 76 12 174-78 218-88 42-228 64-330 18-90-42-156-138-108-234Z" fill="#e8f3ee"/>
-      <rect x="214" y="72" width="236" height="304" rx="16" fill="#fff" stroke="#d4e0d8"/>
-      <rect x="238" y="98" width="188" height="16" rx="8" fill="#6398a9"/>
-      <rect x="238" y="130" width="132" height="8" rx="4" fill="#d5e0d8"/>
-      <rect x="238" y="148" width="168" height="8" rx="4" fill="#e4eee8"/>
-      <rect x="238" y="166" width="110" height="8" rx="4" fill="#e4eee8"/>
-      <rect x="238" y="202" width="72" height="7" rx="3" fill="#c5d8cf"/>
-      <rect x="324" y="202" width="102" height="7" rx="3" fill="#eef4f1"/>
-      <rect x="238" y="220" width="72" height="7" rx="3" fill="#c5d8cf"/>
-      <rect x="324" y="220" width="102" height="7" rx="3" fill="#eef4f1"/>
-      <rect x="238" y="238" width="72" height="7" rx="3" fill="#c5d8cf"/>
-      <rect x="324" y="238" width="102" height="7" rx="3" fill="#eef4f1"/>
-      <rect x="348" y="268" width="70" height="70" rx="8" fill="#f7f4ee" stroke="#96c7b3"/>
-      <path d="M364 284h8v8h-8zm14 0h8v8h-8zm14 0h8v8h-8zm-28 14h8v8h-8zm28 0h8v8h-8zm-28 14h8v8h-8zm14 0h8v8h-8zm14 0h8v8h-8z" fill="#2d3436"/>
-      <circle cx="278" cy="302" r="20" fill="#eef6f2" stroke="#96c7b3" stroke-width="3"/>
-      <path d="M270 302l6 6 12-12" stroke="#4e7a8a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M96 360h36l22-30h58l20 30h28v22H96z" fill="#6398a9"/>
-      <path d="M140 356l16-22h46l14 22z" fill="#f9b95c"/>
-      <rect x="96" y="360" width="170" height="22" rx="6" fill="#4e7a8a"/>
-      <circle cx="132" cy="386" r="15" fill="#2d3436"/>
-      <circle cx="132" cy="386" r="6" fill="#d9e4dc"/>
-      <circle cx="226" cy="386" r="15" fill="#2d3436"/>
-      <circle cx="226" cy="386" r="6" fill="#d9e4dc"/>
-      <circle cx="486" cy="368" r="48" fill="#fff" stroke="#d4e4dc"/>
-      <circle cx="486" cy="368" r="32" fill="none" stroke="#d7897f" stroke-width="8"/>
-      <circle cx="486" cy="368" r="5" fill="#d7897f"/>
-    </svg>
-  `;
-}
-
 function adminLoginPage() {
   return `
     <div class="admin-login-page">
       <div class="admin-login-stage">
-        <aside class="admin-login-art" aria-hidden="true">
-          ${loginArtSvg()}
+        <aside class="admin-login-brand">
+          <img class="admin-login-brand-logo" src="/images/logo-dastak.png" alt="" />
+          <p class="admin-login-brand-kicker">Citizens platform</p>
+          <h2 class="admin-login-brand-title">One workspace for KP digital services</h2>
+          <p class="admin-login-brand-copy">Issue, verify, and manage records from a single staff login. More services can be added here over time.</p>
+          <ul class="admin-login-brand-list">
+            <li>Vehicle fitness certificates</li>
+            <li>Route permits</li>
+            <li>More services coming</li>
+          </ul>
         </aside>
         <main class="admin-login-panel">
           <div class="admin-login-panel-top">
@@ -1236,13 +1210,14 @@ function adminLoginPage() {
             <div class="admin-login-theme">${themeToggleButton()}</div>
           </div>
           <div class="admin-login-panel-body">
-            <img class="admin-login-mark" src="/images/logo-dastak.png" alt="Dastak" />
-            <p class="admin-login-welcome">Welcome — sign in to vehicle fitness admin</p>
-            <h1 class="admin-login-heading">Login</h1>
+            <p class="admin-login-welcome">Staff access</p>
+            <h1 class="admin-login-heading">Sign in</h1>
+            <p class="admin-login-lead">Enter your password to open the Dastak admin.</p>
             <form id="admin-login-form" class="admin-login-form" autocomplete="off">
               <label class="form-field" for="admin-password">
                 <span class="form-label">Password</span>
                 <div class="form-input-wrap admin-login-pw-wrap">
+                  <span class="form-field-icon" aria-hidden="true">${iconLock()}</span>
                   <input
                     id="admin-password"
                     class="form-control"
@@ -1257,11 +1232,9 @@ function adminLoginPage() {
                   </button>
                 </div>
               </label>
-              <div class="admin-login-submit-row">
-                <button class="btn btn-primary admin-login-submit" type="submit">
-                  Sign in ${iconArrowRight()}
-                </button>
-              </div>
+              <button class="btn btn-primary admin-login-submit" type="submit">
+                Sign in ${iconArrowRight()}
+              </button>
             </form>
             <p class="admin-login-footnote">${iconLock()} Authorized staff only</p>
           </div>
