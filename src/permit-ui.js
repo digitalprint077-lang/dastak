@@ -325,7 +325,7 @@ export function renderPermitRegistry(items) {
       <section class="admin-list-panel admin-list-panel-full">
         <div class="admin-list-panel-head">
           <div>
-            <h2 class="admin-list-title">Route permit registry</h2>
+            <h2 class="admin-list-title">PTA permit registry</h2>
             <p class="admin-list-lead">Search and open a permit. Fitness certificates stay in their own registry.</p>
           </div>
           <button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-permit">New permit</button>
@@ -372,7 +372,7 @@ export function renderPermitEditor(token, data, isCreate) {
         <section class="admin-editor-hero">
           <div class="admin-editor-hero-main">
             <p class="admin-editor-kicker">${isCreate ? "New permit" : "Editing permit"}</p>
-            <h2 class="admin-editor-title">${isCreate ? "New route permit" : escapeHtml(values["Permit Holder"] || "Route permit")}</h2>
+            <h2 class="admin-editor-title">${isCreate ? "New PTA permit" : escapeHtml(values["Permit Holder"] || "PTA permit")}</h2>
             <div class="admin-editor-tags">
               <span class="admin-editor-tag">${permitNo}</span>
               <span class="admin-editor-tag">${tracking}</span>

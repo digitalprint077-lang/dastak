@@ -669,7 +669,7 @@ function adminRailNav(activeView) {
 
       <div class="admin-rail-workspace">
         <p class="admin-rail-section-label">Workspace</p>
-        <details class="admin-rail-menu admin-rail-service admin-rail-service-certs${certsActive ? " is-active" : ""}" open>
+        <details class="admin-rail-menu admin-rail-service admin-rail-service-certs${certsActive ? " is-active" : ""}"${certsActive ? " open" : ""}>
           ${adminRailServiceSummary(iconCertificate(), "Certificates", "Fitness records")}
           <nav class="admin-rail-subnav" aria-label="Certificate workspace">
             ${link("/admin/dashboard?view=registry", "Registry", iconRegistry(), activeView === "registry")}
@@ -684,9 +684,9 @@ function adminRailNav(activeView) {
             }
           </nav>
         </details>
-        <details class="admin-rail-menu admin-rail-service admin-rail-service-permits${permitsActive ? " is-active" : ""}" open>
-          ${adminRailServiceSummary(iconRoutePermit(), "Route Permits", "PTA permits")}
-          <nav class="admin-rail-subnav" aria-label="Route permit workspace">
+        <details class="admin-rail-menu admin-rail-service admin-rail-service-permits${permitsActive ? " is-active" : ""}"${permitsActive ? " open" : ""}>
+          ${adminRailServiceSummary(iconRoutePermit(), "PTA Permits", "Provincial permits")}
+          <nav class="admin-rail-subnav" aria-label="PTA permit workspace">
             ${link("/admin/dashboard?view=permits", "Registry", iconRegistry(), activeView === "permits" || activeView === "permit-editor")}
             ${link("/admin/dashboard?view=permit-analytics", "Analytics", iconAnalytics(), activeView === "permit-analytics")}
             <button type="button" class="admin-rail-link admin-rail-sublink admin-rail-link-btn" data-action="admin-create-permit">
@@ -694,7 +694,7 @@ function adminRailNav(activeView) {
             </button>
           </nav>
         </details>
-        <details class="admin-rail-menu admin-rail-service admin-rail-service-rta${rtaActive ? " is-active" : ""}" open>
+        <details class="admin-rail-menu admin-rail-service admin-rail-service-rta${rtaActive ? " is-active" : ""}"${rtaActive ? " open" : ""}>
           ${adminRailServiceSummary(iconRtaPermit(), "RTA Permits", "Regional permits")}
           <nav class="admin-rail-subnav" aria-label="RTA permit workspace">
             ${link("/admin/dashboard?view=rta-permits", "Registry", iconRegistry(), activeView === "rta-permits" || activeView === "rta-permit-editor")}
@@ -718,7 +718,7 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
         : activeView === "certificates"
           ? "Edit certificate"
           : activeView === "permits" || activeView === "permit-editor"
-            ? "Route permits"
+            ? "PTA permits"
             : activeView === "rta-permits" || activeView === "rta-permit-editor"
               ? "RTA permits"
             : "Dashboard";
@@ -727,15 +727,15 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
     activeView === "rta-permit-analytics"
       ? "RTA permit views, prints, expiry, and activity counted on this browser."
       : activeView === "permit-analytics"
-      ? "Route permit views, prints, expiry, and activity counted on this browser."
+      ? "PTA permit views, prints, expiry, and activity counted on this browser."
       : activeView === "analytics"
       ? "Views, prints, expiry risk, and activity counted on this browser."
       : activeView === "registry"
         ? "Search, filter, and open a record to edit or save."
         : activeView === "permits"
-          ? "Issue and manage route permits separately from vehicle fitness certificates."
+          ? "Issue and manage PTA permits separately from vehicle fitness certificates."
           : activeView === "permit-editor"
-            ? "Edit permit fields and save. Public preview uses /routepermits."
+            ? "Edit PTA permit fields and save. Public preview uses /routepermits."
             : activeView === "rta-permits"
               ? "Issue and manage RTA permits separately from PTA and fitness records."
               : activeView === "rta-permit-editor"
