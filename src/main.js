@@ -318,8 +318,36 @@ function iconActivity() {
   return iconSvg(`<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`);
 }
 
+function iconDashboard() {
+  return iconSvg(
+    `<rect x="3" y="3" width="8" height="8" rx="1.6"/><rect x="13" y="3" width="8" height="5" rx="1.6"/><rect x="13" y="10" width="8" height="11" rx="1.6"/><rect x="3" y="13" width="8" height="8" rx="1.6"/>`
+  );
+}
+
+function iconCertificate() {
+  return iconSvg(
+    `<path d="M7 3h8l4 4v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M15 3v5h5"/><circle cx="12" cy="14.5" r="2.4"/><path d="m10.6 16.4-.8 3.2 2.2-1 2.2 1-.8-3.2"/>`
+  );
+}
+
+function iconRegistry() {
+  return iconSvg(
+    `<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><circle cx="4" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.2" fill="currentColor" stroke="none"/>`
+  );
+}
+
+function iconAnalytics() {
+  return iconSvg(`<path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 7-8"/>`);
+}
+
 function iconMap() {
   return iconSvg(`<polygon points="1 6 9 2 15 6 23 2 23 18 15 22 9 18 1 22"/><line x1="9" x2="9" y1="2" y2="18"/><line x1="15" x2="15" y1="6" y2="22"/>`);
+}
+
+function iconRoutePermit() {
+  return iconSvg(
+    `<circle cx="6" cy="7" r="2.2"/><path d="M8.2 7h3.2c2 0 3.4 1.4 4.8 5.2"/><circle cx="18" cy="17" r="2.2"/><path d="M3 17h4.4a4.2 4.2 0 0 0 4.2-3.2"/>`
+  );
 }
 
 function iconSearch() {
@@ -576,8 +604,23 @@ function adminRailLinkContent(icon, label) {
   return `<span class="admin-rail-link-icon">${icon}</span><span class="admin-rail-link-label">${label}</span>`;
 }
 
+function adminRailServiceSummary(icon, title, hint) {
+  return `
+    <summary class="admin-rail-menu-summary">
+      <span class="admin-rail-service-icon">${icon}</span>
+      <span class="admin-rail-service-copy">
+        <span class="admin-rail-menu-title">${title}</span>
+        <em class="admin-rail-service-hint">${hint}</em>
+      </span>
+      <span class="admin-rail-chevron" aria-hidden="true"></span>
+    </summary>
+  `;
+}
+
 function adminRailNav(activeView) {
   const editorOpen = activeView === "certificates";
+  const certsActive = activeView === "registry" || activeView === "analytics" || editorOpen;
+  const permitsActive = activeView === "permits" || activeView === "permit-editor" || activeView === "permit-analytics";
 
   const link = (href, label, icon, active, tone = "") =>
     `<a class="admin-rail-link${active ? " is-active" : ""}${tone ? ` admin-rail-tone-${tone}` : ""}" href="${href}">${adminRailLinkContent(icon, label)}</a>`;
@@ -585,43 +628,37 @@ function adminRailNav(activeView) {
   return `
     <div class="admin-rail-body">
       <div class="admin-rail-primary">
-        ${link("/admin/dashboard", "Dashboard", iconActivity(), activeView === "overview", "teal")}
-        <button type="button" class="admin-rail-link admin-rail-link-btn admin-rail-tone-teal" data-action="admin-create-new">
-          ${adminRailLinkContent(iconPlus(), "New certificate")}
-        </button>
+        ${link("/admin/dashboard", "Dashboard", iconDashboard(), activeView === "overview", "teal")}
       </div>
 
-      <p class="admin-rail-section-label">Workspace</p>
-      <details class="admin-rail-menu" open>
-        <summary class="admin-rail-menu-summary">
-          <span class="admin-rail-link-icon">${iconSave()}</span>
-          <span class="admin-rail-menu-title">Certificates</span>
-          <span class="admin-rail-chevron" aria-hidden="true"></span>
-        </summary>
-        <nav class="admin-rail-subnav" aria-label="Certificate workspace">
-          ${link("/admin/dashboard?view=registry", "Registry", iconSave(), activeView === "registry")}
-          ${link("/admin/dashboard?view=analytics", "Analytics & reports", iconChart(), activeView === "analytics")}
-          ${
-            editorOpen
-              ? `<span class="admin-rail-link admin-rail-sublink is-active admin-rail-link-static admin-rail-tone-teal">${adminRailLinkContent(iconPreview(), "Edit certificate")}</span>`
-              : ""
-          }
-        </nav>
-      </details>
-      <details class="admin-rail-menu" ${activeView === "permits" || activeView === "permit-editor" || activeView === "permit-analytics" ? "open" : ""}>
-        <summary class="admin-rail-menu-summary">
-          <span class="admin-rail-link-icon">${iconMap()}</span>
-          <span class="admin-rail-menu-title">Route Permits</span>
-          <span class="admin-rail-chevron" aria-hidden="true"></span>
-        </summary>
-        <nav class="admin-rail-subnav" aria-label="Route permit workspace">
-          ${link("/admin/dashboard?view=permits", "Permit registry", iconMap(), activeView === "permits" || activeView === "permit-editor")}
-          ${link("/admin/dashboard?view=permit-analytics", "Analytics & reports", iconChart(), activeView === "permit-analytics")}
-          <button type="button" class="admin-rail-link admin-rail-sublink admin-rail-link-btn" data-action="admin-create-permit">
-            ${adminRailLinkContent(iconPlus(), "New permit")}
-          </button>
-        </nav>
-      </details>
+      <div class="admin-rail-workspace">
+        <p class="admin-rail-section-label">Workspace</p>
+        <details class="admin-rail-menu admin-rail-service admin-rail-service-certs${certsActive ? " is-active" : ""}" open>
+          ${adminRailServiceSummary(iconCertificate(), "Certificates", "Fitness records")}
+          <nav class="admin-rail-subnav" aria-label="Certificate workspace">
+            ${link("/admin/dashboard?view=registry", "Registry", iconRegistry(), activeView === "registry")}
+            ${link("/admin/dashboard?view=analytics", "Analytics", iconAnalytics(), activeView === "analytics")}
+            <button type="button" class="admin-rail-link admin-rail-sublink admin-rail-link-btn" data-action="admin-create-new">
+              ${adminRailLinkContent(iconPlus(), "New certificate")}
+            </button>
+            ${
+              editorOpen
+                ? `<span class="admin-rail-link admin-rail-sublink is-active admin-rail-link-static admin-rail-tone-teal">${adminRailLinkContent(iconPreview(), "Edit certificate")}</span>`
+                : ""
+            }
+          </nav>
+        </details>
+        <details class="admin-rail-menu admin-rail-service admin-rail-service-permits${permitsActive ? " is-active" : ""}" open>
+          ${adminRailServiceSummary(iconRoutePermit(), "Route Permits", "PTA permits")}
+          <nav class="admin-rail-subnav" aria-label="Route permit workspace">
+            ${link("/admin/dashboard?view=permits", "Registry", iconRegistry(), activeView === "permits" || activeView === "permit-editor")}
+            ${link("/admin/dashboard?view=permit-analytics", "Analytics", iconAnalytics(), activeView === "permit-analytics")}
+            <button type="button" class="admin-rail-link admin-rail-sublink admin-rail-link-btn" data-action="admin-create-permit">
+              ${adminRailLinkContent(iconPlus(), "New permit")}
+            </button>
+          </nav>
+        </details>
+      </div>
     </div>
   `;
 }
@@ -657,9 +694,17 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
       <aside class="admin-rail admin-rail-light" aria-label="Admin navigation">
         <div class="admin-rail-brand-block">
           <div class="admin-rail-brand">
-            <img class="admin-rail-logo" src="/images/logo-dastak.png" alt="Dastak" />
+            <span class="admin-rail-logo-wrap">
+              <img class="admin-rail-logo" src="/images/logo-dastak.png" alt="Dastak" />
+            </span>
             <strong class="admin-rail-wordmark">DASTAK</strong>
-            <span class="admin-rail-brand-dot" aria-hidden="true"></span>
+            <span
+              id="admin-publish-health-dot"
+              class="admin-rail-brand-dot admin-publish-dot admin-publish-dot-pending"
+              title="Checking publish status…"
+              role="status"
+              aria-label="Publish status"
+            ></span>
           </div>
           <p class="admin-rail-tagline">Citizens platform</p>
         </div>
@@ -680,12 +725,7 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
           </div>
           <div class="admin-context-aside">
             ${
-              activeView === "overview" || activeView === "registry" || activeView === "certificates"
-                ? `<span id="admin-publish-health-dot" class="admin-publish-dot admin-publish-dot-pending" title="Checking publish status…" aria-label="Publish status"></span>`
-                : ""
-            }
-            ${
-              activeView === "overview" || activeView === "registry" || activeView === "certificates"
+              activeView === "registry" || activeView === "certificates"
                 ? `<button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-new">${iconPlus()} New certificate</button>`
                 : activeView === "permits" || activeView === "permit-editor"
                   ? `<button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-permit">${iconPlus()} New permit</button>`
@@ -2624,9 +2664,19 @@ function setPublishHealthDot(tone, title) {
   const dot = document.getElementById("admin-publish-health-dot");
   if (!dot) return;
   dot.hidden = false;
-  dot.className = `admin-publish-dot admin-publish-dot-${tone}`;
+  dot.className = `admin-rail-brand-dot admin-publish-dot admin-publish-dot-${tone}`;
   dot.title = title;
   dot.setAttribute("aria-label", title);
+}
+
+let publishHealthTimer = null;
+
+function startPublishHealthWatch() {
+  void refreshPublishHealthBanner();
+  if (publishHealthTimer) window.clearInterval(publishHealthTimer);
+  publishHealthTimer = window.setInterval(() => {
+    void refreshPublishHealthBanner();
+  }, 30000);
 }
 
 async function refreshPublishHealthBanner() {
@@ -3687,7 +3737,10 @@ async function render() {
   syncThemeToggleUI();
   applyDocumentLang();
   if (isAdminLoggedIn() && path.startsWith("/admin")) {
-    void refreshPublishHealthBanner();
+    startPublishHealthWatch();
+  } else if (publishHealthTimer) {
+    window.clearInterval(publishHealthTimer);
+    publishHealthTimer = null;
   }
 
   const certReminder = document.getElementById("cert-expiry-reminder");
