@@ -18,6 +18,12 @@ import {
   isPermitSaved,
   fetchPermitList,
 } from "./permits.js";
+import {
+  listSavedPermitTokens as listSavedRtaPermitTokens,
+  getPermitForEdit as getRtaPermitForEdit,
+  isPermitSaved as isRtaPermitSaved,
+  fetchPermitList as fetchRtaPermitList,
+} from "./rta-permits.js";
 
 function pct(part, whole) {
   if (!whole) return 0;
@@ -89,6 +95,10 @@ export function buildLocalPermitOverviewRows() {
   return buildPermitTrackingRows(listSavedPermitTokens(), getPermitForEdit, isPermitSaved);
 }
 
+export function buildLocalRtaPermitOverviewRows() {
+  return buildPermitTrackingRows(listSavedRtaPermitTokens(), getRtaPermitForEdit, isRtaPermitSaved, "rta");
+}
+
 export function computeRegistryPublishCounts(rows) {
   let live = 0;
   let local = 0;
@@ -155,9 +165,16 @@ function renderActivityChartOverview(buckets) {
 }
 
 function editorHref(row) {
+  if (row.kind === "rta") return `/admin/dashboard?view=rta-permits&token=${encodeURIComponent(row.token)}`;
   return row.kind === "permit"
     ? `/admin/dashboard?view=permits&token=${encodeURIComponent(row.token)}`
     : `/admin/dashboard?token=${encodeURIComponent(row.token)}`;
+}
+
+function overviewKindLabel(kind) {
+  if (kind === "rta") return "RTA Permit";
+  if (kind === "permit") return "Permit";
+  return "Fitness";
 }
 
 function attentionBanner(copy, href, goLabel) {
@@ -169,24 +186,30 @@ function attentionBanner(copy, href, goLabel) {
       </a>`;
 }
 
-export function renderAdminOverviewPage(rows, permitRows = []) {
+export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = []) {
   const eventsWindow = eventsSince(7);
   const fitnessRows = rows;
   const permitList = permitRows;
-  const overallRows = [...fitnessRows, ...permitList];
+  const rtaList = rtaPermitRows;
+  const overallRows = [...fitnessRows, ...permitList, ...rtaList];
   const overall = computeOverviewMetrics(overallRows, eventsWindow, { kind: "all" });
   const fitnessMetrics = computeOverviewMetrics(fitnessRows, eventsWindow, { kind: "fitness" });
   const permitMetrics = computeOverviewMetrics(permitList, eventsWindow, { kind: "permit" });
   const publish = computeRegistryPublishCounts(fitnessRows);
   const permitPublish = computeRegistryPublishCounts(permitList);
+  const rtaPublish = computeRegistryPublishCounts(rtaList);
   const fitness = countByFitness(fitnessRows);
   const permits = countByFitness(permitList);
+  const rtaPermits = countByFitness(rtaList);
   const fitnessTotal = Math.max(1, fitnessRows.length);
   const permitTotal = Math.max(1, permitList.length);
+  const rtaTotal = Math.max(1, rtaList.length);
   const statusMap = countByStatus(fitnessRows);
   const permitStatusMap = countByStatus(permitList);
+  const rtaStatusMap = countByStatus(rtaList);
   const statusTotal = Math.max(1, fitnessRows.length);
   const permitStatusTotal = Math.max(1, permitList.length);
+  const rtaStatusTotal = Math.max(1, rtaList.length);
   const buckets = dailyActivityBuckets(7);
   const recent = getAnalyticsEvents(12);
 
@@ -194,6 +217,9 @@ export function renderAdminOverviewPage(rows, permitRows = []) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6);
   const permitStatusRows = Object.entries(permitStatusMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6);
+  const rtaStatusRows = Object.entries(rtaStatusMap)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6);
 
@@ -222,6 +248,9 @@ export function renderAdminOverviewPage(rows, permitRows = []) {
   const permitBits = [];
   if (permits.expiring) permitBits.push(`${permits.expiring} expiring within 30 days`);
   if (permits.expired) permitBits.push(`${permits.expired} already expired`);
+  const rtaBits = [];
+  if (rtaPermits.expiring) rtaBits.push(`${rtaPermits.expiring} expiring within 30 days`);
+  if (rtaPermits.expired) rtaBits.push(`${rtaPermits.expired} already expired`);
   const attentionHtml = [
     fitnessBits.length
       ? attentionBanner(
@@ -235,6 +264,13 @@ export function renderAdminOverviewPage(rows, permitRows = []) {
           `<strong>Permits need attention.</strong> ${escapeHtml(permitBits.join(" · "))}.`,
           "/admin/dashboard?view=permits",
           "Review permits"
+        )
+      : "",
+    rtaBits.length
+      ? attentionBanner(
+          `<strong>RTA permits need attention.</strong> ${escapeHtml(rtaBits.join(" · "))}.`,
+          "/admin/dashboard?view=rta-permits",
+          "Review RTA permits"
         )
       : "",
   ].join("");
@@ -280,6 +316,20 @@ export function renderAdminOverviewPage(rows, permitRows = []) {
               <em>Views, prints, expiry</em>
             </span>
           </a>
+          <a class="admin-ov-shortcut" href="/admin/dashboard?view=rta-permits">
+            <span class="admin-ov-shortcut-icon">${ovIcon(`<path d="M3 10.5 12 4l9 6.5"/><path d="M5 10v9h14v-9"/><path d="M9 19v-6h6v6"/>`)}</span>
+            <span>
+              <strong>RTA permits</strong>
+              <em>Regional permit records</em>
+            </span>
+          </a>
+          <a class="admin-ov-shortcut" href="/admin/dashboard?view=rta-permit-analytics">
+            <span class="admin-ov-shortcut-icon">${ovIcon(`<path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-9"/>`)}</span>
+            <span>
+              <strong>RTA analytics</strong>
+              <em>Views, prints, expiry</em>
+            </span>
+          </a>
         </div>
       </div>
 
@@ -292,7 +342,7 @@ export function renderAdminOverviewPage(rows, permitRows = []) {
             <p class="admin-ov-summary-label">Overall records</p>
           </div>
           <p class="admin-ov-summary-value" id="admin-ov-total">${overall.total}</p>
-          <p class="admin-ov-summary-sub">Fitness certificates and route permits</p>
+          <p class="admin-ov-summary-sub">Fitness certificates, PTA, and RTA permits</p>
           ${summaryPills("Fitness", fitnessRows.length, "Permits", permitList.length, "ok", "info")}
         </a>
         <a class="admin-ov-summary-card admin-ov-card-green" href="/admin/dashboard?view=registry">
@@ -313,13 +363,22 @@ export function renderAdminOverviewPage(rows, permitRows = []) {
           <p class="admin-ov-summary-sub">${permits.active + permits.renewal} valid · live plus local drafts</p>
           ${summaryPills("Live", permitPublish.live, "Expiring ≤30d", permits.expiring, "ok", "warn")}
         </a>
+        <a class="admin-ov-summary-card admin-ov-card-plum" href="/admin/dashboard?view=rta-permit-analytics">
+          <div class="admin-ov-summary-top">
+            <span class="admin-ov-summary-icon" aria-hidden="true">${ovIcon(`<path d="M3 10.5 12 4l9 6.5"/><path d="M5 10v9h14v-9"/><path d="M9 19v-6h6v6"/>`)}</span>
+            <p class="admin-ov-summary-label">RTA permits</p>
+          </div>
+          <p class="admin-ov-summary-value">${rtaList.length}</p>
+          <p class="admin-ov-summary-sub">${rtaPermits.active + rtaPermits.renewal} valid · live plus local drafts</p>
+          ${summaryPills("Live", rtaPublish.live, "Expiring ≤30d", rtaPermits.expiring, "ok", "warn")}
+        </a>
         <a class="admin-ov-summary-card admin-ov-card-orange" href="/admin/dashboard?view=analytics">
           <div class="admin-ov-summary-top">
             <span class="admin-ov-summary-icon" aria-hidden="true">${ovIcon(`<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`)}</span>
             <p class="admin-ov-summary-label">Public activity</p>
           </div>
           <p class="admin-ov-summary-value">${overall.views7d + overall.prints7d}</p>
-          <p class="admin-ov-summary-sub">Last 7 days on this device · fitness and permits</p>
+          <p class="admin-ov-summary-sub">Last 7 days on this device · fitness, PTA, and RTA</p>
           ${summaryPills("Fitness", fitnessMetrics.views7d + fitnessMetrics.prints7d, "Permits", permitMetrics.views7d + permitMetrics.prints7d, "ok", "info")}
         </a>
       </div>
@@ -354,6 +413,19 @@ export function renderAdminOverviewPage(rows, permitRows = []) {
         <section class="admin-ov-panel">
           <div class="admin-ov-panel-head">
             <div>
+              <h3 class="admin-ov-panel-title">RTA permit breakdown</h3>
+              <p class="admin-ov-panel-desc">By expiry timeline</p>
+            </div>
+          </div>
+          ${breakdownBar("Active (>90 days)", rtaPermits.active, rtaTotal, "ok")}
+          ${breakdownBar("Renewal window (31–90d)", rtaPermits.renewal, rtaTotal, "info")}
+          ${breakdownBar("Expiring ≤30 days", rtaPermits.expiring, rtaTotal, "warn")}
+          ${breakdownBar("Expired", rtaPermits.expired, rtaTotal, "danger")}
+          ${breakdownBar("Unknown expiry", rtaPermits.unknown, rtaTotal, "muted")}
+        </section>
+        <section class="admin-ov-panel">
+          <div class="admin-ov-panel-head">
+            <div>
               <h3 class="admin-ov-panel-title">Certificate status</h3>
               <p class="admin-ov-panel-desc">Fitness workflow / record status</p>
             </div>
@@ -382,6 +454,23 @@ export function renderAdminOverviewPage(rows, permitRows = []) {
                     breakdownBar(label, count, permitStatusTotal, ["ok", "info", "warn", "danger", "muted", "muted"][i] || "muted")
                   )
                   .join("")
+                  : breakdownBar("Issued", 0, 1, "muted")
+          }
+        </section>
+        <section class="admin-ov-panel">
+          <div class="admin-ov-panel-head">
+            <div>
+              <h3 class="admin-ov-panel-title">RTA permit status</h3>
+              <p class="admin-ov-panel-desc">RTA permit record status</p>
+            </div>
+          </div>
+          ${
+            rtaStatusRows.length
+              ? rtaStatusRows
+                  .map(([label, count], i) =>
+                    breakdownBar(label, count, rtaStatusTotal, ["ok", "info", "warn", "danger", "muted", "muted"][i] || "muted")
+                  )
+                  .join("")
               : breakdownBar("Issued", 0, 1, "muted")
           }
         </section>
@@ -391,7 +480,7 @@ export function renderAdminOverviewPage(rows, permitRows = []) {
         <div class="admin-ov-chart-head">
           <div>
             <h3 class="admin-ov-panel-title">Last 7 days</h3>
-            <p class="admin-ov-panel-desc">Fitness and route permit views and print / PDF opens on this browser</p>
+            <p class="admin-ov-panel-desc">Fitness, PTA, and RTA views and print / PDF opens on this browser</p>
           </div>
           <ul class="admin-ov-chart-legend">
             <li><span class="admin-ov-legend-dot admin-ov-chart-views"></span> Views</li>
@@ -429,7 +518,7 @@ export function renderAdminOverviewPage(rows, permitRows = []) {
                 <a href="${escapeHtml(editorHref(r))}">
                   <span>
                     <strong>${escapeHtml(r.applicant)}</strong>
-                    <em>${escapeHtml(r.kind === "permit" ? "Permit" : "Fitness")} · ${escapeHtml(r.trackingId)}</em>
+                    <em>${escapeHtml(overviewKindLabel(r.kind))} · ${escapeHtml(r.trackingId)}</em>
                   </span>
                   <span class="admin-ov-days-chip">${r.daysLeft}d</span>
                 </a>
@@ -447,8 +536,10 @@ export function renderAdminOverviewPage(rows, permitRows = []) {
 export async function fetchOverviewRowsMerged() {
   const localRows = buildLocalOverviewRows();
   const localPermits = buildLocalPermitOverviewRows();
+  const localRtaPermits = buildLocalRtaPermitOverviewRows();
   let rows = localRows;
   let permitRows = localPermits;
+  let rtaPermitRows = localRtaPermits;
   let listItems = [];
   try {
     const data = await fetchAdminCertificateList({ page: 1, limit: 100, filters: {} });
@@ -463,5 +554,11 @@ export async function fetchOverviewRowsMerged() {
   } catch {
     /* offline / no API */
   }
-  return { rows, permitRows, listItems };
+  try {
+    const items = await fetchRtaPermitList();
+    rtaPermitRows = mergePermitAnalyticsRows(localRtaPermits, items, "rta");
+  } catch {
+    /* offline / no API */
+  }
+  return { rows, permitRows, rtaPermitRows, listItems };
 }

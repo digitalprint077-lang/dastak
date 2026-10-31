@@ -76,6 +76,27 @@ export default {
       return new Response("Method Not Allowed", { status: 405 });
     }
 
+    if (pathname === "/api/rta-permits") {
+      const { onRequestGet: rtaPermitsGet, onRequestPut: rtaPermitsPut } = await import("../functions/api/rta-permits.js");
+      const context = { env, request };
+      if (request.method === "GET") return rtaPermitsGet(context);
+      if (request.method === "PUT") return rtaPermitsPut(context);
+      return new Response("Method Not Allowed", { status: 405 });
+    }
+
+    const rtaPermitPrefix = "/api/rta-permit/";
+    if (pathname.startsWith(rtaPermitPrefix)) {
+      const slug = decodeURIComponent(pathname.slice(rtaPermitPrefix.length).split("/")[0] || "");
+      const { onRequestGet: rtaPermitGet, onRequestPut: rtaPermitPut, onRequestDelete: rtaPermitDelete } = await import(
+        "../functions/api/rta-permit/[slug].js"
+      );
+      const context = { env, request, params: { slug } };
+      if (request.method === "GET") return rtaPermitGet(context);
+      if (request.method === "PUT") return rtaPermitPut(context);
+      if (request.method === "DELETE") return rtaPermitDelete(context);
+      return new Response("Method Not Allowed", { status: 405 });
+    }
+
     return env.ASSETS.fetch(request);
   },
 };

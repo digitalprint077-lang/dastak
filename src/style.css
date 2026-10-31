@@ -3139,6 +3139,10 @@ html[data-theme="dark"] .admin-rail-service {
   background: linear-gradient(160deg, #96c7b3 0%, #4e7a8a 100%);
 }
 
+.admin-rail-service-rta .admin-rail-service-icon {
+  background: linear-gradient(160deg, #8aa4c9 0%, #3d5a80 100%);
+}
+
 .admin-rail-service-copy {
   display: flex;
   min-width: 0;
@@ -5829,9 +5833,15 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
 
 .admin-ov-summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 18px;
+}
+
+@media (max-width: 1400px) {
+  .admin-ov-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 1100px) {
@@ -5891,6 +5901,10 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
   background: linear-gradient(90deg, var(--dastak-teal-deep, #0e7490), var(--dastak-lagune));
 }
 
+.admin-ov-card-plum::before {
+  background: linear-gradient(90deg, #5b6ea6, #8aa4c9);
+}
+
 .admin-ov-summary-top {
   display: flex;
   align-items: center;
@@ -5926,6 +5940,11 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
 .admin-ov-card-navy .admin-ov-summary-icon {
   background: color-mix(in srgb, var(--dastak-teal-deep, #0e7490) 18%, #fff);
   color: var(--dastak-teal-deep, #0e7490);
+}
+
+.admin-ov-card-plum .admin-ov-summary-icon {
+  background: color-mix(in srgb, #5b6ea6 18%, #fff);
+  color: #3d4f86;
 }
 
 .admin-ov-summary-label {
@@ -6356,6 +6375,10 @@ html[data-theme="dark"] .admin-ov-card-orange .admin-ov-summary-icon {
 
 html[data-theme="dark"] .admin-ov-card-navy .admin-ov-summary-icon {
   background: color-mix(in srgb, var(--dastak-teal-deep, #0e7490) 22%, #1e293b);
+}
+
+html[data-theme="dark"] .admin-ov-card-plum .admin-ov-summary-icon {
+  background: color-mix(in srgb, #5b6ea6 22%, #1e293b);
 }
 
 html[data-theme="dark"] .admin-ov-pill-ok {

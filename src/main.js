@@ -83,12 +83,14 @@ import {
 import {
   buildLocalOverviewRows,
   buildLocalPermitOverviewRows,
+  buildLocalRtaPermitOverviewRows,
   renderAdminOverviewPage,
   fetchOverviewRowsMerged,
 } from "./admin-overview.js";
 import { amountToWords } from "./amount-words.js";
 import { renderA4PrintPage, renderA4PrintMissing } from "./print-a4.js";
 import { renderPermitPrintPage, renderPermitPrintMissing } from "./permit-print.js";
+import { renderPermitPrintPage as renderRtaPermitPrintPage, renderPermitPrintMissing as renderRtaPermitPrintMissing } from "./rta-permit-print.js";
 import { qrDataUrlWithLogo } from "./qr-with-logo.js";
 import {
   EVENT_TYPES,
@@ -153,6 +155,24 @@ import {
   validatePermitRequired,
 } from "./permits.js";
 import {
+  generatePermitLinkId as generateRtaPermitLinkId,
+  getPermitForEdit as getRtaPermitForEdit,
+  getPublicPermit as getPublicRtaPermit,
+  hydratePublicPermit as hydratePublicRtaPermit,
+  isPermitSaved as isRtaPermitSaved,
+  listSavedPermitTokens as listSavedRtaPermitTokens,
+  newPermitTemplate as newRtaPermitTemplate,
+  publicPermitPath as publicRtaPermitPath,
+  readPermitFormValues as readRtaPermitFormValues,
+  fillPermitValidityFields as fillRtaPermitValidityFields,
+  resolvePermitToken as resolveRtaPermitToken,
+  savePermit as saveRtaPermit,
+  deletePermit as deleteRtaPermit,
+  fetchPermitList as fetchRtaPermitList,
+  findPermitTokenByField as findRtaPermitTokenByField,
+  validatePermitRequired as validateRtaPermitRequired,
+} from "./rta-permits.js";
+import {
   bindPermitPhotoInput,
   bindPermitChoiceSelects,
   renderPermitEditor,
@@ -160,6 +180,14 @@ import {
   renderPermitPreview,
   renderPermitRegistry,
 } from "./permit-ui.js";
+import {
+  bindPermitPhotoInput as bindRtaPermitPhotoInput,
+  bindPermitChoiceSelects as bindRtaPermitChoiceSelects,
+  renderPermitEditor as renderRtaPermitEditor,
+  renderPermitNotFound as renderRtaPermitNotFound,
+  renderPermitPreview as renderRtaPermitPreview,
+  renderPermitRegistry as renderRtaPermitRegistry,
+} from "./rta-permit-ui.js";
 import { bindDatePickers } from "./date-picker.js";
 
 const ECITIZEN_HOME = "https://ecitizen.kp.gov.pk/";
@@ -350,6 +378,10 @@ function iconRoutePermit() {
   );
 }
 
+function iconRtaPermit() {
+  return iconSvg(`<path d="M3 10.5 12 4l9 6.5"/><path d="M5 10v9h14v-9"/><path d="M9 19v-6h6v6"/>`);
+}
+
 function iconSearch() {
   return iconSvg(`<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>`, 16);
 }
@@ -394,6 +426,7 @@ const LICENSE_TYPES = [
   { value: "arms_business_license", label: "Arms Business License" },
   { value: "drlv_license", label: "Driving License" },
   { value: "routepermits", label: "Route Permit" },
+  { value: "rtapermits", label: "RTA Permit" },
   { value: "wildlife_license", label: "WildLife License" },
   { value: "bslv_license", label: "Bus Stand License" },
   { value: "vehicle_fitness", label: "Vehicle Fitness Certificate" },
@@ -582,14 +615,16 @@ function getAdminView() {
   const view = new URLSearchParams(window.location.search).get("view")?.trim();
   if (view === "analytics") return "analytics";
   if (view === "permit-analytics") return "permit-analytics";
+  if (view === "rta-permit-analytics") return "rta-permit-analytics";
   if (view === "registry") return "registry";
   if (view === "permits") return "permits";
+  if (view === "rta-permits") return "rta-permits";
   return "overview";
 }
 
 function analyticsDashboardPath(kind = "fitness", extra = {}) {
   const params = new URLSearchParams();
-  params.set("view", kind === "permit" ? "permit-analytics" : "analytics");
+  params.set("view", kind === "rta" ? "rta-permit-analytics" : kind === "permit" ? "permit-analytics" : "analytics");
   if (extra.period) params.set("period", String(extra.period));
   if (extra.track) params.set("track", extra.track);
   if (extra.filter) params.set("filter", extra.filter);
@@ -621,6 +656,7 @@ function adminRailNav(activeView) {
   const editorOpen = activeView === "certificates";
   const certsActive = activeView === "registry" || activeView === "analytics" || editorOpen;
   const permitsActive = activeView === "permits" || activeView === "permit-editor" || activeView === "permit-analytics";
+  const rtaActive = activeView === "rta-permits" || activeView === "rta-permit-editor" || activeView === "rta-permit-analytics";
 
   const link = (href, label, icon, active, tone = "") =>
     `<a class="admin-rail-link${active ? " is-active" : ""}${tone ? ` admin-rail-tone-${tone}` : ""}" href="${href}">${adminRailLinkContent(icon, label)}</a>`;
@@ -658,6 +694,16 @@ function adminRailNav(activeView) {
             </button>
           </nav>
         </details>
+        <details class="admin-rail-menu admin-rail-service admin-rail-service-rta${rtaActive ? " is-active" : ""}" open>
+          ${adminRailServiceSummary(iconRtaPermit(), "RTA Permits", "Regional permits")}
+          <nav class="admin-rail-subnav" aria-label="RTA permit workspace">
+            ${link("/admin/dashboard?view=rta-permits", "Registry", iconRegistry(), activeView === "rta-permits" || activeView === "rta-permit-editor")}
+            ${link("/admin/dashboard?view=rta-permit-analytics", "Analytics", iconAnalytics(), activeView === "rta-permit-analytics")}
+            <button type="button" class="admin-rail-link admin-rail-sublink admin-rail-link-btn" data-action="admin-create-rta-permit">
+              ${adminRailLinkContent(iconPlus(), "New permit")}
+            </button>
+          </nav>
+        </details>
       </div>
     </div>
   `;
@@ -665,7 +711,7 @@ function adminRailNav(activeView) {
 
 function adminDashboardShell(mainHtml, activeView = "overview") {
   const pageTitle =
-    activeView === "analytics" || activeView === "permit-analytics"
+    activeView === "analytics" || activeView === "permit-analytics" || activeView === "rta-permit-analytics"
       ? "Analytics & reports"
       : activeView === "registry"
         ? "Certificate registry"
@@ -673,10 +719,14 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
           ? "Edit certificate"
           : activeView === "permits" || activeView === "permit-editor"
             ? "Route permits"
+            : activeView === "rta-permits" || activeView === "rta-permit-editor"
+              ? "RTA permits"
             : "Dashboard";
   const editorOpen = activeView === "certificates" && isAdminEditorOpen();
   const pageLead =
-    activeView === "permit-analytics"
+    activeView === "rta-permit-analytics"
+      ? "RTA permit views, prints, expiry, and activity counted on this browser."
+      : activeView === "permit-analytics"
       ? "Route permit views, prints, expiry, and activity counted on this browser."
       : activeView === "analytics"
       ? "Views, prints, expiry risk, and activity counted on this browser."
@@ -686,9 +736,13 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
           ? "Issue and manage route permits separately from vehicle fitness certificates."
           : activeView === "permit-editor"
             ? "Edit permit fields and save. Public preview uses /routepermits."
+            : activeView === "rta-permits"
+              ? "Issue and manage RTA permits separately from PTA and fitness records."
+              : activeView === "rta-permit-editor"
+                ? "Edit RTA permit fields and save. Public preview uses /rtapermits."
             : editorOpen
               ? "Edit fields and save. Registry stays on its own screen."
-              : "Overall, fitness, and route permit health plus recent public activity.";
+              : "Overall, fitness, PTA, and RTA permit health plus recent public activity.";
   return `
     <div class="app-shell admin-shell admin-ui-v2">
       <aside class="admin-rail admin-rail-light" aria-label="Admin navigation">
@@ -729,6 +783,8 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
                 ? `<button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-new">${iconPlus()} New certificate</button>`
                 : activeView === "permits" || activeView === "permit-editor"
                   ? `<button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-permit">${iconPlus()} New permit</button>`
+                  : activeView === "rta-permits" || activeView === "rta-permit-editor"
+                    ? `<button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-rta-permit">${iconPlus()} New permit</button>`
                   : ""
             }
           </div>
@@ -1125,12 +1181,16 @@ async function handleTrackApplication(form) {
   }
   recordLookupAttempt();
   await hydratePublicPermit(trackingId);
+  await hydratePublicRtaPermit(trackingId);
   const token =
     findTokenByField("Tracking ID", trackingId) ||
     (listSavedTokens().includes(trackingId) ? trackingId : null);
   const permitToken =
     findPermitTokenByField("Tracking ID", trackingId) ||
     findPermitTokenByField("Route Permit No", trackingId);
+  const rtaPermitToken =
+    findRtaPermitTokenByField("Tracking ID", trackingId) ||
+    findRtaPermitTokenByField("Route Permit No", trackingId);
   if (!token && permitToken) {
     recordLookupAttempt();
     recordAnalyticsEvent(EVENT_TYPES.TRACK_LOOKUP, {
@@ -1140,6 +1200,17 @@ async function handleTrackApplication(form) {
       kind: "permit",
     });
     navigate(publicPermitPath(permitToken));
+    return;
+  }
+  if (!token && rtaPermitToken) {
+    recordLookupAttempt();
+    recordAnalyticsEvent(EVENT_TYPES.TRACK_LOOKUP, {
+      success: true,
+      trackingId,
+      token: rtaPermitToken,
+      kind: "rta",
+    });
+    navigate(publicRtaPermitPath(rtaPermitToken));
     return;
   }
   if (!token) {
@@ -1171,6 +1242,17 @@ function resolvePermitByDocument(documentNumber) {
   return token ? getPublicPermit(token) : null;
 }
 
+function resolveRtaPermitByDocument(documentNumber) {
+  const doc = String(documentNumber ?? "").trim();
+  if (!doc) return null;
+  const token =
+    findRtaPermitTokenByField("Route Permit No", doc) ||
+    findRtaPermitTokenByField("Vehicle Registration No", doc) ||
+    findRtaPermitTokenByField("Tracking ID", doc) ||
+    resolveRtaPermitToken(doc);
+  return token ? getPublicRtaPermit(token) : null;
+}
+
 async function handleVerifyLicense(form) {
   if (!guardPublicLookup(form)) return;
   const licenseType = form.querySelector('[name="licenseType"]')?.value ?? "";
@@ -1186,6 +1268,7 @@ async function handleVerifyLicense(form) {
   }
   recordLookupAttempt();
   await hydratePublicPermit(documentNumber);
+  await hydratePublicRtaPermit(documentNumber);
   const permit = resolvePermitByDocument(documentNumber);
   if (permit) {
     recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
@@ -1197,6 +1280,17 @@ async function handleVerifyLicense(form) {
     navigate(publicPermitPath(permit.token));
     return;
   }
+  const rtaPermit = resolveRtaPermitByDocument(documentNumber);
+  if (rtaPermit) {
+    recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
+      success: true,
+      licenseType,
+      token: rtaPermit.token,
+      kind: "rta",
+    });
+    navigate(publicRtaPermitPath(rtaPermit.token));
+    return;
+  }
   if (licenseType === "routepermits") {
     recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
       success: false,
@@ -1206,8 +1300,17 @@ async function handleVerifyLicense(form) {
     showToast("No route permit found for this document number");
     return;
   }
+  if (licenseType === "rtapermits") {
+    recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
+      success: false,
+      licenseType,
+      kind: "rta",
+    });
+    showToast("No RTA permit found for this document number");
+    return;
+  }
   if (licenseType !== "vehicle_fitness") {
-    showToast("This demo supports Vehicle Fitness Certificate and Route Permit verification");
+    showToast("This demo supports Vehicle Fitness Certificate, Route Permit, and RTA Permit verification");
     return;
   }
   const token = resolveVehicleFitnessByDocument(documentNumber);
@@ -1241,6 +1344,7 @@ function adminLoginPage() {
           <ul class="admin-login-brand-list">
             <li>Vehicle fitness certificates</li>
             <li>Route permits</li>
+            <li>RTA permits</li>
             <li>More services coming</li>
           </ul>
         </aside>
@@ -1824,7 +1928,14 @@ async function refreshAdminContextKpis() {
 function isAdminEditorOpen() {
   const params = new URLSearchParams(window.location.search);
   const view = params.get("view");
-  if (view === "permits" || view === "permit-analytics" || view === "analytics") return false;
+  if (
+    view === "permits" ||
+    view === "permit-analytics" ||
+    view === "rta-permits" ||
+    view === "rta-permit-analytics" ||
+    view === "analytics"
+  )
+    return false;
   if (params.get("create") === "1") return true;
   return Boolean(params.get("token")?.trim());
 }
@@ -1835,6 +1946,16 @@ function isPermitSectionOpen() {
 
 function isPermitEditorOpen() {
   if (!isPermitSectionOpen()) return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get("create") === "1" || Boolean(params.get("token")?.trim());
+}
+
+function isRtaPermitSectionOpen() {
+  return new URLSearchParams(window.location.search).get("view") === "rta-permits";
+}
+
+function isRtaPermitEditorOpen() {
+  if (!isRtaPermitSectionOpen()) return false;
   const params = new URLSearchParams(window.location.search);
   return params.get("create") === "1" || Boolean(params.get("token")?.trim());
 }
@@ -2047,7 +2168,7 @@ function renderCertEditor(token, data, isCreate) {
 
 function isCreateMode() {
   const params = new URLSearchParams(window.location.search);
-  if (params.get("view") === "permits") return false;
+  if (params.get("view") === "permits" || params.get("view") === "rta-permits") return false;
   return params.get("create") === "1";
 }
 
@@ -2116,7 +2237,7 @@ function renderActivityChart(buckets, periodDays) {
 
 function renderEventMixPanel(mix, kind = "fitness") {
   const total = Math.max(1, mix.total);
-  const viewLabel = kind === "permit" ? "Permit views" : "Certificate views";
+  const viewLabel = kind === "rta" ? "RTA permit views" : kind === "permit" ? "Permit views" : "Certificate views";
   const rows = [
     { key: "views", label: viewLabel, value: mix.views, cls: "analytics-bar-views" },
     { key: "prints", label: "Print / PDF opens", value: mix.prints, cls: "analytics-bar-prints" },
@@ -2161,6 +2282,7 @@ function sortAnalyticsRows(rows) {
 }
 
 function analyticsEditorHref(row) {
+  if (row.kind === "rta") return `/admin/dashboard?view=rta-permits&token=${encodeURIComponent(row.token)}`;
   return row.kind === "permit"
     ? `/admin/dashboard?view=permits&token=${encodeURIComponent(row.token)}`
     : `/admin/dashboard?token=${encodeURIComponent(row.token)}`;
@@ -2179,7 +2301,7 @@ function renderAnalyticsTrackingRows(rows, options = {}) {
       ]
         .filter(Boolean)
         .join(" ");
-      const kind = row.kind === "permit" ? "permit" : "fitness";
+      const kind = row.kind === "rta" ? "rta" : row.kind === "permit" ? "permit" : "fitness";
       return `
         <tr class="analytics-track-row" data-token="${escapeHtml(row.token)}" data-kind="${kind}" data-days-left="${row.daysLeft ?? ""}" data-analytics-tags="${filterTags}">
           <td><code class="analytics-code">${escapeHtml(row.trackingId)}</code></td>
@@ -2215,21 +2337,24 @@ async function populateAnalyticsFromServer() {
   const body = document.getElementById("analytics-track-body");
   const countEl = document.getElementById("analytics-table-count");
   if (!body) return;
-  const kind = page?.getAttribute("data-analytics-kind") === "permit" ? "permit" : "fitness";
-  if (kind === "permit") {
+  const kind = readAnalyticsPageKind();
+  if (kind === "permit" || kind === "rta") {
+    const isRta = kind === "rta";
     const localPermits = sortAnalyticsRows(
-      buildPermitTrackingRows(listSavedPermitTokens(), getPermitForEdit, isPermitSaved)
+      isRta
+        ? buildPermitTrackingRows(listSavedRtaPermitTokens(), getRtaPermitForEdit, isRtaPermitSaved, "rta")
+        : buildPermitTrackingRows(listSavedPermitTokens(), getPermitForEdit, isPermitSaved)
     );
     let mergedPermits = localPermits;
     try {
-      const items = await fetchPermitList();
-      mergedPermits = sortAnalyticsRows(mergePermitAnalyticsRows(localPermits, items));
+      const items = isRta ? await fetchRtaPermitList() : await fetchPermitList();
+      mergedPermits = sortAnalyticsRows(mergePermitAnalyticsRows(localPermits, items, kind));
     } catch {
       /* offline / no API */
     }
     body.innerHTML =
       renderAnalyticsTrackingRows(mergedPermits, { includePermitNo: true }) ||
-      `<tr><td colspan="12" class="analytics-muted">No route permits match.</td></tr>`;
+      `<tr><td colspan="12" class="analytics-muted">${isRta ? "No RTA permits match." : "No route permits match."}</td></tr>`;
     cacheAnalyticsRows(mergedPermits);
     if (countEl) {
       countEl.textContent = `${mergedPermits.length} record${mergedPermits.length === 1 ? "" : "s"} · click a row to open`;
@@ -2256,13 +2381,23 @@ async function populateAnalyticsFromServer() {
   }
 }
 
+function readAnalyticsPageKind() {
+  const kind = document.getElementById("analytics-page")?.getAttribute("data-analytics-kind");
+  if (kind === "permit" || kind === "rta") return kind;
+  return "fitness";
+}
+
 function renderAnalyticsDashboard(kind = "fitness") {
   const isPermit = kind === "permit";
+  const isRta = kind === "rta";
+  const isPermitLike = isPermit || isRta;
   const periodDays = readAnalyticsPeriodDays();
   sessionStorage.setItem(ANALYTICS_PERIOD_KEY, String(periodDays));
 
   const rows = sortAnalyticsRows(
-    isPermit
+    isRta
+      ? buildPermitTrackingRows(listSavedRtaPermitTokens(), getRtaPermitForEdit, isRtaPermitSaved, "rta")
+      : isPermit
       ? buildPermitTrackingRows(listSavedPermitTokens(), getPermitForEdit, isPermitSaved)
       : buildFitnessTrackingRows(listSavedTokens(), getCertificateForEdit, isCertificateSaved)
   );
@@ -2287,7 +2422,7 @@ function renderAnalyticsDashboard(kind = "fitness") {
     })
     .join("");
 
-  const trackingRows = renderAnalyticsTrackingRows(rows, { includePermitNo: isPermit });
+  const trackingRows = renderAnalyticsTrackingRows(rows, { includePermitNo: isPermitLike });
 
   const activityItems = recent
     .map((event) => {
@@ -2313,7 +2448,7 @@ function renderAnalyticsDashboard(kind = "fitness") {
       ? `${metrics.successfulLookups7d} matched · ${metrics.lookupSuccessRate}% hit`
       : `${metrics.successfulLookups7d} matched`;
   const activeCount = Math.max(0, metrics.total - metrics.expired - metrics.expiringSoon);
-  const attentionLabel = isPermit ? "Permits need attention." : "Fitness needs attention.";
+  const attentionLabel = isRta ? "RTA permits need attention." : isPermit ? "Permits need attention." : "Fitness needs attention.";
   const attentionHtml =
     metrics.expiringSoon || metrics.expired
       ? `
@@ -2324,16 +2459,16 @@ function renderAnalyticsDashboard(kind = "fitness") {
       </button>`
       : "";
 
-  const tableTitle = isPermit ? "Permit activity" : "Certificate activity";
-  const emptyTable = isPermit ? "No route permits yet." : "No certificates yet.";
-  const colSpan = isPermit ? 12 : 11;
-  const personCol = isPermit ? "Holder" : "Applicant";
-  const healthCol = isPermit ? "Validity" : "Fitness";
-  const registryLabel = isPermit ? "Permit registry" : "Registry";
-  const riskLabel = isPermit ? "Permit risk" : "Fitness risk";
-  const riskSub = isPermit ? "Expiring within 30 days" : "Expiring within 30 days";
-  const districtDesc = isPermit ? "Permits in the current list" : "Certificates in the current list";
-  const searchPlaceholder = isPermit
+  const tableTitle = isRta ? "RTA permit activity" : isPermit ? "Permit activity" : "Certificate activity";
+  const emptyTable = isRta ? "No RTA permits yet." : isPermit ? "No route permits yet." : "No certificates yet.";
+  const colSpan = isPermitLike ? 12 : 11;
+  const personCol = isPermitLike ? "Holder" : "Applicant";
+  const healthCol = isPermitLike ? "Validity" : "Fitness";
+  const registryLabel = isRta ? "RTA permit registry" : isPermit ? "Permit registry" : "Registry";
+  const riskLabel = isRta ? "RTA permit risk" : isPermit ? "Permit risk" : "Fitness risk";
+  const riskSub = isPermitLike ? "Expiring within 30 days" : "Expiring within 30 days";
+  const districtDesc = isRta ? "RTA permits in the current list" : isPermit ? "Permits in the current list" : "Certificates in the current list";
+  const searchPlaceholder = isPermitLike
     ? "Search tracking ID, holder, permit no, district…"
     : "Search tracking ID, name, district…";
 
@@ -2364,7 +2499,7 @@ function renderAnalyticsDashboard(kind = "fitness") {
           <p class="analytics-summary-value">${metrics.total}</p>
           <p class="analytics-summary-sub">${metrics.saved} saved on this device</p>
           <div class="analytics-summary-pills">
-            <span class="analytics-summary-pill">${isPermit ? "Valid" : "Active"} <strong>${activeCount}</strong></span>
+            <span class="analytics-summary-pill">${isPermitLike ? "Valid" : "Active"} <strong>${activeCount}</strong></span>
             <span class="analytics-summary-pill analytics-summary-pill-info">90-day window <strong>${metrics.renewalWindow}</strong></span>
             <span class="analytics-summary-pill">Saves <strong>${metrics.adminSaves}</strong></span>
           </div>
@@ -2447,7 +2582,7 @@ function renderAnalyticsDashboard(kind = "fitness") {
               <tr>
                 <th>Tracking ID</th>
                 <th>${personCol}</th>
-                ${isPermit ? "<th>Permit No</th>" : ""}
+                ${isPermitLike ? "<th>Permit No</th>" : ""}
                 <th>District</th>
                 <th>${healthCol}</th>
                 <th>Status</th>
@@ -2490,6 +2625,10 @@ function bindAnalyticsTableInteractions() {
         navigate(`/admin/dashboard?view=permits&token=${encodeURIComponent(token)}`);
         return;
       }
+      if (kind === "rta") {
+        navigate(`/admin/dashboard?view=rta-permits&token=${encodeURIComponent(token)}`);
+        return;
+      }
       sessionStorage.setItem("dastak:editor-token", token);
       navigate(`/admin/dashboard?token=${encodeURIComponent(token)}`);
     });
@@ -2522,6 +2661,19 @@ function adminDashboardPage() {
   if (view === "permit-analytics") {
     return adminDashboardShell(renderAnalyticsDashboard("permit"), "permit-analytics");
   }
+  if (view === "rta-permit-analytics") {
+    return adminDashboardShell(renderAnalyticsDashboard("rta"), "rta-permit-analytics");
+  }
+  if (view === "rta-permits") {
+    if (isRtaPermitEditorOpen()) {
+      const params = new URLSearchParams(window.location.search);
+      const isCreate = params.get("create") === "1";
+      const token = isCreate ? generateRtaPermitLinkId() : params.get("token")?.trim();
+      const data = isCreate ? newRtaPermitTemplate() : getRtaPermitForEdit(token);
+      return adminDashboardShell(renderRtaPermitEditor(token, data, isCreate), "rta-permit-editor");
+    }
+    return adminDashboardShell(renderRtaPermitRegistry(listRtaPermitRegistryCache), "rta-permits");
+  }
   if (view === "permits") {
     if (isPermitEditorOpen()) {
       const params = new URLSearchParams(window.location.search);
@@ -2542,7 +2694,7 @@ function adminDashboardPage() {
     return adminDashboardShell(renderRegistryPage(), "registry");
   }
   return adminDashboardShell(
-    renderAdminOverviewPage(buildLocalOverviewRows(), buildLocalPermitOverviewRows()),
+    renderAdminOverviewPage(buildLocalOverviewRows(), buildLocalPermitOverviewRows(), buildLocalRtaPermitOverviewRows()),
     "overview"
   );
 }
@@ -2753,6 +2905,44 @@ async function savePermitFromEditor() {
   }
 }
 
+async function saveRtaPermitFromEditor() {
+  const form = document.getElementById("rta-permit-editor");
+  if (!form || saveInFlight) return;
+  const token = form.querySelector('[name="linkToken"]')?.value?.trim();
+  if (!token) {
+    showToast("Permit link ID is required");
+    return;
+  }
+  const payload = readRtaPermitFormValues(form);
+  const required = validateRtaPermitRequired(payload.values);
+  if (!required.ok) {
+    showToast(`Required: ${required.missing.join(", ")}`);
+    return;
+  }
+  saveInFlight = true;
+  setSaveFormBusy(true);
+  showAdminProgress("save", "Saving RTA permit…", 20);
+  try {
+    const result = await saveRtaPermit(token, payload);
+    recordAnalyticsEvent(EVENT_TYPES.RTA_SAVE, {
+      token,
+      trackingId: payload.values["Tracking ID"] || payload.values["Route Permit No"],
+      kind: "rta",
+    });
+    showAdminProgress("save", result.publishedOnline ? "Published" : "Saved on this device", 100);
+    showToast(result.publishedOnline ? "RTA permit saved" : "Saved locally — live publish when D1 is bound");
+    window.setTimeout(hideSaveProgress, 400);
+    navigate(`/admin/dashboard?view=rta-permits&token=${encodeURIComponent(token)}`, { skipDirtyCheck: true });
+  } catch (err) {
+    console.error("RTA permit save failed", err);
+    showToast("Could not save RTA permit");
+    hideSaveProgress();
+  } finally {
+    setSaveFormBusy(false);
+    saveInFlight = false;
+  }
+}
+
 async function saveFromEditor(previewAfter) {
   const form = document.getElementById("cert-editor");
   if (!form || saveInFlight) return;
@@ -2893,6 +3083,7 @@ function navigate(path, { skipDirtyCheck = false } = {}) {
 }
 
 let listPermitRegistryCache = [];
+let listRtaPermitRegistryCache = [];
 let dataActionClickBound = false;
 let pdfDownloadInFlight = false;
 let saveInFlight = false;
@@ -3132,6 +3323,21 @@ async function handleDataActionClick(el, event) {
       showToast("Permit PDF failed — use Print A4");
     }
   }
+  if (action === "download-rta-permit-pdf") {
+    const pdfToken =
+      el.getAttribute("data-token") ||
+      document.querySelector('[name="linkToken"]')?.value?.trim();
+    if (!pdfToken) return;
+    showToast("Preparing RTA permit PDF…");
+    try {
+      const { downloadPermitPdf } = await import("./rta-permit-print.js");
+      await downloadPermitPdf(pdfToken);
+      showToast("RTA permit PDF downloaded");
+    } catch (err) {
+      console.error(err);
+      showToast("RTA permit PDF failed — use Print A4");
+    }
+  }
   if (action === "registry-select") {
     const token = el.getAttribute("data-token");
     const box = el.matches("input") ? el : el.querySelector("input[type='checkbox']");
@@ -3253,6 +3459,10 @@ async function handleDataActionClick(el, event) {
     if (!confirmLeaveDirtyEditor()) return;
     navigate("/admin/dashboard?view=permits&create=1");
   }
+  if (action === "admin-create-rta-permit") {
+    if (!confirmLeaveDirtyEditor()) return;
+    navigate("/admin/dashboard?view=rta-permits&create=1");
+  }
   if (action === "delete-permit") {
     const token = el.getAttribute("data-delete-token")?.trim();
     if (!token) return;
@@ -3267,6 +3477,21 @@ async function handleDataActionClick(el, event) {
     await deletePermit(token);
     showToast("Route permit deleted");
     navigate("/admin/dashboard?view=permits", { skipDirtyCheck: true });
+  }
+  if (action === "delete-rta-permit") {
+    const token = el.getAttribute("data-delete-token")?.trim();
+    if (!token) return;
+    const snapshot = getRtaPermitForEdit(token);
+    if (
+      !window.confirm(
+        `Delete RTA permit for ${snapshot.values["Permit Holder"] || token}?\nPermit no: ${snapshot.values["Route Permit No"] || "—"}\n\nThis does not change fitness certificates or PTA permits.`
+      )
+    ) {
+      return;
+    }
+    await deleteRtaPermit(token);
+    showToast("RTA permit deleted");
+    navigate("/admin/dashboard?view=rta-permits", { skipDirtyCheck: true });
   }
   if (action === "renew-cert" || action === "renew-cert-registry") {
     const sourceToken =
@@ -3352,13 +3577,13 @@ async function handleDataActionClick(el, event) {
     if (!window.confirm("Clear all locally stored analytics events? Records are not affected.")) return;
     clearAnalyticsEvents();
     showToast("Activity log cleared");
-    const kind = document.getElementById("analytics-page")?.getAttribute("data-analytics-kind") === "permit" ? "permit" : "fitness";
+    const kind = readAnalyticsPageKind();
     navigate(analyticsDashboardPath(kind));
   }
   if (action === "analytics-period") {
     const days = el.getAttribute("data-days") === "30" ? "30" : "7";
     sessionStorage.setItem(ANALYTICS_PERIOD_KEY, days);
-    const kind = document.getElementById("analytics-page")?.getAttribute("data-analytics-kind") === "permit" ? "permit" : "fitness";
+    const kind = readAnalyticsPageKind();
     navigate(analyticsDashboardPath(kind, { period: days }));
   }
   if (action === "analytics-export") {
@@ -3369,8 +3594,9 @@ async function handleDataActionClick(el, event) {
         showToast("No analytics data to export");
         return;
       }
-      const kind = document.getElementById("analytics-page")?.getAttribute("data-analytics-kind") === "permit" ? "permit" : "fitness";
-      const filename = kind === "permit" ? "dastak-permit-analytics.csv" : "dastak-analytics.csv";
+      const kind = readAnalyticsPageKind();
+      const filename =
+        kind === "rta" ? "dastak-rta-permit-analytics.csv" : kind === "permit" ? "dastak-permit-analytics.csv" : "dastak-analytics.csv";
       downloadTextFile(filename, exportAnalyticsCsv(rows), "text/csv");
       showToast("Analytics CSV downloaded");
     } catch {
@@ -3412,10 +3638,12 @@ function bindActions() {
       if (
         action === "delete-cert" ||
         action === "delete-permit" ||
+        action === "delete-rta-permit" ||
         action === "renew-cert" ||
         action === "renew-cert-registry" ||
         action === "download-pdf" ||
         action === "download-permit-pdf" ||
+        action === "download-rta-permit-pdf" ||
         action === "registry-select" ||
         action === "registry-select-page" ||
         action === "registry-bulk-download" ||
@@ -3446,7 +3674,9 @@ function bindActions() {
     const syncVerifyPlaceholder = () => {
       if (!docInput) return;
       docInput.placeholder =
-        typeSel?.value === "routepermits" ? "Enter P.Pu.C / route permit number" : t("documentPlaceholder");
+        typeSel?.value === "routepermits" || typeSel?.value === "rtapermits"
+          ? "Enter P.Pu.C / route permit number"
+          : t("documentPlaceholder");
     };
     typeSel?.addEventListener("change", syncVerifyPlaceholder);
     syncVerifyPlaceholder();
@@ -3485,6 +3715,23 @@ function bindActions() {
     permitForm.addEventListener("submit", (event) => {
       event.preventDefault();
       void savePermitFromEditor();
+    });
+  }
+
+  const rtaPermitForm = document.getElementById("rta-permit-editor");
+  if (rtaPermitForm) {
+    bindRtaPermitPhotoInput();
+    bindRtaPermitChoiceSelects();
+    fillRtaPermitValidityFields(rtaPermitForm);
+    updatePermitExpiryHint(rtaPermitForm);
+    rtaPermitForm.addEventListener("change", (event) => {
+      if (event.target.getAttribute("name") !== "Issue Date") return;
+      fillRtaPermitValidityFields(rtaPermitForm);
+      updatePermitExpiryHint(rtaPermitForm);
+    });
+    rtaPermitForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void saveRtaPermitFromEditor();
     });
   }
 
@@ -3556,9 +3803,9 @@ function bindActions() {
   bindAdminOverviewLinks();
   if (document.getElementById("admin-overview-page")) {
     void (async () => {
-      const { rows, permitRows } = await fetchOverviewRowsMerged();
+      const { rows, permitRows, rtaPermitRows } = await fetchOverviewRowsMerged();
       const page = document.getElementById("admin-overview-page");
-      if (page) page.outerHTML = renderAdminOverviewPage(rows, permitRows);
+      if (page) page.outerHTML = renderAdminOverviewPage(rows, permitRows, rtaPermitRows);
       bindAdminOverviewLinks();
     })();
   }
@@ -3617,7 +3864,9 @@ async function render() {
   await ensurePublishedLoaded();
   let path = window.location.pathname.replace(/\/$/, "") || "/";
   const isPrintRoute =
-    /^\/vehiclefitness\/[^/]+\/print$/.test(path) || /^\/routepermits\/[^/]+\/print$/.test(path);
+    /^\/vehiclefitness\/[^/]+\/print$/.test(path) ||
+    /^\/routepermits\/[^/]+\/print$/.test(path) ||
+    /^\/rtapermits\/[^/]+\/print$/.test(path);
   if (!isPrintRoute) {
     document.documentElement.classList.remove("is-print-route");
     document.title = "Dastak - Citizens platform";
@@ -3685,6 +3934,56 @@ async function render() {
     return;
   }
 
+  const rtaPermitPrintMatch = path.match(/^\/rtapermits\/([^/]+)\/print$/);
+  if (rtaPermitPrintMatch) {
+    const printSlug = safePathSlug(rtaPermitPrintMatch[1]);
+    await hydratePublicRtaPermit(printSlug);
+    const permit = getPublicRtaPermit(printSlug);
+    if (!permit) {
+      recordAnalyticsEvent(EVENT_TYPES.RTA_PRINT, {
+        token: printSlug,
+        success: false,
+        kind: "rta",
+      });
+      app.innerHTML = renderRtaPermitPrintMissing(printSlug);
+      bindActions();
+      hideAppLoader(true);
+      return;
+    }
+    recordAnalyticsEvent(EVENT_TYPES.RTA_PRINT, {
+      token: permit.token,
+      success: true,
+      kind: "rta",
+      trackingId: permit.values?.["Tracking ID"] || permit.values?.["Route Permit No"],
+    });
+    app.innerHTML = renderRtaPermitPrintPage(permit.token);
+    bindActions();
+    mountPrintQr();
+    hideAppLoader(true);
+    return;
+  }
+
+  const rtaPermitMatch = path.match(/^\/rtapermits\/([^/]+)$/);
+  if (rtaPermitMatch) {
+    const permitSlug = safePathSlug(rtaPermitMatch[1]);
+    await hydratePublicRtaPermit(permitSlug);
+    const permit = getPublicRtaPermit(permitSlug);
+    recordAnalyticsEvent(EVENT_TYPES.RTA_VIEW, {
+      token: permit?.token || permitSlug,
+      success: !!permit,
+      kind: "rta",
+      trackingId: permit?.values?.["Tracking ID"] || permit?.values?.["Route Permit No"],
+    });
+    app.innerHTML = permit
+      ? renderRtaPermitPreview((html, options) => layout(html, options), permit)
+      : renderRtaPermitNotFound((html, options) => layout(html, options), permitSlug);
+    bindActions();
+    syncThemeToggleUI();
+    applyDocumentLang();
+    scheduleHideAppLoader();
+    return;
+  }
+
   const permitMatch = path.match(/^\/routepermits\/([^/]+)$/);
   if (permitMatch) {
     const permitSlug = safePathSlug(permitMatch[1]);
@@ -3724,6 +4023,9 @@ async function render() {
     }
     if (isAdminLoggedIn() && isPermitSectionOpen() && !isPermitEditorOpen()) {
       listPermitRegistryCache = await fetchPermitList();
+    }
+    if (isAdminLoggedIn() && isRtaPermitSectionOpen() && !isRtaPermitEditorOpen()) {
+      listRtaPermitRegistryCache = await fetchRtaPermitList();
     }
     app.innerHTML = adminDashboardPage();
   } else if (path === "/admin") {

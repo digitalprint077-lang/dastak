@@ -37,6 +37,30 @@ function mergePublishedCertificatesPlugin() {
         });
 
       const localPermits = new Map();
+      const localRtaPermits = new Map();
+
+      const permitListPayload = (store) =>
+        [...store.values()].map((row) => ({
+          token: row.token,
+          status: row.status,
+          holder: row.values?.["Permit Holder"] || "—",
+          permitNo: row.values?.["Route Permit No"] || "—",
+          registration: row.values?.["Vehicle Registration No"] || "—",
+          trackingId: row.values?.["Tracking ID"] || "",
+          district: row.values?.District || "",
+          issueDate: row.values?.["Issue Date"] || "",
+          expiryDate: row.values?.["Expiry Date"] || "",
+          updatedAt: new Date().toISOString(),
+        }));
+
+      const findStoredPermit = (store, slug) =>
+        store.get(slug) ||
+        [...store.values()].find(
+          (row) =>
+            row.values?.["Tracking ID"] === slug ||
+            row.values?.["Route Permit No"] === slug ||
+            row.values?.["Vehicle Registration No"] === slug
+        );
 
       server.middlewares.use(async (req, res, next) => {
         const url = req.url?.split("?")[0] || "";
@@ -104,6 +128,56 @@ function mergePublishedCertificatesPlugin() {
           }
           if (req.method === "DELETE") {
             localPermits.delete(slug);
+            res.statusCode = 204;
+            res.end();
+            return;
+          }
+        }
+        if (url === "/api/rta-permits" && req.method === "GET") {
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ version: 1, items: permitListPayload(localRtaPermits) }));
+          return;
+        }
+        if (url.startsWith("/api/rta-permit/")) {
+          const slug = decodeURIComponent(url.replace(/^\/api\/rta-permit\//, "").split("?")[0]);
+          if (req.method === "GET") {
+            const hit = findStoredPermit(localRtaPermits, slug);
+            if (!hit) {
+              res.statusCode = 404;
+              res.setHeader("Content-Type", "application/json");
+              res.end(JSON.stringify({ error: "not_found" }));
+              return;
+            }
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(hit));
+            return;
+          }
+          if (req.method === "PUT") {
+            if (req.headers["x-admin-sync-key"] !== adminKey) {
+              res.statusCode = 401;
+              res.end("Unauthorized");
+              return;
+            }
+            try {
+              const incoming = JSON.parse(await readBody(req));
+              localRtaPermits.set(slug, {
+                token: slug,
+                status: incoming.status || "Issued",
+                values: incoming.values || {},
+              });
+              res.statusCode = 204;
+              res.setHeader("X-Publish-Via", "local");
+              res.end();
+            } catch (err) {
+              res.statusCode = 500;
+              res.end(String(err?.message || err));
+            }
+            return;
+          }
+          if (req.method === "DELETE") {
+            localRtaPermits.delete(slug);
             res.statusCode = 204;
             res.end();
             return;

@@ -10,18 +10,21 @@ export const EVENT_TYPES = {
   PERMIT_VIEW: "permit_view",
   PERMIT_PRINT: "permit_print",
   PERMIT_SAVE: "permit_save",
+  RTA_VIEW: "rta_view",
+  RTA_PRINT: "rta_print",
+  RTA_SAVE: "rta_save",
 };
 
 function isViewType(type) {
-  return type === EVENT_TYPES.CERT_VIEW || type === EVENT_TYPES.PERMIT_VIEW;
+  return type === EVENT_TYPES.CERT_VIEW || type === EVENT_TYPES.PERMIT_VIEW || type === EVENT_TYPES.RTA_VIEW;
 }
 
 function isPrintType(type) {
-  return type === EVENT_TYPES.CERT_PRINT || type === EVENT_TYPES.PERMIT_PRINT;
+  return type === EVENT_TYPES.CERT_PRINT || type === EVENT_TYPES.PERMIT_PRINT || type === EVENT_TYPES.RTA_PRINT;
 }
 
 function isSaveType(type) {
-  return type === EVENT_TYPES.ADMIN_SAVE || type === EVENT_TYPES.PERMIT_SAVE;
+  return type === EVENT_TYPES.ADMIN_SAVE || type === EVENT_TYPES.PERMIT_SAVE || type === EVENT_TYPES.RTA_SAVE;
 }
 
 function isLookupType(type) {
@@ -29,7 +32,8 @@ function isLookupType(type) {
 }
 
 export function eventRecordKind(event) {
-  if (event?.kind === "permit" || event?.kind === "fitness") return event.kind;
+  if (event?.kind === "permit" || event?.kind === "fitness" || event?.kind === "rta") return event.kind;
+  if (String(event?.type || "").startsWith("rta_")) return "rta";
   if (String(event?.type || "").startsWith("permit_")) return "permit";
   return "fitness";
 }
@@ -136,8 +140,10 @@ export function eventTypeMix(events) {
     total: 0,
     fitnessViews: 0,
     permitViews: 0,
+    rtaViews: 0,
     fitnessPrints: 0,
     permitPrints: 0,
+    rtaPrints: 0,
   };
   for (const e of events) {
     mix.total += 1;
@@ -149,6 +155,10 @@ export function eventTypeMix(events) {
       mix.views += 1;
       mix.permitViews += 1;
     }
+    if (e.type === EVENT_TYPES.RTA_VIEW) {
+      mix.views += 1;
+      mix.rtaViews += 1;
+    }
     if (e.type === EVENT_TYPES.CERT_PRINT) {
       mix.prints += 1;
       mix.fitnessPrints += 1;
@@ -156,6 +166,10 @@ export function eventTypeMix(events) {
     if (e.type === EVENT_TYPES.PERMIT_PRINT) {
       mix.prints += 1;
       mix.permitPrints += 1;
+    }
+    if (e.type === EVENT_TYPES.RTA_PRINT) {
+      mix.prints += 1;
+      mix.rtaPrints += 1;
     }
     if (isLookupType(e.type)) mix.lookups += 1;
     if (isSaveType(e.type)) mix.saves += 1;
@@ -220,7 +234,7 @@ export function exportAnalyticsCsv(rows) {
     headers.join(","),
     ...rows.map((r) =>
       [
-        r.kind === "permit" ? "Permit" : "Fitness",
+        r.kind === "rta" ? "RTA Permit" : r.kind === "permit" ? "Permit" : "Fitness",
         r.trackingId,
         r.applicant,
         r.district,
@@ -320,7 +334,7 @@ export function buildFitnessTrackingRows(tokens, getCertificateForEdit, isCertif
   });
 }
 
-export function buildPermitRowFromApiItem(item, events) {
+export function buildPermitRowFromApiItem(item, events, kind = "permit") {
   const stats = aggregateTokenStats(events, item.token);
   const daysLeft = item.daysLeft ?? daysUntilExpiry(item.expiryDate);
   return {
@@ -337,24 +351,24 @@ export function buildPermitRowFromApiItem(item, events) {
     health: fitnessHealthLabel(daysLeft),
     saved: true,
     fromServer: true,
-    kind: "permit",
+    kind,
     ...stats,
   };
 }
 
-export function mergePermitAnalyticsRows(localRows, apiItems) {
+export function mergePermitAnalyticsRows(localRows, apiItems, kind = "permit") {
   const events = loadEvents();
   const byToken = new Map(localRows.map((r) => [r.token, r]));
   for (const item of apiItems || []) {
     if (!item?.token) continue;
     if (!byToken.has(item.token)) {
-      byToken.set(item.token, buildPermitRowFromApiItem(item, events));
+      byToken.set(item.token, buildPermitRowFromApiItem(item, events, kind));
     }
   }
   return [...byToken.values()];
 }
 
-export function buildPermitTrackingRows(tokens, getPermitForEdit, isPermitSaved) {
+export function buildPermitTrackingRows(tokens, getPermitForEdit, isPermitSaved, kind = "permit") {
   const events = loadEvents();
   return tokens.map((token) => {
     const { status, values } = getPermitForEdit(token);
@@ -379,7 +393,7 @@ export function buildPermitTrackingRows(tokens, getPermitForEdit, isPermitSaved)
       daysLeft,
       health,
       saved: isPermitSaved(token),
-      kind: "permit",
+      kind,
       ...stats,
     };
   });
@@ -446,6 +460,12 @@ export function formatEventLabel(event) {
       return "Permit print layout opened";
     case EVENT_TYPES.PERMIT_SAVE:
       return "Route permit saved in admin";
+    case EVENT_TYPES.RTA_VIEW:
+      return event.success === false ? "RTA permit view (not found)" : "RTA permit preview opened";
+    case EVENT_TYPES.RTA_PRINT:
+      return "RTA permit print layout opened";
+    case EVENT_TYPES.RTA_SAVE:
+      return "RTA permit saved in admin";
     default:
       return event.type || "Event";
   }
