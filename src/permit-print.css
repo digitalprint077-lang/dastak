@@ -7,7 +7,7 @@
   background: #fff;
   color: #111;
   font-family: Arial, Helvetica, sans-serif;
-  font-size: 10pt;
+  font-size: 9pt;
   line-height: 1.25;
   box-sizing: border-box;
   overflow: hidden;
@@ -21,7 +21,7 @@
   flex-direction: column;
   height: 297mm;
   min-height: 297mm;
-  padding: 28mm 18mm 16mm 20mm;
+  padding: 38mm 18mm 16mm 20mm;
 }
 
 .pta-title {
@@ -50,13 +50,13 @@
 
 .pta-type {
   margin: 0 0 6mm;
-  font-size: 10.5pt;
+  font-size: 9.5pt;
   font-weight: 700;
 }
 
 .pta-flow {
   position: relative;
-  margin: 0 0 6mm;
+  margin: 4mm 0 6mm;
   padding-right: 36mm;
 }
 
@@ -91,7 +91,7 @@
 }
 
 .pta-table td:nth-child(2) {
-  padding-right: 14mm;
+  padding-right: 18mm;
 }
 
 .pta-table th {
@@ -116,7 +116,7 @@
 
 .pta-section h3 {
   margin: 0 0 2mm;
-  font-size: 10.5pt;
+  font-size: 9.5pt;
   font-weight: 700;
 }
 
