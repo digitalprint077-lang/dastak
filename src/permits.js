@@ -243,14 +243,6 @@ function addCalendarDays(iso, days) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function addCalendarMonths(iso, months) {
-  const m = String(iso ?? "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return "";
-  const d = new Date(Number(m[1]), Number(m[2]) - 1 + months, Number(m[3]));
-  if (Number.isNaN(d.getTime())) return "";
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 /** Expiry date = issue date + {@link PERMIT_VALIDITY_YEARS} years (calendar). */
 export function expiryFromPermitIssueDate(issueValue) {
   return addCalendarYears(issueValue, PERMIT_VALIDITY_YEARS);
@@ -261,7 +253,7 @@ export function applyPermitValidity(values) {
   values["Expiry Date"] = expiryFromPermitIssueDate(values["Issue Date"]);
   values["Renewed Upto"] = values["Expiry Date"];
   values["Renewal Application Date"] = addCalendarDays(values["Expiry Date"], -30);
-  values.Dated = addCalendarMonths(values["Expiry Date"], -1);
+  values.Dated = values["Issue Date"];
   if (!String(values.Secretary ?? "").trim()) values.Secretary = DEFAULT_PERMIT_SECRETARY;
   return values;
 }
@@ -277,7 +269,7 @@ export function fillPermitValidityFields(form) {
   set("Expiry Date", expiry);
   set("Renewed Upto", expiry);
   set("Renewal Application Date", addCalendarDays(expiry, -30));
-  set("Dated", addCalendarMonths(expiry, -1));
+  set("Dated", issue);
 }
 
 export function generatePermitLinkId() {
@@ -381,7 +373,7 @@ export function newPermitTemplate() {
       "Expiry Date": expiry,
       "Renewed Upto": expiry,
       "Renewal Application Date": addCalendarDays(expiry, -30),
-      Dated: addCalendarMonths(expiry, -1),
+      Dated: issue,
     },
   };
 }
@@ -520,7 +512,7 @@ export function getPermitPrintData(token) {
     renewedUpto: formatPermitDmy(v("Renewed Upto") || v("Expiry Date")),
     renewalApplication: formatPermitDmy(v("Renewal Application Date")),
     conditions: v("Conditions") || "As prescribed in MVO 1965 & MVR 1969.",
-    dated: formatPermitLongDate(v("Dated") || addCalendarMonths(v("Expiry Date"), -1) || v("Issue Date")),
+    dated: formatPermitLongDate(v("Dated") || v("Issue Date")),
     secretary: v("Secretary") || DEFAULT_PERMIT_SECRETARY,
     previewUrl: publicPermitLink(token),
     previewPath: publicPermitPath(token),
