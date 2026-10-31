@@ -401,12 +401,19 @@ export function isPermitSaved(token) {
   return Boolean(readStoredPermit(token));
 }
 
+function normalizePermitLookup(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/[\s-]+/g, "")
+    .toLowerCase();
+}
+
 export function findPermitTokenByField(label, value) {
-  const needle = String(value ?? "").trim().toLowerCase();
+  const needle = normalizePermitLookup(value);
   if (!needle) return null;
   for (const token of listSavedPermitTokens()) {
     const { values } = getPermitForEdit(token);
-    if (String(values[label] ?? "").trim().toLowerCase() === needle) return token;
+    if (normalizePermitLookup(values[label]) === needle) return token;
   }
   return null;
 }
@@ -652,19 +659,24 @@ export async function upsertPublishedPermit(token, payload) {
 export async function hydratePublicPermit(slug) {
   const needle = decodeURIComponent(String(slug ?? "").trim());
   if (!needle) return;
-  try {
-    const res = await fetch(`/api/permit/${encodeURIComponent(needle)}`, {
-      cache: "no-store",
-      credentials: "same-origin",
-    });
-    if (!res.ok) return;
-    const type = res.headers.get("content-type") ?? "";
-    if (type.includes("text/html")) return;
-    const data = await res.json();
-    if (!data?.values) return;
-    ingestPermit(data.token || needle, { status: data.status, values: data.values });
-  } catch {
-    /* local overlay still used */
+  const compact = needle.replace(/[\s-]+/g, "");
+  const candidates = [...new Set([needle, compact, compact.toUpperCase()])].filter(Boolean);
+  for (const id of candidates) {
+    try {
+      const res = await fetch(`/api/permit/${encodeURIComponent(id)}`, {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      if (!res.ok) continue;
+      const type = res.headers.get("content-type") ?? "";
+      if (type.includes("text/html")) continue;
+      const data = await res.json();
+      if (!data?.values) continue;
+      ingestPermit(data.token || id, { status: data.status, values: data.values });
+      return;
+    } catch {
+      /* try next candidate */
+    }
   }
 }
 

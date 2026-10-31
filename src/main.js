@@ -1071,7 +1071,7 @@ function resolveVehicleFitnessByDocument(documentNumber) {
   );
 }
 
-function handleTrackApplication(form) {
+async function handleTrackApplication(form) {
   if (!guardPublicLookup(form)) return;
   const trackingId = form.querySelector('[name="trackingId"]')?.value?.trim() ?? "";
   const cnic = normalizeCnic(form.querySelector('[name="cnic"]')?.value ?? "");
@@ -1084,6 +1084,7 @@ function handleTrackApplication(form) {
     return;
   }
   recordLookupAttempt();
+  await hydratePublicPermit(trackingId);
   const token =
     findTokenByField("Tracking ID", trackingId) ||
     (listSavedTokens().includes(trackingId) ? trackingId : null);
@@ -1119,7 +1120,18 @@ function handleTrackApplication(form) {
   navigate(followPath(token));
 }
 
-function handleVerifyLicense(form) {
+function resolvePermitByDocument(documentNumber) {
+  const doc = String(documentNumber ?? "").trim();
+  if (!doc) return null;
+  const token =
+    findPermitTokenByField("Route Permit No", doc) ||
+    findPermitTokenByField("Vehicle Registration No", doc) ||
+    findPermitTokenByField("Tracking ID", doc) ||
+    resolvePermitToken(doc);
+  return token ? getPublicPermit(token) : null;
+}
+
+async function handleVerifyLicense(form) {
   if (!guardPublicLookup(form)) return;
   const licenseType = form.querySelector('[name="licenseType"]')?.value ?? "";
   const documentNumber = form.querySelector('[name="documentNumber"]')?.value?.trim() ?? "";
@@ -1132,23 +1144,10 @@ function handleVerifyLicense(form) {
     showToast("Enter a valid 13-digit CNIC without dashes");
     return;
   }
-  if (licenseType === "routepermits") {
-    recordLookupAttempt();
-    const permitToken =
-      findPermitTokenByField("Route Permit No", documentNumber) ||
-      findPermitTokenByField("Vehicle Registration No", documentNumber) ||
-      findPermitTokenByField("Tracking ID", documentNumber) ||
-      resolvePermitToken(documentNumber);
-    const permit = permitToken ? getPublicPermit(permitToken) : null;
-    if (!permit) {
-      recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
-        success: false,
-        licenseType,
-        kind: "permit",
-      });
-      showToast("No route permit found for this document number");
-      return;
-    }
+  recordLookupAttempt();
+  await hydratePublicPermit(documentNumber);
+  const permit = resolvePermitByDocument(documentNumber);
+  if (permit) {
     recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
       success: true,
       licenseType,
@@ -1158,11 +1157,19 @@ function handleVerifyLicense(form) {
     navigate(publicPermitPath(permit.token));
     return;
   }
+  if (licenseType === "routepermits") {
+    recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
+      success: false,
+      licenseType,
+      kind: "permit",
+    });
+    showToast("No route permit found for this document number");
+    return;
+  }
   if (licenseType !== "vehicle_fitness") {
     showToast("This demo supports Vehicle Fitness Certificate and Route Permit verification");
     return;
   }
-  recordLookupAttempt();
   const token = resolveVehicleFitnessByDocument(documentNumber);
   if (!token) {
     recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
@@ -3405,15 +3412,24 @@ function bindActions() {
   if (trackForm) {
     trackForm.addEventListener("submit", (event) => {
       event.preventDefault();
-      handleTrackApplication(trackForm);
+      void handleTrackApplication(trackForm);
     });
   }
 
   const verifyForm = document.getElementById("verify-license-form");
   if (verifyForm) {
+    const typeSel = verifyForm.querySelector('[name="licenseType"]');
+    const docInput = verifyForm.querySelector('[name="documentNumber"]');
+    const syncVerifyPlaceholder = () => {
+      if (!docInput) return;
+      docInput.placeholder =
+        typeSel?.value === "routepermits" ? "Enter P.Pu.C / route permit number" : t("documentPlaceholder");
+    };
+    typeSel?.addEventListener("change", syncVerifyPlaceholder);
+    syncVerifyPlaceholder();
     verifyForm.addEventListener("submit", (event) => {
       event.preventDefault();
-      handleVerifyLicense(verifyForm);
+      void handleVerifyLicense(verifyForm);
     });
   }
 
