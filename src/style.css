@@ -5882,260 +5882,9 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
 .admin-overview-page {
   max-width: none;
   margin: 0;
-  display: grid;
-  grid-template-columns: minmax(188px, 0.85fr) minmax(0, 2.3fr) minmax(188px, 0.85fr);
-  gap: 16px;
-  align-items: start;
-}
-
-.admin-ov-main {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-width: 0;
-}
-
-.admin-ov-wing {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  position: sticky;
-  top: 10px;
-}
-
-.admin-ov-wing-card {
-  padding: 16px 16px 14px;
-  border-radius: 20px;
-  border: 1px solid var(--admin-border);
-  background: var(--admin-surface);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
-}
-
-.admin-ov-wing-brand {
-  background:
-    linear-gradient(165deg, color-mix(in srgb, var(--logo-from, #10c8b0) 14%, #fff) 0%, #fff 58%);
-  text-align: center;
-}
-
-.admin-ov-wing-logo {
-  display: block;
-  width: auto;
-  height: 42px;
-  margin: 0 auto 10px;
-  object-fit: contain;
-}
-
-.admin-ov-wing-kicker {
-  margin: 0 0 2px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--accent-deep, #12a87c);
-}
-
-.admin-ov-wing-title {
-  margin: 0 0 6px;
-  font-size: 1.15rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  color: var(--ink, #1a1a1a);
-}
-
-.admin-ov-wing-heading {
-  margin: 0 0 10px;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.admin-ov-wing-copy,
-.admin-ov-wing-note,
-.admin-ov-wing-empty {
-  margin: 0;
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--text-muted);
-}
-
-.admin-ov-wing-note {
-  margin: -4px 0 10px;
-}
-
-.admin-ov-wing-link {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  padding: 8px;
-  margin: 0 -4px 6px;
-  border-radius: 12px;
-  text-decoration: none;
-  color: inherit;
-  border: 1px solid transparent;
-}
-
-.admin-ov-wing-link:last-child {
-  margin-bottom: 0;
-}
-
-.admin-ov-wing-link:hover {
-  background: var(--admin-surface-muted);
-  border-color: color-mix(in srgb, var(--logo-to, #20d098) 30%, transparent);
-}
-
-.admin-ov-wing-link-icon {
-  display: flex;
-  width: 32px;
-  height: 32px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--logo-to, #20d098) 16%, #fff);
-  color: var(--accent-deep, #12a87c);
-}
-
-.admin-ov-wing-link strong {
-  display: block;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.admin-ov-wing-link em {
-  display: block;
-  font-style: normal;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.admin-ov-wing-count {
-  font-size: 1.05rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink, #1a1a1a);
-}
-
-.admin-ov-wing-cta {
-  display: inline-flex;
-  margin-top: 12px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  font-size: 12.5px;
-  font-weight: 800;
-  text-decoration: none;
-  color: #1a1a1a;
-  background: linear-gradient(135deg, var(--logo-from, #10c8b0), var(--logo-to, #20d098));
-}
-
-.admin-ov-wing-steps {
-  margin: 0;
-  padding-left: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--text);
-}
-
-.admin-ov-wing-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.admin-ov-wing-stats div {
-  padding: 8px 6px;
-  border-radius: 12px;
-  background: var(--admin-surface-muted);
-  text-align: center;
-}
-
-.admin-ov-wing-stats span {
-  display: block;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.admin-ov-wing-stats strong {
-  display: block;
-  margin-top: 2px;
-  font-size: 1.15rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink, #1a1a1a);
-}
-
-.admin-ov-wing-expire-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.admin-ov-wing-expire {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px;
-  margin: 0 -4px;
-  border-radius: 12px;
-  text-decoration: none;
-  color: inherit;
-  border: 1px solid transparent;
-}
-
-.admin-ov-wing-expire:hover {
-  background: var(--admin-surface-muted);
-  border-color: color-mix(in srgb, var(--logo-to, #20d098) 30%, transparent);
-}
-
-.admin-ov-wing-expire strong {
-  display: block;
-  font-size: 12.5px;
-}
-
-.admin-ov-wing-expire em {
-  display: block;
-  font-style: normal;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-@container admin-ov (max-width: 980px) {
-  .admin-overview-page {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .admin-ov-main {
-    order: 1;
-  }
-
-  .admin-ov-wing {
-    position: static;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-  }
-
-  .admin-ov-wing-left {
-    order: 2;
-  }
-
-  .admin-ov-wing-right {
-    order: 3;
-  }
-}
-
-@media (max-width: 720px) {
-  .admin-ov-wing {
-    grid-template-columns: 1fr;
-  }
 }
 
 .admin-ui-v2 .admin-frame-overview .admin-context-bar {
@@ -6162,8 +5911,6 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
 
 .admin-ui-v2 .admin-frame-overview .admin-frame-body {
   padding-top: 8px;
-  container-type: inline-size;
-  container-name: admin-ov;
 }
 
 .admin-ov-head {
@@ -6394,31 +6141,14 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
 
 .admin-ov-summary-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 0;
 }
 
-.admin-ov-summary-card:nth-child(-n + 3) {
-  grid-column: span 2;
-}
-
-.admin-ov-summary-card:nth-child(n + 4) {
-  grid-column: span 3;
-}
-
 @media (max-width: 1100px) {
-  .admin-ov-shortcuts {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .admin-ov-summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .admin-ov-summary-card:nth-child(-n + 3),
-  .admin-ov-summary-card:nth-child(n + 4) {
-    grid-column: auto;
+    grid-template-columns: 1fr;
   }
 }
 
@@ -6956,22 +6686,14 @@ html[data-theme="dark"] .admin-ov-summary-value,
 html[data-theme="dark"] .admin-ov-panel-title,
 html[data-theme="dark"] .admin-ov-chart-label strong,
 html[data-theme="dark"] .admin-ov-pill strong,
-html[data-theme="dark"] .admin-ov-breakdown-val,
-html[data-theme="dark"] .admin-ov-wing-title,
-html[data-theme="dark"] .admin-ov-wing-count,
-html[data-theme="dark"] .admin-ov-wing-stats strong {
+html[data-theme="dark"] .admin-ov-breakdown-val {
   color: #f1f5f9;
 }
 
 html[data-theme="dark"] .admin-ov-shortcut,
 html[data-theme="dark"] .admin-ov-summary-card,
-html[data-theme="dark"] .admin-ov-panel,
-html[data-theme="dark"] .admin-ov-wing-card {
+html[data-theme="dark"] .admin-ov-panel {
   box-shadow: none;
-}
-
-html[data-theme="dark"] .admin-ov-wing-brand {
-  background: color-mix(in srgb, var(--admin-surface) 88%, var(--logo-to, #20d098));
 }
 
 html[data-theme="dark"] .admin-frame-overview .admin-context-lead {
