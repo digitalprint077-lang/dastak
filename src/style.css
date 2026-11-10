@@ -2844,49 +2844,51 @@ html[data-theme="dark"] .fitness-badge-danger {
 
 /* ===== Admin UI v2 ===== */
 .admin-shell.admin-ui-v2 {
-  --stack-50: #f4f6f8;
-  --stack-100: #e8ecf1;
-  --stack-200: #d3dae3;
-  --stack-300: #b0bbc8;
-  --stack-400: #7d8a99;
-  --stack-500: #5c6b7a;
-  --stack-600: #3e4c5a;
-  --stack-700: #2a3642;
-  --stack-800: #1b2632;
-  --stack-900: #121a24;
-  --stack-950: #0b1118;
-  --ink: #121a24;
-  --accent: #2c6bed;
-  --accent-deep: #1e4a9a;
+  --stack-50: #f3faf8;
+  --stack-100: #e4f4ee;
+  --stack-200: #cce6dc;
+  --stack-300: #9ecfc0;
+  --stack-400: #6a8a82;
+  --stack-500: #555555;
+  --stack-600: #383838;
+  --stack-700: #303030;
+  --stack-800: #242424;
+  --stack-900: #1a1a1a;
+  --stack-950: #111111;
+  --ink: #1a1a1a;
+  --logo-from: #10c8b0;
+  --logo-to: #20d098;
+  --accent: #20d098;
+  --accent-deep: #12a87c;
   --dastak-nectarine: #c45c4a;
   --dastak-peche: #f3e0b8;
-  --dastak-menthe: #d6e4f7;
+  --dastak-menthe: #d4f5ea;
   --dastak-lagune: var(--accent);
   --dastak-teal: var(--accent);
   --dastak-teal-dark: var(--accent-deep);
-  --dastak-teal-deep: #163a7a;
-  --dastak-charcoal: var(--stack-700);
+  --dastak-teal-deep: #0d7a62;
+  --dastak-charcoal: var(--stack-600);
   --dastak-charcoal-deep: var(--ink);
   --text: var(--stack-600);
   --text-dark: var(--ink);
   --text-muted: var(--stack-500);
-  --admin-rail-bg: #121a24;
-  --admin-rail-text: #e8ecf1;
-  --admin-rail-muted: #8b98a8;
-  --admin-rail-border: #1b2632;
-  --admin-rail-active-bg: #1b2632;
-  --admin-rail-active-text: #ffffff;
+  --admin-rail-bg: #ffffff;
+  --admin-rail-text: var(--ink);
+  --admin-rail-muted: var(--stack-500);
+  --admin-rail-border: var(--stack-200);
+  --admin-rail-active-bg: var(--stack-100);
+  --admin-rail-active-text: var(--accent-deep);
   --admin-surface: #ffffff;
   --admin-surface-muted: var(--stack-50);
   --admin-border: var(--stack-200);
   --admin-accent: var(--accent);
-  --admin-accent-soft: #e7eefc;
+  --admin-accent-soft: #e4f4ee;
   --admin-warn: #b8860b;
   --admin-danger: #c45c4a;
-  --primary: var(--ink);
-  --primary-dark: var(--stack-950);
+  --primary: var(--accent);
+  --primary-dark: var(--accent-deep);
   --outline-text: var(--accent-deep);
-  --btn-shadow: 0 8px 20px rgba(44, 107, 237, 0.22);
+  --btn-shadow: 0 8px 20px rgba(32, 208, 152, 0.28);
   --admin-page-bg: var(--stack-50);
   display: grid;
   grid-template-columns: 272px minmax(0, 1fr);
@@ -2896,19 +2898,19 @@ html[data-theme="dark"] .fitness-badge-danger {
 }
 
 html[data-theme="dark"] .admin-shell.admin-ui-v2 {
-  --text: #c5cdd6;
-  --text-dark: #f4f6f8;
-  --text-muted: #8b98a8;
-  --admin-surface: #1b2632;
-  --admin-surface-muted: #151d28;
-  --admin-border: #2a3642;
-  --admin-rail-bg: #0b1118;
-  --admin-rail-text: #e8ecf1;
-  --admin-rail-muted: #8b98a8;
-  --admin-rail-border: #1b2632;
-  --admin-rail-active-bg: #1b2632;
-  --admin-accent-soft: #1b2632;
-  background: #0b1118;
+  --text: #c5cdc9;
+  --text-dark: #f3faf8;
+  --text-muted: #9aa3a0;
+  --admin-surface: #242424;
+  --admin-surface-muted: #1a1a1a;
+  --admin-border: #333333;
+  --admin-rail-bg: #111111;
+  --admin-rail-text: #f3faf8;
+  --admin-rail-muted: #9aa3a0;
+  --admin-rail-border: #2a2a2a;
+  --admin-rail-active-bg: #2a2a2a;
+  --admin-accent-soft: #1a2e28;
+  background: #111111;
 }
 
 .admin-ui-v2 .admin-rail {
@@ -3042,7 +3044,7 @@ html[data-theme="dark"] .admin-rail-wordmark {
 }
 
 .admin-rail-link:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--dastak-menthe) 40%, #fff);
   color: var(--admin-rail-text);
   border-color: color-mix(in srgb, var(--admin-rail-border) 80%, transparent);
 }
@@ -3055,7 +3057,7 @@ html[data-theme="dark"] .admin-rail-link:hover {
   background: var(--admin-rail-active-bg);
   color: var(--admin-rail-active-text);
   border-color: color-mix(in srgb, var(--dastak-teal) 35%, transparent);
-  box-shadow: inset 3px 0 0 var(--accent), 0 8px 18px rgba(15, 23, 36, 0.18);
+  box-shadow: inset 3px 0 0 var(--accent), 0 8px 18px rgba(16, 200, 176, 0.12);
 }
 
 .admin-rail-link-static {
@@ -3071,13 +3073,13 @@ html[data-theme="dark"] .admin-rail-link:hover {
   flex-shrink: 0;
   border-radius: 8px;
   color: var(--admin-rail-muted);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--stack-100);
 }
 
 .admin-rail-link.is-active .admin-rail-link-icon,
 .admin-rail-tone-teal .admin-rail-link-icon {
-  color: #fff;
-  background: color-mix(in srgb, var(--accent) 38%, transparent);
+  color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent) 28%, #fff);
 }
 
 html[data-theme="dark"] .admin-rail-link-icon {
@@ -3102,9 +3104,9 @@ html[data-theme="dark"] .admin-rail-tone-teal .admin-rail-link-icon {
 .admin-rail-service {
   padding: 6px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  box-shadow: none;
+  border: 1px solid var(--admin-rail-border);
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(56, 56, 56, 0.04);
 }
 
 html[data-theme="dark"] .admin-rail-service {
@@ -3150,15 +3152,15 @@ html[data-theme="dark"] .admin-rail-service {
 }
 
 .admin-rail-service-certs .admin-rail-service-icon {
-  background: linear-gradient(160deg, #3b82f6 0%, var(--accent-deep) 100%);
+  background: linear-gradient(160deg, var(--logo-from) 0%, var(--logo-to) 100%);
 }
 
 .admin-rail-service-permits .admin-rail-service-icon {
-  background: linear-gradient(160deg, var(--accent) 0%, #1e3a8a 100%);
+  background: linear-gradient(160deg, var(--logo-to) 0%, var(--accent-deep) 100%);
 }
 
 .admin-rail-service-rta .admin-rail-service-icon {
-  background: linear-gradient(160deg, var(--accent-deep) 0%, #172554 100%);
+  background: linear-gradient(160deg, var(--accent-deep) 0%, var(--dastak-teal-deep) 100%);
 }
 
 .admin-rail-service-copy {
@@ -3225,7 +3227,7 @@ html[data-theme="dark"] .admin-rail-service {
 }
 
 .admin-rail-foot .theme-toggle:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--stack-100);
 }
 
 .admin-rail-logout {
@@ -3237,9 +3239,9 @@ html[data-theme="dark"] .admin-rail-service {
 }
 
 .admin-rail-logout:hover {
-  background: color-mix(in srgb, var(--dastak-nectarine, #d7897f) 16%, transparent);
-  border-color: color-mix(in srgb, var(--dastak-nectarine, #d7897f) 40%, transparent);
-  color: #f0a8a0;
+  background: color-mix(in srgb, var(--dastak-nectarine, #d7897f) 14%, #fff);
+  border-color: color-mix(in srgb, var(--dastak-nectarine, #d7897f) 40%, #fff);
+  color: #b86a62;
 }
 
 .admin-ui-v2 .admin-frame {
@@ -4214,29 +4216,31 @@ html[data-theme="dark"] .admin-form-step {
 
 /* Admin login */
 .admin-login-page {
-  --stack-50: #f4f6f8;
-  --stack-100: #e8ecf1;
-  --stack-200: #d3dae3;
-  --stack-300: #b0bbc8;
-  --stack-400: #7d8a99;
-  --stack-500: #5c6b7a;
-  --stack-600: #3e4c5a;
-  --stack-700: #2a3642;
-  --stack-800: #1b2632;
-  --stack-900: #121a24;
-  --stack-950: #0b1118;
-  --ink: #121a24;
-  --accent: #2c6bed;
-  --accent-deep: #1e4a9a;
+  --stack-50: #f3faf8;
+  --stack-100: #e4f4ee;
+  --stack-200: #cce6dc;
+  --stack-300: #9ecfc0;
+  --stack-400: #6a8a82;
+  --stack-500: #555555;
+  --stack-600: #383838;
+  --stack-700: #303030;
+  --stack-800: #242424;
+  --stack-900: #1a1a1a;
+  --stack-950: #111111;
+  --ink: #1a1a1a;
+  --logo-from: #10c8b0;
+  --logo-to: #20d098;
+  --accent: #20d098;
+  --accent-deep: #12a87c;
   --dastak-nectarine: #c45c4a;
   --dastak-peche: #f3e0b8;
-  --dastak-menthe: #d6e4f7;
+  --dastak-menthe: #d4f5ea;
   --dastak-lagune: var(--accent);
   --dastak-teal: var(--accent);
   --dastak-teal-dark: var(--accent-deep);
-  --dastak-teal-deep: #163a7a;
-  --primary: var(--ink);
-  --primary-dark: var(--stack-950);
+  --dastak-teal-deep: #0d7a62;
+  --primary: var(--accent);
+  --primary-dark: var(--accent-deep);
   --text: var(--stack-600);
   --text-dark: var(--ink);
   --text-muted: var(--stack-500);
@@ -4252,10 +4256,10 @@ html[data-theme="dark"] .admin-form-step {
 }
 
 html[data-theme="dark"] .admin-login-page {
-  --text: #c5cdd6;
-  --text-dark: #f4f6f8;
-  --text-muted: #8b98a8;
-  background: #0b1118;
+  --text: #c5cdc9;
+  --text-dark: #f3faf8;
+  --text-muted: #9aa3a0;
+  background: #111111;
 }
 
 .admin-login-atmosphere {
@@ -4268,15 +4272,15 @@ html[data-theme="dark"] .admin-login-page {
     radial-gradient(ellipse 70% 55% at 12% -10%, var(--dastak-menthe) 0%, transparent 58%),
     radial-gradient(ellipse 50% 45% at 108% 18%, color-mix(in srgb, var(--accent) 20%, var(--stack-100)) 0%, transparent 54%),
     radial-gradient(ellipse 48% 40% at 88% 108%, var(--stack-100) 0%, transparent 56%),
-    linear-gradient(165deg, var(--stack-50) 0%, #eef2f6 100%);
+    linear-gradient(165deg, var(--stack-50) 0%, #e8f7f1 100%);
 }
 
 html[data-theme="dark"] .admin-login-atmosphere {
   background:
     radial-gradient(ellipse 60% 48% at 8% -8%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 58%),
-    radial-gradient(ellipse 46% 40% at 100% 12%, color-mix(in srgb, var(--accent-deep) 32%, transparent), transparent 52%),
+    radial-gradient(ellipse 46% 40% at 100% 12%, color-mix(in srgb, var(--logo-from) 32%, transparent), transparent 52%),
     radial-gradient(ellipse 42% 36% at 90% 110%, color-mix(in srgb, var(--stack-700) 40%, transparent), transparent 56%),
-    #0b1118;
+    #111111;
 }
 
 .admin-login-orb {
@@ -4564,25 +4568,27 @@ html[data-theme="dark"] .admin-login-form .form-control {
   font-weight: 750;
   gap: 10px;
   justify-content: center;
-  background: var(--ink);
-  border-color: var(--ink);
-  box-shadow: 0 12px 24px rgba(26, 24, 21, 0.18);
+  background: linear-gradient(135deg, var(--logo-from) 0%, var(--logo-to) 100%);
+  color: #1a1a1a;
+  border-color: transparent;
+  box-shadow: 0 12px 24px rgba(32, 208, 152, 0.28);
 }
 
 .admin-login-submit:hover:not(:disabled) {
-  background: var(--stack-950);
-  border-color: var(--stack-950);
+  background: linear-gradient(135deg, #0eb8a2 0%, #12a87c 100%);
+  color: #fff;
+  border-color: transparent;
 }
 
 html[data-theme="dark"] .admin-login-submit {
-  background: var(--stack-100);
-  color: var(--stack-900);
-  border-color: var(--stack-100);
+  background: linear-gradient(135deg, var(--logo-from) 0%, var(--logo-to) 100%);
+  color: #1a1a1a;
+  border-color: transparent;
 }
 
 html[data-theme="dark"] .admin-login-submit:hover:not(:disabled) {
-  background: var(--stack-50);
-  border-color: var(--stack-50);
+  background: linear-gradient(135deg, #0eb8a2 0%, #12a87c 100%);
+  color: #fff;
 }
 
 .admin-login-footnote {
@@ -4648,11 +4654,11 @@ html[data-theme="dark"] .admin-login-services li {
 }
 
 .admin-login-service-certs {
-  background: linear-gradient(160deg, var(--accent) 0%, var(--accent-deep) 100%);
+  background: linear-gradient(160deg, var(--logo-from) 0%, var(--logo-to) 100%);
 }
 
 .admin-login-service-pta {
-  background: linear-gradient(160deg, var(--accent) 0%, #1e3a8a 100%);
+  background: linear-gradient(160deg, var(--logo-to) 0%, var(--accent-deep) 100%);
 }
 
 .admin-login-service-rta {
@@ -7283,21 +7289,21 @@ html[data-theme="dark"] .analytics-v3 .analytics-period-btn.is-active {
 /* —— Visual polish: modern surfaces, type, and motion —— */
 .admin-rail-primary .admin-rail-link-btn {
   margin-top: 6px;
-  background: var(--accent);
-  color: #fff;
+  background: linear-gradient(135deg, var(--logo-from) 0%, var(--logo-to) 100%);
+  color: #1a1a1a;
   border: none;
-  box-shadow: 0 10px 22px rgba(44, 107, 237, 0.28);
+  box-shadow: 0 10px 22px rgba(32, 208, 152, 0.28);
 }
 
 .admin-rail-primary .admin-rail-link-btn .admin-rail-link-icon {
-  color: #fff;
+  color: #1a1a1a;
 }
 
 .admin-rail-primary .admin-rail-link-btn:hover {
-  background: var(--accent-deep);
+  background: linear-gradient(135deg, #0eb8a2 0%, #12a87c 100%);
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 12px 26px rgba(28, 13, 10, 0.3);
+  box-shadow: 0 12px 26px rgba(18, 168, 124, 0.3);
 }
 
 .admin-ov-greet {
@@ -7377,17 +7383,17 @@ button.admin-filter-chip {
 }
 
 html[data-theme="dark"] .admin-rail-primary .admin-rail-link-btn {
-  background: var(--accent);
-  color: #fff;
-  box-shadow: 0 10px 24px rgba(44, 107, 237, 0.28);
+  background: linear-gradient(135deg, var(--logo-from) 0%, var(--logo-to) 100%);
+  color: #1a1a1a;
+  box-shadow: 0 10px 24px rgba(32, 208, 152, 0.28);
 }
 
 html[data-theme="dark"] .admin-rail-primary .admin-rail-link-btn .admin-rail-link-icon {
-  color: #fff;
+  color: #1a1a1a;
 }
 
 html[data-theme="dark"] .admin-rail-primary .admin-rail-link-btn:hover {
-  background: var(--accent-deep);
+  background: linear-gradient(135deg, #0eb8a2 0%, #12a87c 100%);
   color: #fff;
 }
 
