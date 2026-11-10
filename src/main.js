@@ -1335,54 +1335,71 @@ async function handleVerifyLicense(form) {
 function adminLoginPage() {
   return `
     <div class="admin-login-page">
-      <div class="admin-login-stage">
-        <aside class="admin-login-brand">
-          <img class="admin-login-brand-logo" src="/images/logo-dastak.png" alt="" />
-          <p class="admin-login-brand-kicker">Citizens platform</p>
-          <h2 class="admin-login-brand-title">One workspace for KP digital services</h2>
-          <p class="admin-login-brand-copy">Issue, verify, and manage records from a single staff login. More services can be added here over time.</p>
-          <ul class="admin-login-brand-list">
-            <li>Vehicle fitness certificates</li>
-            <li>Route permits</li>
-            <li>RTA permits</li>
-            <li>More services coming</li>
-          </ul>
-        </aside>
-        <main class="admin-login-panel">
-          <div class="admin-login-panel-top">
-            <a class="admin-login-back-link" href="/">${iconGlobe()} Public site</a>
-            <div class="admin-login-theme">${themeToggleButton()}</div>
-          </div>
-          <div class="admin-login-panel-body">
-            <p class="admin-login-welcome">Staff access</p>
-            <h1 class="admin-login-heading">Sign in</h1>
-            <p class="admin-login-lead">Enter your password to open the Dastak admin.</p>
-            <form id="admin-login-form" class="admin-login-form" autocomplete="off">
-              <label class="form-field" for="admin-password">
-                <span class="form-label">Password</span>
-                <div class="form-input-wrap admin-login-pw-wrap">
-                  <span class="form-field-icon" aria-hidden="true">${iconLock()}</span>
-                  <input
-                    id="admin-password"
-                    class="form-control"
-                    name="password"
-                    type="password"
-                    placeholder="Enter password"
-                    autocomplete="current-password"
-                    required
-                  />
-                  <button class="admin-login-pw-toggle" type="button" data-action="admin-login-toggle-pw" aria-label="Show password">
-                    ${iconPreview()}
-                  </button>
-                </div>
-              </label>
-              <button class="btn btn-primary admin-login-submit" type="submit">
-                Sign in ${iconArrowRight()}
-              </button>
-            </form>
-            <p class="admin-login-footnote">${iconLock()} Authorized staff only</p>
-          </div>
+      <div class="admin-login-atmosphere" aria-hidden="true">
+        <span class="admin-login-orb admin-login-orb-mint"></span>
+        <span class="admin-login-orb admin-login-orb-lagoon"></span>
+        <span class="admin-login-orb admin-login-orb-peach"></span>
+        <span class="admin-login-watermark">DASTAK</span>
+      </div>
+      <header class="admin-login-bar">
+        <div class="admin-login-identity">
+          <span class="admin-login-logo-wrap">
+            <img class="admin-login-logo" src="/images/logo-dastak.png" alt="Dastak" />
+          </span>
+          <span class="admin-login-identity-copy">
+            <strong>DASTAK</strong>
+            <em>Citizens platform</em>
+          </span>
+        </div>
+        <div class="admin-login-bar-actions">
+          <a class="admin-login-back-link" href="/">${iconGlobe()} Public site</a>
+          <div class="admin-login-theme">${themeToggleButton()}</div>
+        </div>
+      </header>
+      <div class="admin-login-center">
+        <p class="admin-login-welcome">Staff workspace</p>
+        <main class="admin-login-card">
+          <h1 class="admin-login-heading">Sign in</h1>
+          <p class="admin-login-lead">Enter your password to open the workspace for KP digital services.</p>
+          <form id="admin-login-form" class="admin-login-form" autocomplete="off">
+            <label class="form-field" for="admin-password">
+              <span class="form-label">Password</span>
+              <div class="form-input-wrap admin-login-pw-wrap">
+                <span class="form-field-icon" aria-hidden="true">${iconLock()}</span>
+                <input
+                  id="admin-password"
+                  class="form-control"
+                  name="password"
+                  type="password"
+                  placeholder="Enter password"
+                  autocomplete="current-password"
+                  required
+                />
+                <button class="admin-login-pw-toggle" type="button" data-action="admin-login-toggle-pw" aria-label="Show password">
+                  ${iconPreview()}
+                </button>
+              </div>
+            </label>
+            <button class="btn btn-primary admin-login-submit" type="submit">
+              Continue ${iconArrowRight()}
+            </button>
+          </form>
+          <p class="admin-login-footnote">${iconLock()} Authorized staff only</p>
         </main>
+        <ul class="admin-login-services">
+          <li>
+            <span class="admin-login-service-icon admin-login-service-certs">${iconCertificate()}</span>
+            Fitness
+          </li>
+          <li>
+            <span class="admin-login-service-icon admin-login-service-pta">${iconRoutePermit()}</span>
+            PTA permits
+          </li>
+          <li>
+            <span class="admin-login-service-icon admin-login-service-rta">${iconRtaPermit()}</span>
+            RTA permits
+          </li>
+        </ul>
       </div>
       <div class="toast" id="toast"></div>
     </div>
