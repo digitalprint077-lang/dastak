@@ -86,6 +86,7 @@ import {
   buildLocalRtaPermitOverviewRows,
   renderAdminOverviewPage,
   fetchOverviewRowsMerged,
+  startAdminOverviewClock,
 } from "./admin-overview.js";
 import { amountToWords } from "./amount-words.js";
 import { renderA4PrintPage, renderA4PrintMissing } from "./print-a4.js";
@@ -771,7 +772,7 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
           </button>
         </div>
       </aside>
-      <div class="admin-frame">
+      <div class="admin-frame${activeView === "overview" ? " admin-frame-overview" : ""}">
         <header class="admin-context-bar">
           <div class="admin-context-text">
             <h1 class="admin-context-title">${pageTitle}</h1>
@@ -2620,7 +2621,7 @@ function renderAnalyticsDashboard(kind = "fitness") {
 }
 
 function bindAdminOverviewLinks() {
-  document.querySelectorAll(".admin-overview-page a[href^='/admin']").forEach((link) => {
+  document.querySelectorAll(".admin-overview-page a[href^='/']").forEach((link) => {
     if (link.dataset.ovBound === "1") return;
     link.dataset.ovBound = "1";
     link.addEventListener("click", (event) => {
@@ -2629,6 +2630,7 @@ function bindAdminOverviewLinks() {
       if (href) navigate(href);
     });
   });
+  startAdminOverviewClock();
 }
 
 function bindAnalyticsTableInteractions() {

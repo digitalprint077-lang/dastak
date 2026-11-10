@@ -57,6 +57,75 @@ function todayLabel() {
   });
 }
 
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+function clockParts(now = new Date()) {
+  const hour24 = now.getHours();
+  const hour12 = hour24 % 12 || 12;
+  let zone = "";
+  try {
+    zone =
+      new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
+        .formatToParts(now)
+        .find((part) => part.type === "timeZoneName")?.value || "";
+  } catch {
+    zone = "";
+  }
+  return {
+    h: pad2(hour12),
+    m: pad2(now.getMinutes()),
+    s: pad2(now.getSeconds()),
+    ampm: hour24 >= 12 ? "PM" : "AM",
+    zone,
+  };
+}
+
+let overviewClockTimer = 0;
+
+export function stopAdminOverviewClock() {
+  if (overviewClockTimer) {
+    window.clearInterval(overviewClockTimer);
+    overviewClockTimer = 0;
+  }
+}
+
+export function startAdminOverviewClock() {
+  stopAdminOverviewClock();
+  const root = document.getElementById("admin-ov-clock");
+  if (!root) return;
+
+  const tick = () => {
+    const el = document.getElementById("admin-ov-clock");
+    if (!el) {
+      stopAdminOverviewClock();
+      return;
+    }
+    const parts = clockParts();
+    const set = (key, value) => {
+      const node = el.querySelector(`[data-clock-${key}]`);
+      if (node) node.textContent = value;
+    };
+    set("h", parts.h);
+    set("m", parts.m);
+    set("s", parts.s);
+    set("ampm", parts.ampm);
+    set("zone", parts.zone);
+    el.setAttribute(
+      "aria-label",
+      `Current time ${parts.h}:${parts.m}:${parts.s} ${parts.ampm}${parts.zone ? ` ${parts.zone}` : ""}`
+    );
+    const greet = document.querySelector(".admin-ov-greet");
+    if (greet) greet.textContent = greetingLabel();
+    const date = document.querySelector(".admin-ov-date");
+    if (date) date.textContent = todayLabel();
+  };
+
+  tick();
+  overviewClockTimer = window.setInterval(tick, 1000);
+}
+
 function chartDayParts(key) {
   const day = new Date(`${key}T12:00:00`);
   return {
@@ -195,6 +264,7 @@ export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = [
   const overall = computeOverviewMetrics(overallRows, eventsWindow, { kind: "all" });
   const fitnessMetrics = computeOverviewMetrics(fitnessRows, eventsWindow, { kind: "fitness" });
   const permitMetrics = computeOverviewMetrics(permitList, eventsWindow, { kind: "permit" });
+  const rtaMetrics = computeOverviewMetrics(rtaList, eventsWindow, { kind: "rta" });
   const publish = computeRegistryPublishCounts(fitnessRows);
   const permitPublish = computeRegistryPublishCounts(permitList);
   const rtaPublish = computeRegistryPublishCounts(rtaList);
@@ -280,14 +350,90 @@ export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = [
       <span>${escapeHtml(text)}</span>
     </li>`;
 
+  const wingExpiring =
+    expiringList
+      .slice(0, 5)
+      .map(
+        (r) => `
+        <a class="admin-ov-wing-expire" href="${escapeHtml(editorHref(r))}">
+          <span>
+            <strong>${escapeHtml(r.applicant)}</strong>
+            <em>${escapeHtml(overviewKindLabel(r.kind))}</em>
+          </span>
+          <span class="admin-ov-days-chip">${r.daysLeft}d</span>
+        </a>`
+      )
+      .join("") || `<p class="admin-ov-wing-empty">No records expiring in the next 30 days.</p>`;
+
   return `
     <div id="admin-overview-page" class="admin-overview-page">
-      <div class="admin-ov-head">
-        <div>
-          <p class="admin-ov-greet">${greetingLabel()}</p>
-          <p class="admin-ov-date">${todayLabel()}</p>
+      <aside class="admin-ov-wing admin-ov-wing-left" aria-label="Dastak services">
+        <section class="admin-ov-wing-card admin-ov-wing-brand">
+          <img class="admin-ov-wing-logo" src="/images/logo-dastak.png" alt="" />
+          <p class="admin-ov-wing-kicker">Khyber Pakhtunkhwa</p>
+          <h3 class="admin-ov-wing-title">Dastak</h3>
+          <p class="admin-ov-wing-copy">Citizens platform for vehicle fitness certificates, PTA route permits, and RTA permits.</p>
+        </section>
+        <section class="admin-ov-wing-card">
+          <h3 class="admin-ov-wing-heading">This workspace</h3>
+          <a class="admin-ov-wing-link" href="/admin/dashboard?view=registry">
+            <span class="admin-ov-wing-link-icon">${ovIcon(`<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m22 4-10 10-3-3"/>`)}</span>
+            <span>
+              <strong>Fitness certificates</strong>
+              <em>Vehicle fitness records</em>
+            </span>
+            <span class="admin-ov-wing-count">${fitnessRows.length}</span>
+          </a>
+          <a class="admin-ov-wing-link" href="/admin/dashboard?view=permits">
+            <span class="admin-ov-wing-link-icon">${ovIcon(`<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10"/><path d="M7 12h6"/>`)}</span>
+            <span>
+              <strong>PTA permits</strong>
+              <em>Provincial Transport Authority</em>
+            </span>
+            <span class="admin-ov-wing-count">${permitList.length}</span>
+          </a>
+          <a class="admin-ov-wing-link" href="/admin/dashboard?view=rta-permits">
+            <span class="admin-ov-wing-link-icon">${ovIcon(`<path d="M3 10.5 12 4l9 6.5"/><path d="M5 10v9h14v-9"/><path d="M9 19v-6h6v6"/>`)}</span>
+            <span>
+              <strong>RTA permits</strong>
+              <em>Regional Transport Authority</em>
+            </span>
+            <span class="admin-ov-wing-count">${rtaList.length}</span>
+          </a>
+        </section>
+        <section class="admin-ov-wing-card">
+          <h3 class="admin-ov-wing-heading">Public verify</h3>
+          <p class="admin-ov-wing-copy">Citizens enter a certificate or permit number on the Dastak home page to open the official preview.</p>
+          <a class="admin-ov-wing-cta" href="/">Open home verify</a>
+        </section>
+      </aside>
+      <div class="admin-ov-main">
+      <header class="admin-ov-head">
+        <div class="admin-ov-head-lead">
+          <div class="admin-ov-hello">
+            <p class="admin-ov-greet">${greetingLabel()}</p>
+            <p class="admin-ov-date">${todayLabel()}</p>
+          </div>
+          <div
+            class="admin-ov-clock"
+            id="admin-ov-clock"
+            role="timer"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <span class="admin-ov-clock-label">Local time</span>
+            <span class="admin-ov-clock-face">
+              <span class="admin-ov-clock-time">
+                <span data-clock-h>00</span><span class="admin-ov-clock-sep" aria-hidden="true">:</span><span data-clock-m>00</span><span class="admin-ov-clock-sep" aria-hidden="true">:</span><span data-clock-s>00</span>
+              </span>
+              <span class="admin-ov-clock-meta">
+                <span data-clock-ampm>AM</span>
+                <span data-clock-zone></span>
+              </span>
+            </span>
+          </div>
         </div>
-        <div class="admin-ov-shortcuts">
+        <nav class="admin-ov-shortcuts" aria-label="Quick actions">
           <a class="admin-ov-shortcut" href="/admin/dashboard?view=registry">
             <span class="admin-ov-shortcut-icon">${ovIcon(`<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/>`)}</span>
             <span>
@@ -298,8 +444,8 @@ export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = [
           <a class="admin-ov-shortcut" href="/admin/dashboard?view=permits">
             <span class="admin-ov-shortcut-icon">${ovIcon(`<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10"/><path d="M7 12h6"/>`)}</span>
             <span>
-              <strong>Permits</strong>
-              <em>Route permit records</em>
+              <strong>PTA permits</strong>
+              <em>Provincial permit records</em>
             </span>
           </a>
           <a class="admin-ov-shortcut" href="/admin/dashboard?view=analytics">
@@ -330,8 +476,8 @@ export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = [
               <em>Views, prints, expiry</em>
             </span>
           </a>
-        </div>
-      </div>
+        </nav>
+      </header>
 
       ${attentionHtml}
 
@@ -354,10 +500,19 @@ export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = [
           <p class="admin-ov-summary-sub">${fitness.active + fitness.renewal} fit to operate · live plus local drafts</p>
           ${summaryPills("Live", publish.live, "Expiring ≤30d", fitness.expiring, "ok", "warn")}
         </a>
+        <a class="admin-ov-summary-card admin-ov-card-orange" href="/admin/dashboard?view=analytics">
+          <div class="admin-ov-summary-top">
+            <span class="admin-ov-summary-icon" aria-hidden="true">${ovIcon(`<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`)}</span>
+            <p class="admin-ov-summary-label">Public activity</p>
+          </div>
+          <p class="admin-ov-summary-value">${overall.views7d + overall.prints7d}</p>
+          <p class="admin-ov-summary-sub">Last 7 days on this device · fitness, PTA, and RTA</p>
+          ${summaryPills("Fitness", fitnessMetrics.views7d + fitnessMetrics.prints7d, "Permits", permitMetrics.views7d + permitMetrics.prints7d, "ok", "info")}
+        </a>
         <a class="admin-ov-summary-card admin-ov-card-navy" href="/admin/dashboard?view=permit-analytics">
           <div class="admin-ov-summary-top">
             <span class="admin-ov-summary-icon" aria-hidden="true">${ovIcon(`<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10"/><path d="M7 12h6"/>`)}</span>
-            <p class="admin-ov-summary-label">Route permits</p>
+            <p class="admin-ov-summary-label">PTA permits</p>
           </div>
           <p class="admin-ov-summary-value">${permitList.length}</p>
           <p class="admin-ov-summary-sub">${permits.active + permits.renewal} valid · live plus local drafts</p>
@@ -371,15 +526,6 @@ export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = [
           <p class="admin-ov-summary-value">${rtaList.length}</p>
           <p class="admin-ov-summary-sub">${rtaPermits.active + rtaPermits.renewal} valid · live plus local drafts</p>
           ${summaryPills("Live", rtaPublish.live, "Expiring ≤30d", rtaPermits.expiring, "ok", "warn")}
-        </a>
-        <a class="admin-ov-summary-card admin-ov-card-orange" href="/admin/dashboard?view=analytics">
-          <div class="admin-ov-summary-top">
-            <span class="admin-ov-summary-icon" aria-hidden="true">${ovIcon(`<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`)}</span>
-            <p class="admin-ov-summary-label">Public activity</p>
-          </div>
-          <p class="admin-ov-summary-value">${overall.views7d + overall.prints7d}</p>
-          <p class="admin-ov-summary-sub">Last 7 days on this device · fitness, PTA, and RTA</p>
-          ${summaryPills("Fitness", fitnessMetrics.views7d + fitnessMetrics.prints7d, "Permits", permitMetrics.views7d + permitMetrics.prints7d, "ok", "info")}
         </a>
       </div>
 
@@ -529,6 +675,43 @@ export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = [
           </ul>
         </section>
       </div>
+      </div>
+      <aside class="admin-ov-wing admin-ov-wing-right" aria-label="Staff notes">
+        <section class="admin-ov-wing-card">
+          <h3 class="admin-ov-wing-heading">Staff workflow</h3>
+          <ol class="admin-ov-wing-steps">
+            <li>Open a registry and issue or edit a record.</li>
+            <li>Save — fitness, PTA, and RTA stay in separate systems.</li>
+            <li>Print uses the official paper layout and a Dastak QR for public preview.</li>
+          </ol>
+        </section>
+        <section class="admin-ov-wing-card">
+          <h3 class="admin-ov-wing-heading">Last 7 days</h3>
+          <p class="admin-ov-wing-note">Views and prints on this browser</p>
+          <div class="admin-ov-wing-stats">
+            <div>
+              <span>Fitness</span>
+              <strong>${fitnessMetrics.views7d + fitnessMetrics.prints7d}</strong>
+            </div>
+            <div>
+              <span>PTA</span>
+              <strong>${permitMetrics.views7d + permitMetrics.prints7d}</strong>
+            </div>
+            <div>
+              <span>RTA</span>
+              <strong>${rtaMetrics.views7d + rtaMetrics.prints7d}</strong>
+            </div>
+          </div>
+        </section>
+        <section class="admin-ov-wing-card">
+          <h3 class="admin-ov-wing-heading">Expiring soon</h3>
+          <div class="admin-ov-wing-expire-list">${wingExpiring}</div>
+        </section>
+        <section class="admin-ov-wing-card">
+          <h3 class="admin-ov-wing-heading">Validity</h3>
+          <p class="admin-ov-wing-copy">Fitness follows the certificate expiry date. PTA and RTA route permits stay valid for 3 years from the issue date.</p>
+        </section>
+      </aside>
     </div>
   `;
 }
