@@ -663,7 +663,7 @@ function adminRailLinkContent(icon, label) {
 
 function adminRailServiceSummary(icon, title, hint) {
   return `
-    <summary class="admin-rail-menu-summary">
+    <summary class="admin-rail-menu-summary" aria-label="${title}">
       <span class="admin-rail-service-icon">${icon}</span>
       <span class="admin-rail-service-copy">
         <span class="admin-rail-menu-title">${title}</span>
@@ -674,11 +674,22 @@ function adminRailServiceSummary(icon, title, hint) {
   `;
 }
 
+function adminContextIcon(activeView) {
+  if (activeView === "analytics" || activeView === "permit-analytics" || activeView === "rta-permit-analytics") {
+    return iconAnalytics();
+  }
+  if (activeView === "registry" || activeView === "certificates") return iconCertificate();
+  if (activeView === "permits" || activeView === "permit-editor") return iconRoutePermit();
+  if (activeView === "rta-permits" || activeView === "rta-permit-editor") return iconRtaPermit();
+  return iconDashboard();
+}
+
 function adminRailNav(activeView) {
   const editorOpen = activeView === "certificates";
   const certsActive = activeView === "registry" || activeView === "analytics" || editorOpen;
   const permitsActive = activeView === "permits" || activeView === "permit-editor" || activeView === "permit-analytics";
   const rtaActive = activeView === "rta-permits" || activeView === "rta-permit-editor" || activeView === "rta-permit-analytics";
+  const railOpen = window.matchMedia("(max-width: 767px)").matches ? "" : " open";
 
   const link = (href, label, icon, active, tone = "") =>
     `<a class="admin-rail-link${active ? " is-active" : ""}${tone ? ` admin-rail-tone-${tone}` : ""}" href="${href}">${adminRailLinkContent(icon, label)}</a>`;
@@ -691,7 +702,7 @@ function adminRailNav(activeView) {
 
       <div class="admin-rail-workspace">
         <p class="admin-rail-section-label">Workspace</p>
-        <details class="admin-rail-menu admin-rail-service admin-rail-service-certs${certsActive ? " is-active" : ""}"${certsActive ? " open" : ""}>
+        <details class="admin-rail-menu admin-rail-service admin-rail-service-certs${certsActive ? " is-active" : ""}"${certsActive ? railOpen : ""}>
           ${adminRailServiceSummary(iconCertificate(), "Certificates", "Fitness records")}
           <nav class="admin-rail-subnav" aria-label="Certificate workspace">
             ${link("/admin/dashboard?view=registry", "Registry", iconRegistry(), activeView === "registry")}
@@ -706,7 +717,7 @@ function adminRailNav(activeView) {
             }
           </nav>
         </details>
-        <details class="admin-rail-menu admin-rail-service admin-rail-service-permits${permitsActive ? " is-active" : ""}"${permitsActive ? " open" : ""}>
+        <details class="admin-rail-menu admin-rail-service admin-rail-service-permits${permitsActive ? " is-active" : ""}"${permitsActive ? railOpen : ""}>
           ${adminRailServiceSummary(iconRoutePermit(), "PTA Permits", "Provincial permits")}
           <nav class="admin-rail-subnav" aria-label="PTA permit workspace">
             ${link("/admin/dashboard?view=permits", "Registry", iconRegistry(), activeView === "permits" || activeView === "permit-editor")}
@@ -716,7 +727,7 @@ function adminRailNav(activeView) {
             </button>
           </nav>
         </details>
-        <details class="admin-rail-menu admin-rail-service admin-rail-service-rta${rtaActive ? " is-active" : ""}"${rtaActive ? " open" : ""}>
+        <details class="admin-rail-menu admin-rail-service admin-rail-service-rta${rtaActive ? " is-active" : ""}"${rtaActive ? railOpen : ""}>
           ${adminRailServiceSummary(iconRtaPermit(), "RTA Permits", "Regional permits")}
           <nav class="admin-rail-subnav" aria-label="RTA permit workspace">
             ${link("/admin/dashboard?view=rta-permits", "Registry", iconRegistry(), activeView === "rta-permits" || activeView === "rta-permit-editor")}
@@ -799,7 +810,7 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
       <div class="admin-frame${activeView === "overview" ? " admin-frame-overview" : ""}">
         <header class="admin-context-bar">
           <div class="admin-context-text">
-            <h1 class="admin-context-title">${pageTitle}</h1>
+            <h1 class="admin-context-title"><span class="admin-title-icon">${adminContextIcon(activeView)}</span>${pageTitle}</h1>
             <p class="admin-context-lead">${pageLead}</p>
           </div>
           <div class="admin-context-aside">
@@ -1882,8 +1893,8 @@ function updateRegistryBulkBar() {
 function renderRegistryTools() {
   return `
     <div class="admin-registry-tools-body">
-      <button class="admin-list-tool" type="button" data-action="export-json">Export JSON</button>
-      <button class="admin-list-tool" type="button" data-action="export-csv">Export CSV</button>
+      <button class="admin-list-tool" type="button" data-action="export-json">${iconDownload()} Export JSON</button>
+      <button class="admin-list-tool" type="button" data-action="export-csv">${iconDownload()} Export CSV</button>
       <label class="admin-list-tool import-label">
         Import JSON
         <input type="file" accept="application/json,.json" data-import="json" hidden />
@@ -1916,7 +1927,7 @@ function renderCertSidebar(activeToken, { fullPage = false } = {}) {
     <aside class="admin-list-panel${panelClass}" id="admin-registry-panel">
       <div class="admin-list-panel-head">
         <div>
-          <h2 class="admin-list-panel-title">${fullPage ? "Certificates" : "Registry"}</h2>
+          <h2 class="admin-list-panel-title"><span class="admin-title-icon">${iconRegistry()}</span>${fullPage ? "Certificates" : "Registry"}</h2>
           <p class="admin-list-panel-count" id="cert-list-count">Loading…</p>
         </div>
         ${
@@ -2455,7 +2466,7 @@ function renderActivityChart(buckets, periodDays) {
     <section class="analytics-panel analytics-chart">
       <div class="analytics-chart-head">
         <div>
-          <h3 class="analytics-panel-title">Daily activity</h3>
+          <h3 class="analytics-panel-title"><span class="admin-title-icon">${iconChart()}</span>Daily activity</h3>
           <p class="analytics-panel-desc">Last ${periodDays} days on this browser</p>
         </div>
         <ul class="analytics-legend">
@@ -2500,7 +2511,7 @@ function renderEventMixPanel(mix, kind = "fitness") {
     .join("");
   return `
     <section class="analytics-panel analytics-mix">
-      <h3 class="analytics-panel-title">Event mix</h3>
+      <h3 class="analytics-panel-title"><span class="admin-title-icon">${iconActivity()}</span>Event mix</h3>
       <p class="analytics-panel-desc">${mix.total} event${mix.total === 1 ? "" : "s"} in this window</p>
       ${
         mix.total
@@ -2723,7 +2734,7 @@ function renderAnalyticsDashboard(kind = "fitness") {
         </div>
         <div class="analytics-toolbar-actions">
           <button class="analytics-tool-btn" type="button" data-action="analytics-export">${iconDownload()} Export CSV</button>
-          <button class="analytics-tool-btn analytics-tool-btn-muted" type="button" data-action="analytics-clear">Clear log</button>
+          <button class="analytics-tool-btn analytics-tool-btn-muted" type="button" data-action="analytics-clear">${iconTrash()} Clear log</button>
         </div>
       </div>
 
@@ -2778,7 +2789,7 @@ function renderAnalyticsDashboard(kind = "fitness") {
         <section class="analytics-panel">
           <div class="analytics-panel-head">
             <div>
-              <h3 class="analytics-panel-title">By district</h3>
+              <h3 class="analytics-panel-title"><span class="admin-title-icon">${iconGlobe()}</span>By district</h3>
               <p class="analytics-panel-desc">${districtDesc}</p>
             </div>
           </div>
@@ -2787,7 +2798,7 @@ function renderAnalyticsDashboard(kind = "fitness") {
         <section class="analytics-panel">
           <div class="analytics-panel-head">
             <div>
-              <h3 class="analytics-panel-title">Recent activity</h3>
+              <h3 class="analytics-panel-title"><span class="admin-title-icon">${iconActivity()}</span>Recent activity</h3>
               <p class="analytics-panel-desc">Latest events on this device</p>
             </div>
           </div>
@@ -2798,7 +2809,7 @@ function renderAnalyticsDashboard(kind = "fitness") {
       <section class="analytics-table-wrap analytics-panel" id="analytics-table-wrap">
         <div class="analytics-table-head">
           <div>
-            <h3 class="analytics-panel-title">${tableTitle}</h3>
+            <h3 class="analytics-panel-title"><span class="admin-title-icon">${iconRegistry()}</span>${tableTitle}</h3>
             <p class="analytics-panel-desc" id="analytics-table-count">${rows.length} record${rows.length === 1 ? "" : "s"} · click a row to open</p>
           </div>
         </div>
@@ -3624,6 +3635,7 @@ let listPermitRegistryCache = [];
 let listRtaPermitRegistryCache = [];
 let dataActionClickBound = false;
 let adminPwUiBound = false;
+let adminRailMenuBound = false;
 let pdfDownloadInFlight = false;
 let saveInFlight = false;
 let deleteInFlight = false;
@@ -4204,6 +4216,17 @@ async function handleDataActionClick(el, event) {
 }
 
 function bindActions() {
+  if (!adminRailMenuBound) {
+    adminRailMenuBound = true;
+    document.addEventListener("click", (event) => {
+      if (!window.matchMedia("(max-width: 767px)").matches) return;
+      const service = event.target.closest(".admin-rail-service");
+      document.querySelectorAll(".admin-rail .admin-rail-service[open]").forEach((el) => {
+        if (el !== service) el.open = false;
+      });
+    });
+  }
+
   if (!adminPwUiBound) {
     adminPwUiBound = true;
     document.addEventListener("click", (event) => {

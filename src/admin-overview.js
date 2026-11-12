@@ -416,7 +416,7 @@ export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = [
       <section class="admin-ov-panel admin-ov-chart-panel">
         <div class="admin-ov-chart-head">
           <div>
-            <h3 class="admin-ov-panel-title">Last 7 days</h3>
+            <h3 class="admin-ov-panel-title"><span class="admin-title-icon">${ovIcon(`<path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-9"/>`)}</span>Last 7 days</h3>
             <p class="admin-ov-panel-desc">Views and prints on this browser</p>
           </div>
           <ul class="admin-ov-chart-legend">
@@ -431,7 +431,7 @@ export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = [
         <section class="admin-ov-panel">
           <div class="admin-ov-panel-head">
             <div>
-              <h3 class="admin-ov-panel-title">Recent activity</h3>
+              <h3 class="admin-ov-panel-title"><span class="admin-title-icon">${ovIcon(`<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`)}</span>Recent activity</h3>
               <p class="admin-ov-panel-desc">Latest on this device</p>
             </div>
             <a class="admin-ov-link-more" href="/admin/dashboard?view=analytics">Analytics</a>
@@ -441,7 +441,7 @@ export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = [
         <section class="admin-ov-panel">
           <div class="admin-ov-panel-head">
             <div>
-              <h3 class="admin-ov-panel-title">Expiring soon</h3>
+              <h3 class="admin-ov-panel-title"><span class="admin-title-icon">${ovIcon(`<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>`)}</span>Expiring soon</h3>
               <p class="admin-ov-panel-desc">Within the next 30 days</p>
             </div>
             <a class="admin-ov-link-more" href="/admin/dashboard?view=analytics&filter=expiring">Analytics</a>

@@ -325,10 +325,10 @@ export function renderPermitRegistry(items) {
       <section class="admin-list-panel admin-list-panel-full">
         <div class="admin-list-panel-head">
           <div>
-            <h2 class="admin-list-title">PTA permit registry</h2>
+            <h2 class="admin-list-panel-title"><span class="admin-title-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10"/><path d="M7 12h6"/></svg></span>PTA permit registry</h2>
             <p class="admin-list-lead">Search and open a permit. Fitness certificates stay in their own registry.</p>
           </div>
-          <button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-permit">New permit</button>
+          <button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-permit">+ New permit</button>
         </div>
         <div class="cert-list" id="permit-list">
           ${

@@ -2706,7 +2706,8 @@ html[data-theme="dark"] .fitness-badge-danger {
   .admin-rail-tagline,
   .admin-rail-wordmark,
   .admin-rail-section-label,
-  .admin-rail-menu-summary,
+  .admin-rail-service-copy,
+  .admin-rail-chevron,
   .admin-rail-foot .admin-rail-section-label,
   .admin-rail-foot .theme-toggle-label,
   .admin-rail-link-label,
@@ -2714,12 +2715,31 @@ html[data-theme="dark"] .fitness-badge-danger {
     display: none;
   }
 
+  .admin-rail-menu-summary {
+    display: flex;
+    justify-content: center;
+    padding: 8px 6px;
+    border-radius: 12px;
+  }
+
+  .admin-rail-service.is-active > .admin-rail-menu-summary {
+    background: var(--admin-rail-active-bg, #e4f4ee);
+    color: var(--admin-rail-active-text, #12a87c);
+  }
+
+  .admin-shell.admin-ui-v2 .admin-rail,
+  .admin-rail-body,
+  .admin-rail-workspace,
+  .admin-rail-service {
+    overflow: visible;
+  }
+
   .admin-rail-body {
     flex: 1;
     flex-direction: row;
     align-items: center;
     gap: 2px;
-    overflow-x: auto;
+    overflow: visible;
   }
 
   .admin-rail-primary {
@@ -2738,19 +2758,34 @@ html[data-theme="dark"] .fitness-badge-danger {
   }
 
   .admin-rail-service {
+    position: relative;
     padding: 0;
     border: none;
     background: transparent;
     box-shadow: none;
-    flex: 1;
+    flex: 0 0 auto;
   }
 
-  .admin-rail-subnav {
-    flex-direction: row;
-    border: none;
+  .admin-rail-service[open] > .admin-rail-subnav {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 0;
+    min-width: 196px;
     margin: 0;
-    padding: 0;
-    gap: 0;
+    padding: 6px;
+    gap: 2px;
+    border: 1px solid var(--admin-rail-border, #dfe3ea);
+    border-radius: 14px;
+    background: var(--admin-rail-bg, #fff);
+    box-shadow: 0 18px 40px rgba(16, 20, 24, 0.16);
+    z-index: 60;
+  }
+
+  .admin-rail-service-rta[open] > .admin-rail-subnav {
+    left: auto;
+    right: 0;
   }
 
   .admin-rail-body .admin-rail-link {
@@ -2758,6 +2793,13 @@ html[data-theme="dark"] .fitness-badge-danger {
     justify-content: center;
     min-width: 44px;
     padding: 8px 6px;
+  }
+
+  .admin-rail-service[open] > .admin-rail-subnav .admin-rail-link {
+    flex: none;
+    justify-content: flex-start;
+    min-width: 0;
+    padding: 10px 12px;
   }
 
   .admin-rail-nav {
@@ -3475,6 +3517,37 @@ html[data-theme="dark"] .admin-pw-error {
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--text-dark);
+}
+
+.admin-ui-v2 .admin-context-title,
+.admin-ui-v2 .admin-list-panel-title,
+.admin-ui-v2 .admin-ov-panel-title,
+.admin-ui-v2 .analytics-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-title-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent, #20d098) 16%, #fff);
+  color: var(--accent-deep, #12a87c);
+}
+
+.admin-title-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+html[data-theme="dark"] .admin-title-icon {
+  background: #1a2e28;
+  color: #9fd7c6;
 }
 
 .admin-context-lead {
@@ -4928,8 +5001,18 @@ html[data-theme="dark"] .admin-login-services li {
 }
 
 .admin-ui-v2 .admin-list-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   padding: 8px 14px;
+}
+
+.admin-ui-v2 .admin-list-tool svg,
+.analytics-tool-btn svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
 }
 
 .admin-ui-v2 .cert-list-avatar {
@@ -5097,7 +5180,7 @@ html[data-theme="dark"] .admin-login-services li {
   padding: 8px 16px;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1100px) and (min-width: 768px) {
   .admin-shell.admin-ui-v2 {
     grid-template-columns: 72px minmax(0, 1fr);
   }
@@ -6475,7 +6558,8 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
 }
 
 .admin-ov-hello {
-  min-width: 0;
+  flex: 1 1 180px;
+  min-width: 160px;
 }
 
 .admin-ov-clock {
@@ -8475,5 +8559,250 @@ html[data-theme="dark"] .app-shell.cert-preview-page .navbar {
   .permit-preview-title {
     font-size: 24px;
     line-height: 1.2;
+  }
+}
+
+@keyframes admin-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes admin-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes admin-bar-rise {
+  from {
+    transform: scaleY(0.35);
+    opacity: 0.45;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .admin-shell .admin-frame-body > .admin-overview-page,
+  .admin-shell .admin-frame-body > .admin-registry-page,
+  .admin-shell .admin-frame-body > .analytics-page,
+  .admin-shell .admin-frame-body > .admin-editor-page {
+    animation: admin-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .admin-shell .admin-ov-summary-card,
+  .admin-shell .admin-ov-panel,
+  .admin-shell .analytics-summary-card,
+  .admin-shell .analytics-v3 .analytics-panel,
+  .admin-shell .admin-form-panel:not(.admin-form-panel-collapsible) {
+    animation: admin-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .admin-shell .admin-ov-summary-card:nth-child(2),
+  .admin-shell .analytics-summary-card:nth-child(2) {
+    animation-delay: 0.06s;
+  }
+
+  .admin-shell .admin-ov-summary-card:nth-child(3),
+  .admin-shell .analytics-summary-card:nth-child(3) {
+    animation-delay: 0.12s;
+  }
+
+  .admin-shell .admin-ov-chart-stack,
+  .admin-shell .analytics-bar-stack {
+    transform-origin: bottom center;
+    animation: admin-bar-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .admin-pw-card,
+  .admin-rail-service[open] > .admin-rail-subnav {
+    animation: admin-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .admin-login-services li {
+    animation: admin-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .admin-login-services li:nth-child(2) {
+    animation-delay: 0.06s;
+  }
+
+  .admin-login-services li:nth-child(3) {
+    animation-delay: 0.12s;
+  }
+
+  .admin-ui-v2 .admin-rail-link-icon,
+  .admin-ui-v2 .admin-title-icon,
+  .admin-ui-v2 .admin-ov-summary-icon {
+    transition: transform 0.18s ease;
+  }
+
+  .admin-ui-v2 .admin-rail-link:hover .admin-rail-link-icon,
+  .admin-ui-v2 .admin-ov-summary-card:hover .admin-ov-summary-icon,
+  .admin-ui-v2 .analytics-summary-card:hover .analytics-summary-icon {
+    transform: scale(1.08);
+  }
+}
+
+@media (max-width: 767px) {
+  .admin-shell.admin-ui-v2 {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-shell.admin-ui-v2 .admin-rail {
+    position: fixed;
+    z-index: 40;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    width: 100%;
+    min-height: 0;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    border-right: none;
+    border-top: 1px solid var(--admin-rail-border, #dfe3ea);
+  }
+
+  .admin-rail-brand-block {
+    padding: 0;
+    margin: 0;
+    border: none;
+  }
+
+  .admin-rail-body,
+  .admin-rail-workspace,
+  .admin-rail-foot,
+  .admin-rail-primary {
+    flex-direction: row;
+    align-items: center;
+    overflow: visible;
+  }
+
+  .admin-rail-foot {
+    padding: 0;
+    margin: 0;
+    border: none;
+    gap: 4px;
+  }
+
+  .admin-frame {
+    padding-bottom: 84px;
+  }
+
+  .admin-rail-wordmark,
+  .admin-rail-tagline,
+  .admin-rail-section-label,
+  .admin-rail-service-copy,
+  .admin-rail-chevron,
+  .admin-rail-link-label,
+  .admin-rail-foot .theme-toggle-label,
+  .admin-rail-link-static {
+    display: none;
+  }
+
+  .admin-ui-v2 .admin-frame-body {
+    padding: 16px 14px 24px;
+  }
+
+  .admin-ui-v2 .admin-context-bar {
+    padding: 14px 16px;
+  }
+
+  .admin-ov-greet {
+    font-size: 1.45rem;
+  }
+
+  .admin-ov-head-lead {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-ov-clock {
+    align-items: flex-start;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-ov-clock-time {
+    font-size: 1.45rem;
+  }
+
+  .admin-ov-head-lead,
+  .admin-ov-panel,
+  .admin-editor-hero {
+    padding: 16px;
+  }
+
+  .admin-pw-card {
+    max-height: min(640px, calc(100vh - 108px));
+    overflow: auto;
+  }
+
+  .admin-pw-actions {
+    flex-direction: column;
+  }
+
+  .admin-pw-actions .btn,
+  .admin-pw-reset {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .analytics-toolbar-actions {
+    width: 100%;
+  }
+
+  .analytics-toolbar-actions .analytics-tool-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .admin-rail-service[open] > .admin-rail-subnav .admin-rail-link {
+    justify-content: flex-start;
+    padding: 10px 12px;
+  }
+
+  .admin-rail-service[open] > .admin-rail-subnav .admin-rail-link-label {
+    display: inline;
+  }
+
+  .admin-editor-title {
+    font-size: 1.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell .admin-frame-body > .admin-overview-page,
+  .admin-shell .admin-frame-body > .admin-registry-page,
+  .admin-shell .admin-frame-body > .analytics-page,
+  .admin-shell .admin-frame-body > .admin-editor-page,
+  .admin-shell .admin-ov-summary-card,
+  .admin-shell .admin-ov-panel,
+  .admin-shell .analytics-summary-card,
+  .admin-shell .analytics-v3 .analytics-panel,
+  .admin-shell .admin-form-panel,
+  .admin-shell .admin-ov-chart-stack,
+  .admin-shell .analytics-bar-stack,
+  .admin-pw-card,
+  .admin-rail-service[open] > .admin-rail-subnav,
+  .admin-login-services li {
+    animation: none;
   }
 }
