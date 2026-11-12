@@ -4,7 +4,16 @@ import "./permit-print.css";
 import { hideAppLoader, showAppLoader } from "./loader.js";
 import { showSaveProgress, showAdminProgress, hideSaveProgress, setSaveFormBusy } from "./save-progress.js";
 import { applyTheme, syncThemeToggleUI, themeToggleButton, toggleTheme } from "./theme.js";
-import { isAdminLoggedIn, loginAdmin, logoutAdmin, requireAdmin } from "./admin.js";
+import {
+  isAdminLoggedIn,
+  loginAdmin,
+  logoutAdmin,
+  requireAdmin,
+  startAdminIdleGuard,
+  stopAdminIdleGuard,
+  consumeIdleLogoutNotice,
+  markIdleLogout,
+} from "./admin.js";
 import {
   FIELD_LABELS,
   FOLLOW_TOKEN,
@@ -4008,7 +4017,7 @@ async function handleDataActionClick(el, event) {
   }
   if (action === "admin-logout") {
     logoutAdmin();
-    navigate("/admin");
+    navigate("/admin", { skipDirtyCheck: true });
   }
   if (action === "print-a4") window.print();
   if (action === "feedback") showToast("Feedback is not enabled in this app.");
@@ -4087,6 +4096,9 @@ function bindActions() {
 
   const loginForm = document.getElementById("admin-login-form");
   if (loginForm) {
+    if (consumeIdleLogoutNotice()) {
+      showToast("Signed out after 2 minutes idle");
+    }
     loginForm.addEventListener("submit", (event) => {
       event.preventDefault();
       const password = loginForm.querySelector('[name="password"]')?.value ?? "";
@@ -4474,6 +4486,16 @@ async function render() {
   } else if (publishHealthTimer) {
     window.clearInterval(publishHealthTimer);
     publishHealthTimer = null;
+  }
+
+  if (isAdminLoggedIn()) {
+    startAdminIdleGuard(() => {
+      markIdleLogout();
+      logoutAdmin();
+      navigate("/admin", { skipDirtyCheck: true });
+    });
+  } else {
+    stopAdminIdleGuard();
   }
 
   const certReminder = document.getElementById("cert-expiry-reminder");
