@@ -1,4 +1,5 @@
 const SESSION_KEY = "dastak:admin-session";
+const PASSWORD_STORAGE_KEY = "dastak:admin-password";
 const IDLE_LOGOUT_FLAG = "dastak:idle-logout";
 const IDLE_MS = 2 * 60 * 1000;
 const MAX_SESSION_MS = 8 * 60 * 60 * 1000;
@@ -6,8 +7,73 @@ const IDLE_CHECK_MS = 1000;
 const TOUCH_THROTTLE_MS = 1000;
 const ACTIVITY_EVENTS = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "click", "wheel"];
 
-function adminPassword() {
+export const MIN_ADMIN_PASSWORD_LENGTH = 6;
+
+function defaultAdminPassword() {
   return import.meta.env.VITE_ADMIN_PASSWORD || "dastak-admin";
+}
+
+function readStoredAdminPassword() {
+  try {
+    const raw = localStorage.getItem(PASSWORD_STORAGE_KEY);
+    if (!raw) return "";
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === "string") return parsed;
+      return String(parsed?.password ?? "");
+    } catch {
+      return raw;
+    }
+  } catch {
+    return "";
+  }
+}
+
+function adminPassword() {
+  return readStoredAdminPassword() || defaultAdminPassword();
+}
+
+export function hasCustomAdminPassword() {
+  return Boolean(readStoredAdminPassword());
+}
+
+export function changeAdminPassword({ current, next, confirm }) {
+  if (current !== adminPassword()) {
+    return { ok: false, error: "Current password is incorrect" };
+  }
+  if (typeof next !== "string" || next.length < MIN_ADMIN_PASSWORD_LENGTH) {
+    return { ok: false, error: `New password must be at least ${MIN_ADMIN_PASSWORD_LENGTH} characters` };
+  }
+  if (next !== confirm) {
+    return { ok: false, error: "New passwords do not match" };
+  }
+  if (next === current) {
+    return { ok: false, error: "New password must be different" };
+  }
+  try {
+    localStorage.setItem(PASSWORD_STORAGE_KEY, JSON.stringify({ password: next }));
+  } catch {
+    return { ok: false, error: "Could not save the new password on this computer" };
+  }
+  return { ok: true };
+}
+
+export function resetAdminPassword(current) {
+  if (!current) {
+    return { ok: false, error: "Enter the current password to reset" };
+  }
+  if (current !== adminPassword()) {
+    return { ok: false, error: "Current password is incorrect" };
+  }
+  if (!hasCustomAdminPassword()) {
+    return { ok: false, error: "Already using the default password" };
+  }
+  try {
+    localStorage.removeItem(PASSWORD_STORAGE_KEY);
+  } catch {
+    return { ok: false, error: "Could not reset the password on this computer" };
+  }
+  return { ok: true };
 }
 
 function readSession() {
@@ -76,7 +142,7 @@ export function loginAdmin(password) {
     createdAt: now,
     lastActivityAt: now,
     expiresAt: now + IDLE_MS,
-    syncKey: password,
+    syncKey: defaultAdminPassword(),
   });
   return true;
 }
@@ -84,7 +150,7 @@ export function loginAdmin(password) {
 export function getAdminSyncKey() {
   const session = readSession();
   if (session?.syncKey) return session.syncKey;
-  return adminPassword();
+  return defaultAdminPassword();
 }
 
 export function logoutAdmin() {

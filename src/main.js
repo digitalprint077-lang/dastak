@@ -13,6 +13,10 @@ import {
   stopAdminIdleGuard,
   consumeIdleLogoutNotice,
   markIdleLogout,
+  changeAdminPassword,
+  resetAdminPassword,
+  hasCustomAdminPassword,
+  MIN_ADMIN_PASSWORD_LENGTH,
 } from "./admin.js";
 import {
   FIELD_LABELS,
@@ -784,6 +788,9 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
         <div class="admin-rail-foot">
           <p class="admin-rail-section-label">Account</p>
           <div class="admin-rail-theme">${themeToggleButton()}</div>
+          <button class="admin-rail-link admin-rail-link-btn admin-rail-password" type="button" data-action="admin-open-password">
+            ${adminRailLinkContent(iconLock(), "Password")}
+          </button>
           <button class="admin-rail-link admin-rail-link-btn admin-rail-logout" type="button" data-action="admin-logout">
             ${adminRailLinkContent(iconLogout(), "Log out")}
           </button>
@@ -831,8 +838,149 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
         </main>
       </div>
       <div class="toast" id="toast"></div>
+      ${adminPasswordDialogHtml()}
     </div>
   `;
+}
+
+function adminPasswordField({ id, name, label, autocomplete }) {
+  return `
+    <label class="form-field" for="${id}">
+      <span class="form-label">${label}</span>
+      <div class="form-input-wrap admin-login-pw-wrap">
+        <span class="form-field-icon" aria-hidden="true">${iconLock()}</span>
+        <input
+          id="${id}"
+          class="form-control"
+          name="${name}"
+          type="password"
+          autocomplete="${autocomplete}"
+          required
+        />
+        <button class="admin-login-pw-toggle" type="button" data-action="admin-pw-toggle" data-pw-target="${id}" aria-label="Show password">
+          ${iconPreview()}
+        </button>
+      </div>
+    </label>
+  `;
+}
+
+function adminPasswordDialogHtml() {
+  const custom = hasCustomAdminPassword();
+  return `
+    <div id="admin-pw-overlay" class="admin-pw-overlay" hidden>
+      <div class="admin-pw-card" role="dialog" aria-modal="true" aria-labelledby="admin-pw-title">
+        <div class="admin-pw-head">
+          <span class="admin-pw-icon" aria-hidden="true">${iconLock()}</span>
+          <div class="admin-pw-copy">
+            <h2 id="admin-pw-title" class="admin-pw-title">Change password</h2>
+            <p class="admin-pw-lead">Saved on this computer. Use it the next time you sign in.</p>
+          </div>
+        </div>
+        ${custom ? `<p class="admin-pw-status">Custom password is on</p>` : ""}
+        <form id="admin-pw-form" class="admin-pw-form" autocomplete="off">
+          ${adminPasswordField({
+            id: "admin-pw-current",
+            name: "current",
+            label: "Current password",
+            autocomplete: "current-password",
+          })}
+          ${adminPasswordField({
+            id: "admin-pw-next",
+            name: "next",
+            label: "New password",
+            autocomplete: "new-password",
+          })}
+          ${adminPasswordField({
+            id: "admin-pw-confirm",
+            name: "confirm",
+            label: "Confirm new password",
+            autocomplete: "new-password",
+          })}
+          <p class="admin-pw-hint">At least ${MIN_ADMIN_PASSWORD_LENGTH} characters.</p>
+          <p class="admin-pw-error" id="admin-pw-error" role="alert" hidden></p>
+          <div class="admin-pw-actions">
+            <button class="btn btn-primary" type="submit">Save password</button>
+            <button class="btn btn-ghost" type="button" data-action="admin-close-password">Cancel</button>
+            ${
+              custom
+                ? `<button class="btn btn-outline admin-pw-reset" type="button" data-action="admin-reset-password">Reset default</button>`
+                : ""
+            }
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function setAdminPasswordError(message) {
+  const el = document.getElementById("admin-pw-error");
+  if (!el) return;
+  if (!message) {
+    el.hidden = true;
+    el.textContent = "";
+    return;
+  }
+  el.hidden = false;
+  el.textContent = message;
+}
+
+function openAdminPasswordDialog() {
+  const overlay = document.getElementById("admin-pw-overlay");
+  if (!overlay) return;
+  overlay.hidden = false;
+  setAdminPasswordError("");
+  const form = document.getElementById("admin-pw-form");
+  form?.reset();
+  form?.querySelectorAll("input").forEach((input) => {
+    input.type = "password";
+  });
+  overlay.querySelectorAll("[data-action='admin-pw-toggle']").forEach((btn) => {
+    btn.innerHTML = iconPreview();
+    btn.setAttribute("aria-label", "Show password");
+  });
+  window.setTimeout(() => document.getElementById("admin-pw-current")?.focus(), 0);
+}
+
+function closeAdminPasswordDialog() {
+  const overlay = document.getElementById("admin-pw-overlay");
+  if (!overlay || overlay.hidden) return;
+  document.getElementById("admin-pw-form")?.reset();
+  setAdminPasswordError("");
+  overlay.hidden = true;
+}
+
+function refreshAdminPasswordDialog() {
+  const overlay = document.getElementById("admin-pw-overlay");
+  if (!overlay) return;
+  overlay.outerHTML = adminPasswordDialogHtml();
+}
+
+function submitAdminPasswordChange(form) {
+  const current = form.querySelector('[name="current"]')?.value ?? "";
+  const next = form.querySelector('[name="next"]')?.value ?? "";
+  const confirm = form.querySelector('[name="confirm"]')?.value ?? "";
+  const result = changeAdminPassword({ current, next, confirm });
+  if (!result.ok) {
+    setAdminPasswordError(result.error);
+    return;
+  }
+  closeAdminPasswordDialog();
+  refreshAdminPasswordDialog();
+  showToast("Admin password updated");
+}
+
+function submitAdminPasswordReset(form) {
+  const current = form.querySelector('[name="current"]')?.value ?? "";
+  const result = resetAdminPassword(current);
+  if (!result.ok) {
+    setAdminPasswordError(result.error);
+    return;
+  }
+  closeAdminPasswordDialog();
+  refreshAdminPasswordDialog();
+  showToast("Password reset to default");
 }
 
 function fieldControl({ id, name, value, multiline = false, inputType = "text", readonly = false, required = false }) {
@@ -3475,6 +3623,7 @@ function navigate(path, { skipDirtyCheck = false } = {}) {
 let listPermitRegistryCache = [];
 let listRtaPermitRegistryCache = [];
 let dataActionClickBound = false;
+let adminPwUiBound = false;
 let pdfDownloadInFlight = false;
 let saveInFlight = false;
 let deleteInFlight = false;
@@ -4019,6 +4168,24 @@ async function handleDataActionClick(el, event) {
     logoutAdmin();
     navigate("/admin", { skipDirtyCheck: true });
   }
+  if (action === "admin-open-password") {
+    openAdminPasswordDialog();
+  }
+  if (action === "admin-close-password") {
+    closeAdminPasswordDialog();
+  }
+  if (action === "admin-reset-password") {
+    const form = document.getElementById("admin-pw-form");
+    if (form) submitAdminPasswordReset(form);
+  }
+  if (action === "admin-pw-toggle") {
+    const input = document.getElementById(el.getAttribute("data-pw-target") || "");
+    if (!input) return;
+    const show = input.type === "password";
+    input.type = show ? "text" : "password";
+    el.innerHTML = show ? iconEyeOff() : iconPreview();
+    el.setAttribute("aria-label", show ? "Hide password" : "Show password");
+  }
   if (action === "print-a4") window.print();
   if (action === "feedback") showToast("Feedback is not enabled in this app.");
   if (action === "help") showToast("Use /admin to manage certificate data.");
@@ -4037,6 +4204,25 @@ async function handleDataActionClick(el, event) {
 }
 
 function bindActions() {
+  if (!adminPwUiBound) {
+    adminPwUiBound = true;
+    document.addEventListener("click", (event) => {
+      if (event.target.id === "admin-pw-overlay") closeAdminPasswordDialog();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      const overlay = document.getElementById("admin-pw-overlay");
+      if (!overlay || overlay.hidden) return;
+      closeAdminPasswordDialog();
+    });
+    document.addEventListener("submit", (event) => {
+      const form = event.target.closest("#admin-pw-form");
+      if (!form) return;
+      event.preventDefault();
+      submitAdminPasswordChange(form);
+    });
+  }
+
   if (!dataActionClickBound) {
     dataActionClickBound = true;
     document.addEventListener("click", (event) => {

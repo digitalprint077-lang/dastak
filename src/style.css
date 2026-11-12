@@ -2787,7 +2787,8 @@ html[data-theme="dark"] .fitness-badge-danger {
     gap: 4px;
   }
 
-  .admin-rail-logout {
+  .admin-rail-logout,
+  .admin-rail-password {
     padding: 8px;
   }
 
@@ -3242,6 +3243,146 @@ html[data-theme="dark"] .admin-rail-service {
   background: color-mix(in srgb, var(--dastak-nectarine, #d7897f) 14%, #fff);
   border-color: color-mix(in srgb, var(--dastak-nectarine, #d7897f) 40%, #fff);
   color: #b86a62;
+}
+
+.admin-pw-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: color-mix(in srgb, #101418 48%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.admin-pw-overlay[hidden] {
+  display: none;
+}
+
+.admin-pw-card {
+  width: min(440px, 100%);
+  background: var(--admin-surface, #fff);
+  border: 1px solid var(--admin-border, #e4e7ec);
+  border-radius: 22px;
+  padding: 24px 24px 22px;
+  box-shadow: 0 28px 64px rgba(16, 20, 24, 0.24);
+}
+
+.admin-pw-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.admin-pw-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--dastak-lagune, #6398a9) 16%, #fff);
+  color: var(--dastak-teal-dark, #3d6e7e);
+}
+
+.admin-pw-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.admin-pw-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 750;
+  color: var(--admin-rail-text, var(--ink));
+}
+
+.admin-pw-lead {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--admin-rail-muted, var(--text-muted));
+}
+
+.admin-pw-status {
+  margin: 0 0 14px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  width: fit-content;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--dastak-teal-dark, #3d6e7e);
+  background: color-mix(in srgb, var(--dastak-menthe, #b7e0d0) 55%, #fff);
+}
+
+.admin-pw-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-pw-form .form-field {
+  margin: 0;
+}
+
+.admin-pw-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--admin-rail-muted, var(--text-muted));
+}
+
+.admin-pw-error {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 650;
+  color: #9b3b34;
+  background: color-mix(in srgb, var(--dastak-nectarine, #d7897f) 18%, #fff);
+}
+
+.admin-pw-error[hidden] {
+  display: none;
+}
+
+.admin-pw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.admin-pw-actions .btn-primary {
+  flex: 1 1 auto;
+  min-height: 44px;
+}
+
+.admin-pw-reset {
+  margin-left: auto;
+}
+
+html[data-theme="dark"] .admin-pw-card {
+  background: #171717;
+  border-color: #2a2a2a;
+}
+
+html[data-theme="dark"] .admin-pw-icon {
+  background: #2a2a2a;
+  color: #9fd7c6;
+}
+
+html[data-theme="dark"] .admin-pw-status {
+  background: #2a2a2a;
+  color: #9fd7c6;
+}
+
+html[data-theme="dark"] .admin-pw-error {
+  background: color-mix(in srgb, #d7897f 22%, #171717);
+  color: #f0b8b2;
 }
 
 .admin-ui-v2 .admin-frame {
@@ -3752,6 +3893,7 @@ html[data-theme="dark"] .admin-hero-chip-draft {
 .admin-ui-v2 .admin-action-btn,
 .admin-ui-v2 .admin-list-tool,
 .admin-ui-v2 .admin-rail-logout,
+.admin-ui-v2 .admin-rail-password,
 .admin-login-submit {
   transition:
     transform 0.16s cubic-bezier(0.34, 1.4, 0.64, 1),
@@ -3766,6 +3908,7 @@ html[data-theme="dark"] .admin-hero-chip-draft {
   .admin-ui-v2 .admin-action-btn,
   .admin-ui-v2 .admin-list-tool,
   .admin-ui-v2 .admin-rail-logout,
+  .admin-ui-v2 .admin-rail-password,
   .admin-login-submit {
     transition: background 0.16s ease, border-color 0.16s ease;
   }
@@ -3774,7 +3917,8 @@ html[data-theme="dark"] .admin-hero-chip-draft {
 .admin-ui-v2 .btn:hover:not(:disabled),
 .admin-ui-v2 .admin-action-btn:hover,
 .admin-ui-v2 .admin-list-tool:hover,
-.admin-ui-v2 .admin-rail-logout:hover {
+.admin-ui-v2 .admin-rail-logout:hover,
+.admin-ui-v2 .admin-rail-password:hover {
   transform: translateY(-2px);
 }
 
@@ -4745,7 +4889,8 @@ html[data-theme="dark"] .admin-login-services li {
   height: 22px;
 }
 
-.admin-ui-v2 .admin-rail-logout {
+.admin-ui-v2 .admin-rail-logout,
+.admin-ui-v2 .admin-rail-password {
   font-size: 15px;
   padding: 12px 14px;
   min-height: 48px;
@@ -5004,7 +5149,8 @@ html[data-theme="dark"] .admin-login-services li {
     padding: 6px;
   }
 
-  .admin-rail-logout {
+  .admin-rail-logout,
+  .admin-rail-password {
     padding: 12px;
   }
 }
