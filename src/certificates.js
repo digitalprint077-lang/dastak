@@ -1,3 +1,4 @@
+import { amountToWords } from "./amount-words.js";
 import { certificatePayloadMatchesSlug, decodeCertificateUrlHash } from "./cert-url-hash.js";
 import {
   buildPublishedBundle,
@@ -135,6 +136,187 @@ export function serviceToCertificateType(service) {
   if (normalized === "New Fitness + Verification") return "NEW FITNESS + VERIFICATION";
   if (normalized === "New Fitness") return "NEW FITNESS";
   return "RENEWAL";
+}
+
+export const VEHICLE_KIND_OPTIONS = ["HTV", "LTV"];
+
+/** Default own fee + monthly late fine for fitness certificates (PKR). */
+export const DEFAULT_FITNESS_FEE = {
+  HTV: { ownFee: 2000, monthlyFine: 600 },
+  LTV: { ownFee: 1500, monthlyFine: 400 },
+};
+
+/** Built-in defaults. Live rates come from getFitnessFeeSchedule(). */
+export const FITNESS_FEE = DEFAULT_FITNESS_FEE;
+
+const FITNESS_FEE_STORAGE_KEY = "dastak:fitness-fees";
+
+function parseFeeAmount(value, fallback) {
+  const n = Math.round(Number(String(value ?? "").replace(/,/g, "").trim()));
+  if (!Number.isFinite(n) || n < 0) return fallback;
+  return n;
+}
+
+function cloneFeeSchedule(source = DEFAULT_FITNESS_FEE) {
+  return {
+    HTV: {
+      ownFee: parseFeeAmount(source?.HTV?.ownFee, DEFAULT_FITNESS_FEE.HTV.ownFee),
+      monthlyFine: parseFeeAmount(source?.HTV?.monthlyFine, DEFAULT_FITNESS_FEE.HTV.monthlyFine),
+    },
+    LTV: {
+      ownFee: parseFeeAmount(source?.LTV?.ownFee, DEFAULT_FITNESS_FEE.LTV.ownFee),
+      monthlyFine: parseFeeAmount(source?.LTV?.monthlyFine, DEFAULT_FITNESS_FEE.LTV.monthlyFine),
+    },
+  };
+}
+
+export function getFitnessFeeSchedule() {
+  try {
+    const raw = localStorage.getItem(FITNESS_FEE_STORAGE_KEY);
+    if (!raw) return cloneFeeSchedule();
+    return cloneFeeSchedule(JSON.parse(raw));
+  } catch {
+    return cloneFeeSchedule();
+  }
+}
+
+export function saveFitnessFeeSchedule(schedule) {
+  const next = cloneFeeSchedule(schedule);
+  localStorage.setItem(FITNESS_FEE_STORAGE_KEY, JSON.stringify(next));
+  return next;
+}
+
+export function resetFitnessFeeSchedule() {
+  localStorage.removeItem(FITNESS_FEE_STORAGE_KEY);
+  return cloneFeeSchedule();
+}
+
+export function normalizeVehicleKind(value) {
+  const v = String(value ?? "").trim().toUpperCase();
+  if (v === "HTV" || v === "LTV") return v;
+  if (/\bHTV\b|HEAVY/.test(v)) return "HTV";
+  if (/\bLTV\b|LIGHT/.test(v)) return "LTV";
+  return v;
+}
+
+export function isFitnessRenewal(serviceOrType) {
+  const service = normalizeServiceType(serviceOrType);
+  if (service === "Renewal") return true;
+  return normalizeCertificateType(serviceOrType) === "RENEWAL";
+}
+
+function parseFeeDate(value) {
+  const iso = toDateInputValue(value);
+  if (!iso) return null;
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** Whole months after previous expiry; a new month starts the day after the same calendar day. */
+export function monthsOverdue(previousExpiry, issueDate) {
+  const from = parseFeeDate(previousExpiry);
+  const to = parseFeeDate(issueDate);
+  if (!from || !to || to <= from) return 0;
+  let months = (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
+  if (to.getDate() > from.getDate()) months += 1;
+  return Math.max(0, months);
+}
+
+export function findPreviousFitnessExpiry(token, registrationNumber) {
+  const regKey = normalizeRegistrationKey(registrationNumber);
+  if (!regKey) return "";
+  let bestIso = "";
+  let bestMs = -1;
+  const tokens = new Set(listSavedTokens());
+  for (const t of Object.keys(getMergedPublishedMap())) tokens.add(t);
+  for (const other of tokens) {
+    if (other === token) continue;
+    const { values } = getCertificateForEdit(other);
+    if (normalizeRegistrationKey(values["Registration Number"]) !== regKey) continue;
+    const iso = toDateInputValue(values["Expiry Date"]);
+    const date = parseFeeDate(iso);
+    if (!date) continue;
+    const ms = date.getTime();
+    if (ms >= bestMs) {
+      bestMs = ms;
+      bestIso = iso;
+    }
+  }
+  return bestIso;
+}
+
+export function formatFitnessRupees(n) {
+  return `Rs ${Number(n).toLocaleString("en-PK")}`;
+}
+
+export function fitnessFeeRatesText(schedule = getFitnessFeeSchedule()) {
+  const htv = schedule.HTV;
+  const ltv = schedule.LTV;
+  return `HTV ${formatFitnessRupees(htv.ownFee)} + ${htv.monthlyFine.toLocaleString("en-PK")}/month · LTV ${formatFitnessRupees(ltv.ownFee)} + ${ltv.monthlyFine.toLocaleString("en-PK")}/month`;
+}
+
+export function computeFitnessFee({
+  kind,
+  service,
+  previousExpiry = "",
+  issueDate = "",
+  months,
+} = {}) {
+  const normalizedKind = normalizeVehicleKind(kind);
+  const schedule = getFitnessFeeSchedule()[normalizedKind];
+  if (!schedule) return null;
+  const renewal = isFitnessRenewal(service);
+  const autoMonths = renewal ? monthsOverdue(previousExpiry, issueDate) : 0;
+  let usedMonths = autoMonths;
+  if (renewal && months != null && months !== "") {
+    const parsed = Math.floor(Number(months));
+    if (Number.isFinite(parsed)) usedMonths = Math.max(0, parsed);
+  }
+  if (!renewal) usedMonths = 0;
+  const fine = renewal ? usedMonths * schedule.monthlyFine : 0;
+  return {
+    kind: normalizedKind,
+    renewal,
+    ownFee: schedule.ownFee,
+    monthlyFine: schedule.monthlyFine,
+    months: usedMonths,
+    autoMonths,
+    fine,
+    amount: schedule.ownFee + fine,
+    previousExpiry: previousExpiry || "",
+  };
+}
+
+export function fitnessFeeHint(fee) {
+  if (!fee) return "";
+  const rs = formatFitnessRupees;
+  if (!fee.renewal) {
+    return `${fee.kind} new fitness: ${rs(fee.ownFee)} own fee.`;
+  }
+  if (fee.months > 0) {
+    const monthLabel = fee.months === 1 ? "month" : "months";
+    return `${fee.kind} renewal: ${rs(fee.ownFee)} own fee + ${rs(fee.monthlyFine)} × ${fee.months} ${monthLabel} = ${rs(fee.amount)}.`;
+  }
+  if (fee.previousExpiry) {
+    return `${fee.kind} renewal: ${rs(fee.ownFee)} own fee. No late months after previous expiry.`;
+  }
+  return `${fee.kind} renewal: ${rs(fee.ownFee)} own fee. Late fine is ${rs(fee.monthlyFine)} per month after previous expiry.`;
+}
+
+export function applyFitnessFee(values, token = "", monthsOverride) {
+  if (!values) return values;
+  const fee = computeFitnessFee({
+    kind: values["Vehicle Kind"],
+    service: values.Service || values["Certificate Type"],
+    previousExpiry: findPreviousFitnessExpiry(token, values["Registration Number"]),
+    issueDate: values["Issue Date"],
+    months: monthsOverride,
+  });
+  if (!fee) return values;
+  values.Amount = String(fee.amount);
+  values["Amount In Words"] = amountToWords(fee.amount);
+  return values;
 }
 
 /** Model year options for admin dropdown (newest first). */
@@ -393,6 +575,7 @@ export function newCertificateTemplate() {
   values["Issue Date"] = issue;
   values["Expiry Date"] = expiryFromIssueDate(issue);
   values["Seating Capacity"] = DEFAULT_SEATING_CAPACITY;
+  applyFitnessFee(values);
   return {
     status: "Issued",
     values,
@@ -435,8 +618,6 @@ const RENEWAL_COPY_LABELS = [
   "Registered Laden Weight",
   "Seating Capacity",
   "Vehicle Fuel Type",
-  "Amount",
-  "Amount In Words",
   "Application Status",
 ];
 
@@ -447,6 +628,9 @@ export function renewCertificateTemplateFrom(sourceToken) {
   for (const label of RENEWAL_COPY_LABELS) {
     if (source.values[label]) fresh.values[label] = source.values[label];
   }
+  fresh.values.Service = "Renewal";
+  fresh.values["Certificate Type"] = "RENEWAL";
+  applyFitnessFee(fresh.values);
   fresh.status = "Issued";
   return fresh;
 }
@@ -726,6 +910,9 @@ export function readFormValues(form) {
   values["Registered Laden Weight"] = readLadenWeightFromForm(form);
   applyCertificateValidity(values);
   applyUppercaseVehicleIdFields(values);
+  const token = form.querySelector('[name="linkToken"]')?.value?.trim() || "";
+  const monthsOverride = form.querySelector("[data-fitness-late-months]")?.value;
+  applyFitnessFee(values, token, monthsOverride);
   return { status, values };
 }
 

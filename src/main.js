@@ -56,9 +56,18 @@ import {
   LADEN_WEIGHT_CUSTOM_FIELD,
   SERVICE_TYPE_OPTIONS,
   CERTIFICATE_TYPE_OPTIONS,
+  VEHICLE_KIND_OPTIONS,
   normalizeServiceType,
   normalizeCertificateType,
+  normalizeVehicleKind,
   serviceToCertificateType,
+  computeFitnessFee,
+  formatFitnessRupees,
+  fitnessFeeRatesText,
+  getFitnessFeeSchedule,
+  saveFitnessFeeSchedule,
+  resetFitnessFeeSchedule,
+  findPreviousFitnessExpiry,
   expiryFromIssueDate,
   compareCertsNewestFirst,
   preferNewerUpdatedAt,
@@ -930,6 +939,23 @@ function fieldInput(label, value, iconKey = label, readonly = false) {
       </label>
     `;
   }
+  if (label === "Vehicle Kind") {
+    return `
+      <label class="form-field" for="${id}">
+        ${adminFieldLabel(label)}
+        <div class="form-input-wrap">
+          <span class="form-field-icon">${fieldIcon(iconKey)}</span>
+          ${fieldSelect({
+            id,
+            name,
+            value: normalizeVehicleKind(displayValue) || VEHICLE_KIND_OPTIONS[0],
+            options: VEHICLE_KIND_OPTIONS,
+            readonly,
+          })}
+        </div>
+      </label>
+    `;
+  }
   if (label === "Service") {
     return `
       <label class="form-field" for="${id}">
@@ -1018,6 +1044,44 @@ function fieldInput(label, value, iconKey = label, readonly = false) {
         </div>
       </label>
     `;
+  }
+  if (label === "Amount") {
+    return `
+    <label class="form-field" for="${id}">
+      ${adminFieldLabel(label)}
+      <div class="form-input-wrap">
+        <span class="form-field-icon">${fieldIcon(iconKey)}</span>
+        ${fieldControl({
+          id,
+          name,
+          value: displayValue,
+          multiline: false,
+          inputType: "text",
+          readonly: true,
+          required: false,
+        })}
+      </div>
+    </label>
+  `;
+  }
+  if (label === "Amount In Words") {
+    return `
+    <label class="form-field form-field-span" for="${id}">
+      ${adminFieldLabel(label)}
+      <div class="form-input-wrap">
+        <span class="form-field-icon">${fieldIcon(iconKey)}</span>
+        ${fieldControl({
+          id,
+          name,
+          value: displayValue,
+          multiline: false,
+          inputType: "text",
+          readonly: true,
+          required: false,
+        })}
+      </div>
+    </label>
+  `;
   }
   if (label === "Expiry Date") {
     return `
@@ -2025,13 +2089,14 @@ function renderFormSections(data) {
     const fields = section.fields
       .map((label) => {
         const html = fieldInput(label, data.values[label] ?? "");
-        return label === "Amount In Words" ? html.replace('class="form-field"', 'class="form-field form-field-span"') : html;
+        return html;
       })
       .join("");
+    const extra = section.title === "Vehicle" ? fitnessFeeCalculatorHtml() : "";
     return `
       <section class="admin-form-panel${panelClass}" id="admin-section-${slug}" data-form-section="${slug}">
         ${renderFormSectionHead(index + 2, section.title, section.desc, toggleBtn)}
-        <div class="form-grid admin-form-panel-body"${bodyHidden}>${fields}</div>
+        <div class="form-grid admin-form-panel-body"${bodyHidden}>${fields}${extra}</div>
       </section>
     `;
   }).join("");
@@ -3069,6 +3134,255 @@ function syncAmountInWords(form, amountRaw) {
   wordsInput.value = amountToWords(amountRaw);
 }
 
+function fitnessFeeCalculatorHtml() {
+  return `
+    <aside class="fitness-fee-calc form-field-span" data-fitness-fee-calc>
+      <div class="fitness-fee-calc-head">
+        <div class="fitness-fee-calc-title-wrap">
+          <span class="fitness-fee-calc-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="2" width="16" height="20" rx="2"/>
+              <path d="M8 6h8"/>
+              <path d="M8 10h.01"/>
+              <path d="M12 10h.01"/>
+              <path d="M16 10h.01"/>
+              <path d="M8 14h.01"/>
+              <path d="M12 14h.01"/>
+              <path d="M16 14h.01"/>
+              <path d="M8 18h.01"/>
+              <path d="M12 18h.01"/>
+              <path d="M16 18h.01"/>
+            </svg>
+          </span>
+          <div>
+            <h4 class="fitness-fee-calc-title">Fee calculator</h4>
+            <p class="fitness-fee-calc-note" data-fee-note>Amount is calculated from vehicle kind and service.</p>
+          </div>
+        </div>
+        <div class="fitness-fee-calc-head-actions">
+          <span class="fitness-fee-calc-badge" data-fee-kind-badge>HTV</span>
+          <button type="button" class="fitness-fee-update-btn" data-action="toggle-fitness-fee-editor" aria-expanded="false">
+            Update fee
+          </button>
+        </div>
+      </div>
+      <div class="fitness-fee-editor" data-fitness-fee-editor hidden>
+        <p class="fitness-fee-editor-title">Update fee rates</p>
+        <p class="fitness-fee-editor-hint">Change these when official prices change. Saved on this computer for all new calculations.</p>
+        <div class="fitness-fee-editor-grid">
+          <fieldset class="fitness-fee-editor-kind">
+            <legend>HTV</legend>
+            <label class="fitness-fee-editor-field">
+              <span>Own fee</span>
+              <input class="form-control" type="number" min="0" step="1" inputmode="numeric" data-fee-edit="HTV.ownFee" />
+            </label>
+            <label class="fitness-fee-editor-field">
+              <span>Monthly fine</span>
+              <input class="form-control" type="number" min="0" step="1" inputmode="numeric" data-fee-edit="HTV.monthlyFine" />
+            </label>
+          </fieldset>
+          <fieldset class="fitness-fee-editor-kind">
+            <legend>LTV</legend>
+            <label class="fitness-fee-editor-field">
+              <span>Own fee</span>
+              <input class="form-control" type="number" min="0" step="1" inputmode="numeric" data-fee-edit="LTV.ownFee" />
+            </label>
+            <label class="fitness-fee-editor-field">
+              <span>Monthly fine</span>
+              <input class="form-control" type="number" min="0" step="1" inputmode="numeric" data-fee-edit="LTV.monthlyFine" />
+            </label>
+          </fieldset>
+        </div>
+        <div class="fitness-fee-editor-actions">
+          <button type="button" class="btn btn-primary fitness-fee-editor-save" data-action="save-fitness-fees">Save fees</button>
+          <button type="button" class="btn btn-outline" data-action="reset-fitness-fees">Reset default</button>
+          <button type="button" class="btn btn-ghost" data-action="close-fitness-fee-editor">Cancel</button>
+        </div>
+      </div>
+      <dl class="fitness-fee-calc-rows">
+        <div>
+          <dt>Own fee</dt>
+          <dd data-fee-own>—</dd>
+        </div>
+        <div>
+          <dt>Monthly fine</dt>
+          <dd data-fee-rate>—</dd>
+        </div>
+        <div class="fitness-fee-calc-months-row">
+          <dt><label for="fitness-late-months">Late months</label></dt>
+          <dd>
+            <div class="fitness-fee-months">
+              <button type="button" class="fitness-fee-months-btn" data-fitness-months-delta="-1" aria-label="Decrease late months">−</button>
+              <input
+                id="fitness-late-months"
+                class="form-control fitness-fee-months-input"
+                type="number"
+                min="0"
+                max="120"
+                step="1"
+                value="0"
+                inputmode="numeric"
+                data-fitness-late-months
+              />
+              <button type="button" class="fitness-fee-months-btn" data-fitness-months-delta="1" aria-label="Increase late months">+</button>
+            </div>
+          </dd>
+        </div>
+        <div>
+          <dt>Fine</dt>
+          <dd data-fee-fine>—</dd>
+        </div>
+        <div class="fitness-fee-calc-total">
+          <dt>Amount</dt>
+          <dd data-fee-total>—</dd>
+        </div>
+      </dl>
+      <p class="fitness-fee-calc-words" data-fee-words></p>
+      <p class="fitness-fee-calc-rates" data-fee-rates></p>
+    </aside>
+  `;
+}
+
+function paintFitnessFeeCalculator(form, fee, { previousExpiry = "", fromMonthsInput = false } = {}) {
+  const calc = form.querySelector("[data-fitness-fee-calc]");
+  if (!calc) return;
+  const badge = calc.querySelector("[data-fee-kind-badge]");
+  const note = calc.querySelector("[data-fee-note]");
+  const own = calc.querySelector("[data-fee-own]");
+  const rate = calc.querySelector("[data-fee-rate]");
+  const fine = calc.querySelector("[data-fee-fine]");
+  const total = calc.querySelector("[data-fee-total]");
+  const words = calc.querySelector("[data-fee-words]");
+  const monthsInput = calc.querySelector("[data-fitness-late-months]");
+  const monthButtons = calc.querySelectorAll("[data-fitness-months-delta]");
+  const rates = calc.querySelector("[data-fee-rates]");
+  if (rates) rates.textContent = fitnessFeeRatesText();
+
+  if (!fee) {
+    if (badge) badge.textContent = "—";
+    if (note) note.textContent = "Select HTV or LTV to calculate the fee.";
+    if (own) own.textContent = "—";
+    if (rate) rate.textContent = "—";
+    if (fine) fine.textContent = "—";
+    if (total) total.textContent = "—";
+    if (words) words.textContent = "";
+    if (monthsInput) {
+      monthsInput.value = "0";
+      monthsInput.disabled = true;
+    }
+    monthButtons.forEach((btn) => {
+      btn.disabled = true;
+    });
+    return;
+  }
+
+  if (badge) badge.textContent = `${fee.kind} · ${fee.renewal ? "Renewal" : "New fitness"}`;
+  if (own) own.textContent = formatFitnessRupees(fee.ownFee);
+  if (rate) rate.textContent = formatFitnessRupees(fee.monthlyFine);
+  if (fine) {
+    fine.textContent =
+      fee.renewal && fee.months > 0
+        ? `${formatFitnessRupees(fee.fine)} (${formatFitnessRupees(fee.monthlyFine)} × ${fee.months})`
+        : formatFitnessRupees(0);
+  }
+  if (total) total.textContent = formatFitnessRupees(fee.amount);
+  if (words) words.textContent = amountToWords(fee.amount);
+  if (monthsInput) {
+    if (!fromMonthsInput) monthsInput.value = String(fee.months);
+    monthsInput.disabled = !fee.renewal;
+  }
+  monthButtons.forEach((btn) => {
+    btn.disabled = !fee.renewal;
+  });
+  if (note) {
+    if (!fee.renewal) {
+      note.textContent = "New fitness — own fee only, no late fine.";
+    } else if (previousExpiry) {
+      const expiryLabel = formatCertListDate(previousExpiry) || previousExpiry;
+      note.textContent = `Late months counted from previous expiry ${expiryLabel}. Adjust months if needed.`;
+    } else {
+      note.textContent = "No previous expiry on file. Enter late months to add the monthly fine.";
+    }
+  }
+}
+
+function syncFitnessFee(form, { fromMonthsInput = false } = {}) {
+  if (!form) return;
+  const token = form.querySelector('[name="linkToken"]')?.value?.trim() || "";
+  const kind = form.querySelector(`[name="${cssEscape("Vehicle Kind")}"]`)?.value;
+  const service = form.querySelector(`[name="${cssEscape("Service")}"]`)?.value;
+  const issueDate = form.querySelector(`[name="${cssEscape("Issue Date")}"]`)?.value;
+  const registration = form.querySelector(`[name="${cssEscape("Registration Number")}"]`)?.value;
+  const previousExpiry = findPreviousFitnessExpiry(token, registration);
+  const monthsInput = form.querySelector("[data-fitness-late-months]");
+  const fee = computeFitnessFee({
+    kind,
+    service,
+    previousExpiry,
+    issueDate,
+    months: fromMonthsInput ? monthsInput?.value : undefined,
+  });
+  paintFitnessFeeCalculator(form, fee, { previousExpiry, fromMonthsInput });
+  if (!fee) return;
+  const amountInput = form.querySelector(`[name="${cssEscape("Amount")}"]`);
+  if (amountInput && amountInput.value !== String(fee.amount)) {
+    amountInput.value = String(fee.amount);
+  }
+  syncAmountInWords(form, fee.amount);
+}
+
+function adjustFitnessLateMonths(form, delta) {
+  const input = form.querySelector("[data-fitness-late-months]");
+  if (!input || input.disabled) return;
+  const next = Math.max(0, Math.min(120, (Number(input.value) || 0) + delta));
+  input.value = String(next);
+  syncFitnessFee(form, { fromMonthsInput: true });
+}
+
+function fillFitnessFeeEditor(form) {
+  const schedule = getFitnessFeeSchedule();
+  form.querySelectorAll("[data-fee-edit]").forEach((input) => {
+    const [kind, field] = String(input.getAttribute("data-fee-edit") || "").split(".");
+    const value = schedule[kind]?.[field];
+    input.value = value == null ? "" : String(value);
+  });
+}
+
+function setFitnessFeeEditorOpen(form, open) {
+  const editor = form.querySelector("[data-fitness-fee-editor]");
+  const toggle = form.querySelector('[data-action="toggle-fitness-fee-editor"]');
+  if (!editor) return;
+  editor.hidden = !open;
+  if (open) fillFitnessFeeEditor(form);
+  toggle?.setAttribute("aria-expanded", open ? "true" : "false");
+  if (toggle) toggle.textContent = open ? "Close" : "Update fee";
+}
+
+function readFitnessFeeEditorSchedule(form) {
+  const schedule = getFitnessFeeSchedule();
+  form.querySelectorAll("[data-fee-edit]").forEach((input) => {
+    const [kind, field] = String(input.getAttribute("data-fee-edit") || "").split(".");
+    if (!schedule[kind] || !field) return;
+    schedule[kind][field] = input.value;
+  });
+  return schedule;
+}
+
+function saveFitnessFeesFromEditor(form) {
+  saveFitnessFeeSchedule(readFitnessFeeEditorSchedule(form));
+  setFitnessFeeEditorOpen(form, false);
+  syncFitnessFee(form, { fromMonthsInput: true });
+  showToast("Fitness fees updated");
+}
+
+function resetFitnessFeesFromEditor(form) {
+  if (!window.confirm("Restore HTV and LTV fees to the original rates?")) return;
+  resetFitnessFeeSchedule();
+  fillFitnessFeeEditor(form);
+  syncFitnessFee(form, { fromMonthsInput: true });
+  showToast("Fitness fees restored to default");
+}
+
 function syncCertificateTypeFromService(form) {
   const serviceEl = form.querySelector(`[name="${cssEscape("Service")}"]`);
   const certTypeEl = form.querySelector(`[name="${cssEscape("Certificate Type")}"]`);
@@ -3592,6 +3906,24 @@ async function handleDataActionClick(el, event) {
       }
     }
   }
+  if (action === "toggle-fitness-fee-editor") {
+    const form = document.getElementById("cert-editor");
+    if (!form) return;
+    const editor = form.querySelector("[data-fitness-fee-editor]");
+    setFitnessFeeEditorOpen(form, Boolean(editor?.hidden));
+  }
+  if (action === "close-fitness-fee-editor") {
+    const form = document.getElementById("cert-editor");
+    if (form) setFitnessFeeEditorOpen(form, false);
+  }
+  if (action === "save-fitness-fees") {
+    const form = document.getElementById("cert-editor");
+    if (form) saveFitnessFeesFromEditor(form);
+  }
+  if (action === "reset-fitness-fees") {
+    const form = document.getElementById("cert-editor");
+    if (form) resetFitnessFeesFromEditor(form);
+  }
   if (action === "analytics-clear") {
     if (!window.confirm("Clear all locally stored analytics events? Records are not affected.")) return;
     clearAnalyticsEvents();
@@ -3758,7 +4090,13 @@ function bindActions() {
   if (form) {
     form.addEventListener("submit", (event) => {
       event.preventDefault();
+      if (event.submitter?.closest("[data-fitness-fee-editor]")) return;
       void saveFromEditor(false);
+    });
+    form.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || !event.target.matches("[data-fee-edit]")) return;
+      event.preventDefault();
+      saveFitnessFeesFromEditor(form);
     });
     form.addEventListener("input", (event) => {
       updateFollowLinkPreview();
@@ -3780,7 +4118,21 @@ function bindActions() {
       if (fieldName === "Registration Number") {
         const token = form.querySelector('[name="linkToken"]')?.value?.trim() || "";
         scheduleDuplicateRegistrationCheck(form, token);
+        syncFitnessFee(form);
       }
+      if (event.target.matches("[data-fitness-late-months]")) {
+        const raw = Number(event.target.value);
+        if (Number.isFinite(raw)) {
+          event.target.value = String(Math.max(0, Math.min(120, Math.floor(raw))));
+        }
+        syncFitnessFee(form, { fromMonthsInput: true });
+      }
+    });
+    form.addEventListener("click", (event) => {
+      const monthBtn = event.target.closest("[data-fitness-months-delta]");
+      if (!monthBtn || !form.contains(monthBtn)) return;
+      event.preventDefault();
+      adjustFitnessLateMonths(form, Number(monthBtn.getAttribute("data-fitness-months-delta")) || 0);
     });
     form.addEventListener("change", (event) => {
       if (event.target.getAttribute("name") === "Amount") {
@@ -3791,6 +4143,13 @@ function bindActions() {
       }
       if (event.target.getAttribute("name") === "Service") {
         syncCertificateTypeFromService(form);
+        syncFitnessFee(form);
+      }
+      if (event.target.getAttribute("name") === "Vehicle Kind") {
+        syncFitnessFee(form);
+      }
+      if (event.target.getAttribute("name") === "Registration Number") {
+        syncFitnessFee(form);
       }
       if (event.target.getAttribute("name") === "Issue Date") {
         const expiryInput = form.querySelector(`[name="${cssEscape("Expiry Date")}"]`);
@@ -3798,11 +4157,16 @@ function bindActions() {
           expiryInput.value = expiryFromIssueDate(event.target.value);
         }
         updateExpiryHint(form);
+        syncFitnessFee(form);
+      }
+      if (event.target.matches("[data-fitness-late-months]")) {
+        syncFitnessFee(form, { fromMonthsInput: true });
       }
     });
     syncLadenWeightCustomField(form);
     syncCertificateTypeFromService(form);
     updateExpiryHint(form);
+    syncFitnessFee(form);
     const editorToken = form.querySelector('[name="linkToken"]')?.value?.trim() || getEditorToken();
     updateDuplicateRegistrationAlert(form, editorToken);
     resetEditorFormBaseline();

@@ -5486,6 +5486,295 @@ html[data-theme="dark"] .admin-login-services li {
   margin: 4px 0 0;
 }
 
+.admin-ui-v2 .fitness-fee-calc {
+  grid-column: 1 / -1;
+  margin: 4px 0 8px;
+  padding: 16px 18px 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--admin-accent-soft), var(--admin-surface) 38%);
+}
+
+.admin-ui-v2 .fitness-fee-calc-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-ui-v2 .fitness-fee-calc-title-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-ui-v2 .fitness-fee-calc-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  color: var(--dastak-teal-dark);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+}
+
+.admin-ui-v2 .fitness-fee-calc-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.admin-ui-v2 .fitness-fee-calc-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.admin-ui-v2 .fitness-fee-calc-note {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.admin-ui-v2 .fitness-fee-calc-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  color: var(--dastak-teal-dark);
+}
+
+.admin-ui-v2 .fitness-fee-calc-rows {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+.admin-ui-v2 .fitness-fee-calc-rows > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.admin-ui-v2 .fitness-fee-calc-rows dt {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.admin-ui-v2 .fitness-fee-calc-rows dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-align: right;
+}
+
+.admin-ui-v2 .fitness-fee-calc-months-row dd {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.admin-ui-v2 .fitness-fee-months {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-ui-v2 .fitness-fee-months-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--text-dark);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.admin-ui-v2 .fitness-fee-months-btn:hover:not(:disabled) {
+  border-color: var(--dastak-teal);
+  color: var(--dastak-teal-dark);
+}
+
+.admin-ui-v2 .fitness-fee-months-btn:disabled,
+.admin-ui-v2 .fitness-fee-months-input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin-ui-v2 .fitness-fee-months-input {
+  width: 72px;
+  min-height: 36px !important;
+  height: 36px;
+  padding: 0 6px !important;
+  text-align: center;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-ui-v2 .fitness-fee-months-input::-webkit-outer-spin-button,
+.admin-ui-v2 .fitness-fee-months-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.admin-ui-v2 .fitness-fee-months-input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.admin-ui-v2 .fitness-fee-calc-total {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--admin-border);
+}
+
+.admin-ui-v2 .fitness-fee-calc-total dt {
+  color: var(--text-dark);
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.admin-ui-v2 .fitness-fee-calc-total dd {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--dastak-teal-dark);
+}
+
+.admin-ui-v2 .fitness-fee-calc-words {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.admin-ui-v2 .fitness-fee-calc-rates {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.admin-ui-v2 .fitness-fee-calc-head-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.admin-ui-v2 .fitness-fee-update-btn {
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--dastak-teal-dark);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.admin-ui-v2 .fitness-fee-update-btn:hover,
+.admin-ui-v2 .fitness-fee-update-btn[aria-expanded="true"] {
+  border-color: var(--dastak-teal);
+  background: var(--admin-accent-soft);
+}
+
+.admin-ui-v2 .fitness-fee-editor {
+  margin-top: 14px;
+  padding: 14px 14px 12px;
+  border: 1px dashed var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+}
+
+.admin-ui-v2 .fitness-fee-editor-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.admin-ui-v2 .fitness-fee-editor-hint {
+  margin: 4px 0 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.admin-ui-v2 .fitness-fee-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-ui-v2 .fitness-fee-editor-kind {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  min-width: 0;
+}
+
+.admin-ui-v2 .fitness-fee-editor-kind legend {
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--dastak-teal-dark);
+}
+
+.admin-ui-v2 .fitness-fee-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.admin-ui-v2 .fitness-fee-editor-field:last-child {
+  margin-bottom: 0;
+}
+
+.admin-ui-v2 .fitness-fee-editor-field .form-control {
+  min-height: 40px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-ui-v2 .fitness-fee-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.admin-ui-v2 .fitness-fee-editor-save {
+  padding: 8px 14px;
+}
+
+@media (max-width: 720px) {
+  .admin-ui-v2 .fitness-fee-editor-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-dashboard-home {
   flex: 1;
   min-width: 0;
