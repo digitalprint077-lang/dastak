@@ -63,7 +63,6 @@ import {
   serviceToCertificateType,
   computeFitnessFee,
   formatFitnessRupees,
-  fitnessFeeRatesText,
   getFitnessFeeSchedule,
   saveFitnessFeeSchedule,
   resetFitnessFeeSchedule,
@@ -3156,40 +3155,57 @@ function fitnessFeeCalculatorHtml() {
           </span>
           <div>
             <h4 class="fitness-fee-calc-title">Fee calculator</h4>
-            <p class="fitness-fee-calc-note" data-fee-note>Amount is calculated from vehicle kind and service.</p>
+            <p class="fitness-fee-calc-note" data-fee-note>Amount follows vehicle kind and service.</p>
           </div>
         </div>
         <div class="fitness-fee-calc-head-actions">
           <span class="fitness-fee-calc-badge" data-fee-kind-badge>HTV</span>
+          <span class="fitness-fee-calc-badge fitness-fee-calc-badge-soft" data-fee-service-badge>Renewal</span>
           <button type="button" class="fitness-fee-update-btn" data-action="toggle-fitness-fee-editor" aria-expanded="false">
-            Update fee
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+            </svg>
+            <span data-fee-update-label>Update fee</span>
           </button>
         </div>
       </div>
       <div class="fitness-fee-editor" data-fitness-fee-editor hidden>
         <p class="fitness-fee-editor-title">Update fee rates</p>
-        <p class="fitness-fee-editor-hint">Change these when official prices change. Saved on this computer for all new calculations.</p>
+        <p class="fitness-fee-editor-hint">Use this when official prices change. Saved on this computer.</p>
         <div class="fitness-fee-editor-grid">
           <fieldset class="fitness-fee-editor-kind">
             <legend>HTV</legend>
             <label class="fitness-fee-editor-field">
               <span>Own fee</span>
-              <input class="form-control" type="number" min="0" step="1" inputmode="numeric" data-fee-edit="HTV.ownFee" />
+              <span class="fitness-fee-editor-input">
+                <span>Rs</span>
+                <input class="form-control" type="number" min="0" step="1" inputmode="numeric" data-fee-edit="HTV.ownFee" />
+              </span>
             </label>
             <label class="fitness-fee-editor-field">
               <span>Monthly fine</span>
-              <input class="form-control" type="number" min="0" step="1" inputmode="numeric" data-fee-edit="HTV.monthlyFine" />
+              <span class="fitness-fee-editor-input">
+                <span>Rs</span>
+                <input class="form-control" type="number" min="0" step="1" inputmode="numeric" data-fee-edit="HTV.monthlyFine" />
+              </span>
             </label>
           </fieldset>
           <fieldset class="fitness-fee-editor-kind">
             <legend>LTV</legend>
             <label class="fitness-fee-editor-field">
               <span>Own fee</span>
-              <input class="form-control" type="number" min="0" step="1" inputmode="numeric" data-fee-edit="LTV.ownFee" />
+              <span class="fitness-fee-editor-input">
+                <span>Rs</span>
+                <input class="form-control" type="number" min="0" step="1" inputmode="numeric" data-fee-edit="LTV.ownFee" />
+              </span>
             </label>
             <label class="fitness-fee-editor-field">
               <span>Monthly fine</span>
-              <input class="form-control" type="number" min="0" step="1" inputmode="numeric" data-fee-edit="LTV.monthlyFine" />
+              <span class="fitness-fee-editor-input">
+                <span>Rs</span>
+                <input class="form-control" type="number" min="0" step="1" inputmode="numeric" data-fee-edit="LTV.monthlyFine" />
+              </span>
             </label>
           </fieldset>
         </div>
@@ -3199,71 +3215,96 @@ function fitnessFeeCalculatorHtml() {
           <button type="button" class="btn btn-ghost" data-action="close-fitness-fee-editor">Cancel</button>
         </div>
       </div>
-      <dl class="fitness-fee-calc-rows">
+      <div class="fitness-fee-calc-metrics">
+        <div class="fitness-fee-metric">
+          <span class="fitness-fee-metric-label">Own fee</span>
+          <strong class="fitness-fee-metric-value" data-fee-own>—</strong>
+        </div>
+        <div class="fitness-fee-metric">
+          <span class="fitness-fee-metric-label">Monthly fine</span>
+          <strong class="fitness-fee-metric-value" data-fee-rate>—</strong>
+        </div>
+        <div class="fitness-fee-metric fitness-fee-metric-months">
+          <label class="fitness-fee-metric-label" for="fitness-late-months">Late months</label>
+          <div class="fitness-fee-months">
+            <button type="button" class="fitness-fee-months-btn" data-fitness-months-delta="-1" aria-label="Decrease late months">−</button>
+            <input
+              id="fitness-late-months"
+              class="form-control fitness-fee-months-input"
+              type="number"
+              min="0"
+              max="120"
+              step="1"
+              value="0"
+              inputmode="numeric"
+              data-fitness-late-months
+            />
+            <button type="button" class="fitness-fee-months-btn" data-fitness-months-delta="1" aria-label="Increase late months">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="fitness-fee-calc-fine">
+        <span>Fine</span>
         <div>
-          <dt>Own fee</dt>
-          <dd data-fee-own>—</dd>
+          <strong data-fee-fine>—</strong>
+          <small data-fee-fine-math></small>
         </div>
+      </div>
+      <div class="fitness-fee-calc-total">
         <div>
-          <dt>Monthly fine</dt>
-          <dd data-fee-rate>—</dd>
+          <span class="fitness-fee-calc-total-label">Amount</span>
+          <p class="fitness-fee-calc-words" data-fee-words></p>
         </div>
-        <div class="fitness-fee-calc-months-row">
-          <dt><label for="fitness-late-months">Late months</label></dt>
-          <dd>
-            <div class="fitness-fee-months">
-              <button type="button" class="fitness-fee-months-btn" data-fitness-months-delta="-1" aria-label="Decrease late months">−</button>
-              <input
-                id="fitness-late-months"
-                class="form-control fitness-fee-months-input"
-                type="number"
-                min="0"
-                max="120"
-                step="1"
-                value="0"
-                inputmode="numeric"
-                data-fitness-late-months
-              />
-              <button type="button" class="fitness-fee-months-btn" data-fitness-months-delta="1" aria-label="Increase late months">+</button>
-            </div>
-          </dd>
-        </div>
-        <div>
-          <dt>Fine</dt>
-          <dd data-fee-fine>—</dd>
-        </div>
-        <div class="fitness-fee-calc-total">
-          <dt>Amount</dt>
-          <dd data-fee-total>—</dd>
-        </div>
-      </dl>
-      <p class="fitness-fee-calc-words" data-fee-words></p>
-      <p class="fitness-fee-calc-rates" data-fee-rates></p>
+        <strong class="fitness-fee-calc-total-value" data-fee-total>—</strong>
+      </div>
+      <ul class="fitness-fee-calc-rate-chips">
+        <li data-fee-htv-chip>HTV</li>
+        <li data-fee-ltv-chip>LTV</li>
+      </ul>
     </aside>
   `;
+}
+
+function paintFitnessRateChips(calc, kind = "") {
+  const schedule = getFitnessFeeSchedule();
+  const htvChip = calc.querySelector("[data-fee-htv-chip]");
+  const ltvChip = calc.querySelector("[data-fee-ltv-chip]");
+  if (htvChip) {
+    htvChip.textContent = `HTV · ${formatFitnessRupees(schedule.HTV.ownFee)} + ${schedule.HTV.monthlyFine.toLocaleString("en-PK")}/mo`;
+    htvChip.classList.toggle("is-active", kind === "HTV");
+  }
+  if (ltvChip) {
+    ltvChip.textContent = `LTV · ${formatFitnessRupees(schedule.LTV.ownFee)} + ${schedule.LTV.monthlyFine.toLocaleString("en-PK")}/mo`;
+    ltvChip.classList.toggle("is-active", kind === "LTV");
+  }
 }
 
 function paintFitnessFeeCalculator(form, fee, { previousExpiry = "", fromMonthsInput = false } = {}) {
   const calc = form.querySelector("[data-fitness-fee-calc]");
   if (!calc) return;
   const badge = calc.querySelector("[data-fee-kind-badge]");
+  const serviceBadge = calc.querySelector("[data-fee-service-badge]");
   const note = calc.querySelector("[data-fee-note]");
   const own = calc.querySelector("[data-fee-own]");
   const rate = calc.querySelector("[data-fee-rate]");
   const fine = calc.querySelector("[data-fee-fine]");
+  const fineMath = calc.querySelector("[data-fee-fine-math]");
   const total = calc.querySelector("[data-fee-total]");
   const words = calc.querySelector("[data-fee-words]");
   const monthsInput = calc.querySelector("[data-fitness-late-months]");
   const monthButtons = calc.querySelectorAll("[data-fitness-months-delta]");
-  const rates = calc.querySelector("[data-fee-rates]");
-  if (rates) rates.textContent = fitnessFeeRatesText();
+  paintFitnessRateChips(calc, fee?.kind || "");
+  calc.classList.toggle("is-renewal", Boolean(fee?.renewal));
+  calc.classList.toggle("is-new", Boolean(fee && !fee.renewal));
 
   if (!fee) {
     if (badge) badge.textContent = "—";
+    if (serviceBadge) serviceBadge.textContent = "—";
     if (note) note.textContent = "Select HTV or LTV to calculate the fee.";
     if (own) own.textContent = "—";
     if (rate) rate.textContent = "—";
     if (fine) fine.textContent = "—";
+    if (fineMath) fineMath.textContent = "";
     if (total) total.textContent = "—";
     if (words) words.textContent = "";
     if (monthsInput) {
@@ -3276,14 +3317,18 @@ function paintFitnessFeeCalculator(form, fee, { previousExpiry = "", fromMonthsI
     return;
   }
 
-  if (badge) badge.textContent = `${fee.kind} · ${fee.renewal ? "Renewal" : "New fitness"}`;
+  if (badge) badge.textContent = fee.kind;
+  if (serviceBadge) serviceBadge.textContent = fee.renewal ? "Renewal" : "New fitness";
   if (own) own.textContent = formatFitnessRupees(fee.ownFee);
   if (rate) rate.textContent = formatFitnessRupees(fee.monthlyFine);
-  if (fine) {
-    fine.textContent =
+  if (fine) fine.textContent = formatFitnessRupees(fee.fine);
+  if (fineMath) {
+    fineMath.textContent =
       fee.renewal && fee.months > 0
-        ? `${formatFitnessRupees(fee.fine)} (${formatFitnessRupees(fee.monthlyFine)} × ${fee.months})`
-        : formatFitnessRupees(0);
+        ? `${formatFitnessRupees(fee.monthlyFine)} × ${fee.months} ${fee.months === 1 ? "month" : "months"}`
+        : fee.renewal
+          ? "No late months"
+          : "Not charged on new fitness";
   }
   if (total) total.textContent = formatFitnessRupees(fee.amount);
   if (words) words.textContent = amountToWords(fee.amount);
@@ -3296,12 +3341,12 @@ function paintFitnessFeeCalculator(form, fee, { previousExpiry = "", fromMonthsI
   });
   if (note) {
     if (!fee.renewal) {
-      note.textContent = "New fitness — own fee only, no late fine.";
+      note.textContent = "New fitness — own fee only.";
     } else if (previousExpiry) {
       const expiryLabel = formatCertListDate(previousExpiry) || previousExpiry;
-      note.textContent = `Late months counted from previous expiry ${expiryLabel}. Adjust months if needed.`;
+      note.textContent = `Late months from previous expiry ${expiryLabel}.`;
     } else {
-      note.textContent = "No previous expiry on file. Enter late months to add the monthly fine.";
+      note.textContent = "Enter late months if the previous expiry is not on file.";
     }
   }
 }
@@ -3349,13 +3394,16 @@ function fillFitnessFeeEditor(form) {
 }
 
 function setFitnessFeeEditorOpen(form, open) {
+  const calc = form.querySelector("[data-fitness-fee-calc]");
   const editor = form.querySelector("[data-fitness-fee-editor]");
   const toggle = form.querySelector('[data-action="toggle-fitness-fee-editor"]');
   if (!editor) return;
   editor.hidden = !open;
+  calc?.classList.toggle("is-editing", open);
   if (open) fillFitnessFeeEditor(form);
   toggle?.setAttribute("aria-expanded", open ? "true" : "false");
-  if (toggle) toggle.textContent = open ? "Close" : "Update fee";
+  const label = toggle?.querySelector("[data-fee-update-label]");
+  if (label) label.textContent = open ? "Close" : "Update fee";
 }
 
 function readFitnessFeeEditorSchedule(form) {

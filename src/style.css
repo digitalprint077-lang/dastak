@@ -5488,23 +5488,25 @@ html[data-theme="dark"] .admin-login-services li {
 
 .admin-ui-v2 .fitness-fee-calc {
   grid-column: 1 / -1;
-  margin: 4px 0 8px;
-  padding: 16px 18px 14px;
+  margin: 6px 0 10px;
+  padding: 16px;
   border: 1px solid var(--admin-border);
-  border-radius: 14px;
-  background: linear-gradient(180deg, var(--admin-accent-soft), var(--admin-surface) 38%);
+  border-radius: 16px;
+  background: var(--admin-surface-muted);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 .admin-ui-v2 .fitness-fee-calc-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .admin-ui-v2 .fitness-fee-calc-title-wrap {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   min-width: 0;
 }
@@ -5512,12 +5514,12 @@ html[data-theme="dark"] .admin-login-services li {
 .admin-ui-v2 .fitness-fee-calc-icon {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: 12px;
   color: var(--dastak-teal-dark);
-  background: var(--admin-surface);
+  background: linear-gradient(180deg, #ffffff, var(--admin-accent-soft));
   border: 1px solid var(--admin-border);
 }
 
@@ -5536,12 +5538,19 @@ html[data-theme="dark"] .admin-login-services li {
 .admin-ui-v2 .fitness-fee-calc-note {
   margin: 2px 0 0;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.35;
   color: var(--text-muted);
 }
 
+.admin-ui-v2 .fitness-fee-calc-head-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .admin-ui-v2 .fitness-fee-calc-badge {
-  flex-shrink: 0;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -5553,50 +5562,89 @@ html[data-theme="dark"] .admin-login-services li {
   color: var(--dastak-teal-dark);
 }
 
-.admin-ui-v2 .fitness-fee-calc-rows {
-  display: grid;
-  gap: 8px;
-  margin: 14px 0 0;
+.admin-ui-v2 .fitness-fee-calc-badge-soft {
+  color: var(--text);
+  background: transparent;
 }
 
-.admin-ui-v2 .fitness-fee-calc-rows > div {
-  display: flex;
+.admin-ui-v2 .fitness-fee-update-btn {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 14px;
+  gap: 6px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--dastak-teal-dark);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 11px;
+  border-radius: 999px;
+  cursor: pointer;
 }
 
-.admin-ui-v2 .fitness-fee-calc-rows dt {
-  color: var(--text-muted);
-  font-weight: 600;
+.admin-ui-v2 .fitness-fee-update-btn svg {
+  width: 13px;
+  height: 13px;
 }
 
-.admin-ui-v2 .fitness-fee-calc-rows dd {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  color: var(--text-dark);
-  text-align: right;
+.admin-ui-v2 .fitness-fee-update-btn:hover,
+.admin-ui-v2 .fitness-fee-update-btn[aria-expanded="true"],
+.admin-ui-v2 .fitness-fee-calc.is-editing .fitness-fee-update-btn {
+  border-color: var(--dastak-teal);
+  background: var(--admin-accent-soft);
 }
 
-.admin-ui-v2 .fitness-fee-calc-months-row dd {
+.admin-ui-v2 .fitness-fee-calc-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.admin-ui-v2 .fitness-fee-metric {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  background: var(--admin-surface);
+}
+
+.admin-ui-v2 .fitness-fee-metric-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.admin-ui-v2 .fitness-fee-metric-value {
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dark);
+  line-height: 1.2;
+}
+
+.admin-ui-v2 .fitness-fee-metric-months {
+  align-items: flex-start;
 }
 
 .admin-ui-v2 .fitness-fee-months {
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
 }
 
 .admin-ui-v2 .fitness-fee-months-btn {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
   border-radius: 10px;
   border: 1px solid var(--admin-border);
-  background: var(--admin-surface);
+  background: var(--admin-surface-muted);
   color: var(--text-dark);
   font-size: 18px;
   font-weight: 700;
@@ -5607,18 +5655,24 @@ html[data-theme="dark"] .admin-login-services li {
 .admin-ui-v2 .fitness-fee-months-btn:hover:not(:disabled) {
   border-color: var(--dastak-teal);
   color: var(--dastak-teal-dark);
+  background: var(--admin-accent-soft);
+}
+
+.admin-ui-v2 .fitness-fee-calc.is-new .fitness-fee-metric-months {
+  opacity: 0.55;
 }
 
 .admin-ui-v2 .fitness-fee-months-btn:disabled,
 .admin-ui-v2 .fitness-fee-months-input:disabled {
-  opacity: 0.45;
   cursor: not-allowed;
 }
 
 .admin-ui-v2 .fitness-fee-months-input {
-  width: 72px;
-  min-height: 36px !important;
-  height: 36px;
+  flex: 1;
+  min-width: 0;
+  width: 64px;
+  min-height: 34px !important;
+  height: 34px;
   padding: 0 6px !important;
   text-align: center;
   font-weight: 800;
@@ -5636,69 +5690,106 @@ html[data-theme="dark"] .admin-login-services li {
   -moz-appearance: textfield;
 }
 
-.admin-ui-v2 .fitness-fee-calc-total {
-  margin-top: 4px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--admin-border);
-}
-
-.admin-ui-v2 .fitness-fee-calc-total dt {
-  color: var(--text-dark);
-  font-weight: 800;
-  font-size: 15px;
-}
-
-.admin-ui-v2 .fitness-fee-calc-total dd {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: var(--dastak-teal-dark);
-}
-
-.admin-ui-v2 .fitness-fee-calc-words {
-  margin: 8px 0 0;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+.admin-ui-v2 .fitness-fee-calc-fine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 0 4px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
-.admin-ui-v2 .fitness-fee-calc-rates {
-  margin: 6px 0 0;
+.admin-ui-v2 .fitness-fee-calc-fine div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.admin-ui-v2 .fitness-fee-calc-fine strong {
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dark);
+}
+
+.admin-ui-v2 .fitness-fee-calc-fine small {
   font-size: 11px;
   color: var(--text-muted);
 }
 
-.admin-ui-v2 .fitness-fee-calc-head-actions {
+.admin-ui-v2 .fitness-fee-calc-total {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--admin-accent-soft), var(--admin-surface));
+  border: 1px solid color-mix(in srgb, var(--dastak-teal) 28%, var(--admin-border));
 }
 
-.admin-ui-v2 .fitness-fee-update-btn {
+.admin-ui-v2 .fitness-fee-calc-total-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dastak-teal-dark);
+}
+
+.admin-ui-v2 .fitness-fee-calc-words {
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.admin-ui-v2 .fitness-fee-calc-total-value {
+  font-size: 1.55rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--dastak-teal-dark);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.admin-ui-v2 .fitness-fee-calc-rate-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-ui-v2 .fitness-fee-calc-rate-chips li {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 5px 9px;
+  border-radius: 999px;
   border: 1px solid var(--admin-border);
   background: var(--admin-surface);
-  color: var(--dastak-teal-dark);
-  font-size: 12px;
-  font-weight: 800;
-  padding: 6px 10px;
-  border-radius: 999px;
-  cursor: pointer;
 }
 
-.admin-ui-v2 .fitness-fee-update-btn:hover,
-.admin-ui-v2 .fitness-fee-update-btn[aria-expanded="true"] {
-  border-color: var(--dastak-teal);
+.admin-ui-v2 .fitness-fee-calc-rate-chips li.is-active {
+  color: var(--dastak-teal-dark);
+  border-color: color-mix(in srgb, var(--dastak-teal) 40%, var(--admin-border));
   background: var(--admin-accent-soft);
 }
 
 .admin-ui-v2 .fitness-fee-editor {
   margin-top: 14px;
-  padding: 14px 14px 12px;
-  border: 1px dashed var(--admin-border);
-  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
   background: var(--admin-surface);
 }
 
@@ -5728,6 +5819,7 @@ html[data-theme="dark"] .admin-login-services li {
   border: 1px solid var(--admin-border);
   border-radius: 12px;
   min-width: 0;
+  background: var(--admin-surface-muted);
 }
 
 .admin-ui-v2 .fitness-fee-editor-kind legend {
@@ -5752,8 +5844,27 @@ html[data-theme="dark"] .admin-login-services li {
   margin-bottom: 0;
 }
 
-.admin-ui-v2 .fitness-fee-editor-field .form-control {
+.admin-ui-v2 .fitness-fee-editor-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 0 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+}
+
+.admin-ui-v2 .fitness-fee-editor-input span {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.admin-ui-v2 .fitness-fee-editor-input .form-control {
   min-height: 40px;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -5767,6 +5878,17 @@ html[data-theme="dark"] .admin-login-services li {
 
 .admin-ui-v2 .fitness-fee-editor-save {
   padding: 8px 14px;
+}
+
+@media (max-width: 820px) {
+  .admin-ui-v2 .fitness-fee-calc-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-ui-v2 .fitness-fee-calc-total {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 @media (max-width: 720px) {
@@ -6173,33 +6295,15 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .admin-ui-v2 .admin-frame-overview .admin-context-bar {
-  padding: 12px 32px 4px;
-  background: transparent;
-  border-bottom: 0;
-}
-
-.admin-ui-v2 .admin-frame-overview .admin-context-title {
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--accent-deep, #12a87c);
-}
-
-.admin-ui-v2 .admin-frame-overview .admin-context-lead {
-  font-size: 1.02rem;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  color: var(--ink, #1a1a1a);
-  line-height: 1.4;
+  display: none;
 }
 
 .admin-ui-v2 .admin-frame-overview .admin-frame-body {
-  padding-top: 8px;
+  padding-top: 4px;
 }
 
 .admin-ov-head {
@@ -6216,10 +6320,10 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
   align-items: center;
   justify-content: space-between;
   gap: 16px 24px;
-  padding: 18px 20px;
+  padding: 22px 24px;
   border-radius: 22px;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--logo-from, #10c8b0) 10%, #fff) 0%, #fff 46%, color-mix(in srgb, var(--logo-to, #20d098) 8%, #fff) 100%);
+    linear-gradient(135deg, color-mix(in srgb, var(--logo-from, #10c8b0) 12%, var(--admin-surface)) 0%, var(--admin-surface) 48%, color-mix(in srgb, var(--logo-to, #20d098) 8%, var(--admin-surface)) 100%);
   border: 1px solid var(--admin-border);
   box-shadow: 0 12px 28px rgba(17, 17, 17, 0.05);
 }
@@ -6234,11 +6338,11 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
   align-items: flex-end;
   gap: 4px;
   min-width: 12.5rem;
-  padding: 10px 16px 11px;
+  padding: 12px 16px 13px;
   border-radius: 16px;
-  border: 1px solid var(--stack-200, #d4e8e2);
-  background: #fff;
-  box-shadow: inset 0 1px 0 #fff, 0 8px 18px rgba(16, 200, 176, 0.08);
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 70%, transparent), 0 8px 18px rgba(16, 200, 176, 0.08);
 }
 
 .admin-ov-clock-label {
@@ -6312,9 +6416,18 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
   }
 }
 
+.admin-ov-kicker {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-deep, #12a87c);
+}
+
 .admin-ov-greet {
   margin: 0 0 4px;
-  font-size: 1.72rem;
+  font-size: 1.85rem;
   font-weight: 800;
   letter-spacing: -0.045em;
   color: var(--ink, #1a1a1a);
@@ -6392,6 +6505,11 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
   text-overflow: ellipsis;
 }
 
+.admin-ov-attention-stack {
+  display: grid;
+  gap: 8px;
+}
+
 .admin-ov-attention {
   display: flex;
   align-items: center;
@@ -6403,6 +6521,7 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
   background: color-mix(in srgb, #e0b35a 14%, var(--admin-surface));
   text-decoration: none;
   color: inherit;
+  transition: border-color 0.15s ease, transform 0.15s ease;
 }
 
 .admin-ov-attention:hover {
@@ -6461,7 +6580,9 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
 }
 
 .admin-ov-summary-card {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
   border-radius: 20px;
   padding: 18px 20px 16px;
   border: 1px solid var(--admin-border);
@@ -6580,8 +6701,23 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-top: auto;
   padding-top: 12px;
   border-top: 1px solid var(--admin-border);
+}
+
+.admin-ov-summary-open {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--accent-deep, #12a87c);
+  opacity: 0.72;
+}
+
+.admin-ov-summary-card:hover .admin-ov-summary-open {
+  opacity: 1;
 }
 
 .admin-ov-pill {
@@ -6786,6 +6922,16 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
   flex-direction: column;
   align-items: center;
   height: 156px;
+  padding: 4px 2px 0;
+  border-radius: 12px;
+}
+
+.admin-ov-chart-col.is-today {
+  background: color-mix(in srgb, var(--logo-to, #20d098) 10%, transparent);
+}
+
+.admin-ov-chart-col.is-today .admin-ov-chart-label strong {
+  color: var(--accent-deep, #12a87c);
 }
 
 .admin-ov-chart-count {
@@ -6855,6 +7001,13 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+  align-items: stretch;
+}
+
+.admin-ov-bottom-grid > .admin-ov-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .admin-ov-activity-list,
@@ -6862,6 +7015,9 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
   list-style: none;
   margin: 0;
   padding: 0;
+  flex: 1;
+  max-height: 360px;
+  overflow-y: auto;
 }
 
 .admin-ov-activity-item {
@@ -6892,6 +7048,18 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
   margin-top: 6px;
   border-radius: 50%;
   background: var(--accent, #20d098);
+}
+
+.admin-ov-activity-print .admin-ov-activity-dot {
+  background: #e0b35a;
+}
+
+.admin-ov-activity-save .admin-ov-activity-dot {
+  background: var(--accent-deep, #12a87c);
+}
+
+.admin-ov-activity-warn .admin-ov-activity-dot {
+  background: var(--dastak-nectarine, #c45c4a);
 }
 
 .admin-ov-activity-title {
@@ -6947,8 +7115,13 @@ html[data-theme="dark"] .admin-list-panel-full .cert-list-item:hover {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 800;
-  background: color-mix(in srgb, #e0b35a 28%, #fff);
+  background: color-mix(in srgb, #e0b35a 28%, var(--admin-surface));
   color: #9a5b12;
+}
+
+.admin-ov-days-chip.is-urgent {
+  background: color-mix(in srgb, var(--dastak-nectarine, #c45c4a) 22%, var(--admin-surface));
+  color: #9a4a42;
 }
 
 .admin-ov-empty-row {
@@ -6985,13 +7158,13 @@ html[data-theme="dark"] .admin-ov-panel {
   box-shadow: none;
 }
 
-html[data-theme="dark"] .admin-frame-overview .admin-context-lead {
-  color: #f1f5f9;
-}
-
 html[data-theme="dark"] .admin-ov-head-lead {
   background: color-mix(in srgb, var(--admin-surface) 88%, var(--logo-to, #20d098));
   box-shadow: none;
+}
+
+html[data-theme="dark"] .admin-ov-kicker {
+  color: var(--dastak-menthe, #d4f5ea);
 }
 
 html[data-theme="dark"] .admin-ov-clock {
