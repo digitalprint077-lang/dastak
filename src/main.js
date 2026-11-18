@@ -4535,7 +4535,7 @@ function bindActions() {
   const armsLicenseForm = document.getElementById("arms-license-editor");
   if (armsLicenseForm) {
     bindArmsLicensePhotoInput();
-    fillArmsValidityFields(armsLicenseForm, { onlyIfEmpty: true });
+    fillArmsValidityFields(armsLicenseForm);
     armsLicenseForm.addEventListener("change", (event) => {
       if (event.target.getAttribute("name") !== "Issue Date") return;
       fillArmsValidityFields(armsLicenseForm);

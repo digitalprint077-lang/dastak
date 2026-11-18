@@ -67,7 +67,7 @@ const STORAGE_PREFIX = "dastak:arms-license:";
 const OVERLAY_KEY = "dastak:arms-licenses-overlay";
 const LAST_SAVE_PREFIX = "dastak:arms-license-saved:";
 
-export const ARMS_VALIDITY_YEARS = 3;
+export const ARMS_VALIDITY_YEARS = 5;
 
 const DEFAULT_VALUES = {
   "License No": "",
@@ -227,7 +227,7 @@ export function getArmsLicenseForEdit(token) {
   if (stored?.values) {
     return {
       status: stored.status || "Issued",
-      values: { ...DEFAULT_VALUES, ...stored.values },
+      values: applyArmsValidity({ ...DEFAULT_VALUES, ...stored.values }),
     };
   }
   const overlay = { ...readOverlay().licenses, ...overlayLicenses.licenses };
@@ -235,7 +235,7 @@ export function getArmsLicenseForEdit(token) {
   if (published?.values) {
     return {
       status: published.status || "Issued",
-      values: { ...DEFAULT_VALUES, ...published.values },
+      values: applyArmsValidity({ ...DEFAULT_VALUES, ...published.values }),
     };
   }
   return { status: "Issued", values: { ...DEFAULT_VALUES } };
@@ -367,6 +367,7 @@ export function readArmsLicenseFormValues(form) {
   });
   const photo = form.querySelector('[name="Photo"]')?.value?.trim();
   if (photo) values.Photo = photo;
+  applyArmsValidity(values);
   values.CNIC = normalizeArmsCnic(values.CNIC);
   return { status, values };
 }

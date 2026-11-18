@@ -152,7 +152,7 @@ function fieldInput(label, value) {
   }
   const expiryHint =
     label === "Expiry Date"
-      ? `<span class="form-field-hint" id="arms-expiry-hint">Shown on the card as issue date To expiry date. Fills 3 years ahead when left empty.</span>`
+      ? `<span class="form-field-hint" id="arms-expiry-hint">Valid for 5 years from the issue date.</span>`
       : "";
   return `
     <label class="form-field${isMultiline ? " form-field-span" : ""}" for="${id}">
