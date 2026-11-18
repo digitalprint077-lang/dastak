@@ -3206,6 +3206,10 @@ html[data-theme="dark"] .admin-rail-service {
   background: linear-gradient(160deg, var(--accent-deep) 0%, var(--dastak-teal-deep) 100%);
 }
 
+.admin-rail-service-arms .admin-rail-service-icon {
+  background: linear-gradient(160deg, #1b6b63 0%, #0e4f5c 100%);
+}
+
 .admin-rail-service-copy {
   display: flex;
   min-width: 0;
@@ -8495,6 +8499,41 @@ html[data-theme="dark"] .app-shell.cert-preview-page .navbar {
   border: 0;
   border-radius: 0;
   background: transparent;
+}
+
+.app-shell.permit-preview-page .arms-license-card .arms-columns {
+  gap: 28px 36px;
+  align-items: flex-start;
+}
+
+.app-shell.permit-preview-page .arms-license-card .arms-photo-column {
+  flex: 0 0 132px;
+  width: 132px;
+  align-items: flex-start;
+}
+
+.app-shell.permit-preview-page .arms-license-card .arms-photo,
+.app-shell.permit-preview-page .arms-license-card .arms-photo-empty {
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  border: 3px solid #e6e6e6;
+  background: #e9ecef;
+  object-fit: cover;
+  display: block;
+}
+
+.app-shell.permit-preview-page .arms-license-card .arms-person-badge {
+  display: inline-block;
+  margin-top: 16px;
+  margin-left: 8px;
+  padding: 8px 18px;
+  background: #d9d9d9;
+  color: #111;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  border-radius: 2px;
 }
 
 .app-shell.permit-preview-page .column {

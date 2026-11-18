@@ -97,6 +97,27 @@ export default {
       return new Response("Method Not Allowed", { status: 405 });
     }
 
+    if (pathname === "/api/arms-licenses") {
+      const { onRequestGet: armsLicensesGet, onRequestPut: armsLicensesPut } = await import("../functions/api/arms-licenses.js");
+      const context = { env, request };
+      if (request.method === "GET") return armsLicensesGet(context);
+      if (request.method === "PUT") return armsLicensesPut(context);
+      return new Response("Method Not Allowed", { status: 405 });
+    }
+
+    const armsLicensePrefix = "/api/arms-license/";
+    if (pathname.startsWith(armsLicensePrefix)) {
+      const slug = decodeURIComponent(pathname.slice(armsLicensePrefix.length).split("/")[0] || "");
+      const { onRequestGet: armsGet, onRequestPut: armsPut, onRequestDelete: armsDelete } = await import(
+        "../functions/api/arms-license/[slug].js"
+      );
+      const context = { env, request, params: { slug } };
+      if (request.method === "GET") return armsGet(context);
+      if (request.method === "PUT") return armsPut(context);
+      if (request.method === "DELETE") return armsDelete(context);
+      return new Response("Method Not Allowed", { status: 405 });
+    }
+
     return env.ASSETS.fetch(request);
   },
 };

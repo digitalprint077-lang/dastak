@@ -210,6 +210,28 @@ import {
   renderPermitPreview as renderRtaPermitPreview,
   renderPermitRegistry as renderRtaPermitRegistry,
 } from "./rta-permit-ui.js";
+import {
+  generateArmsLinkId,
+  getArmsLicenseForEdit,
+  getPublicArmsLicense,
+  hydratePublicArmsLicense,
+  newArmsLicenseTemplate,
+  publicArmsLicensePath,
+  readArmsLicenseFormValues,
+  fillArmsValidityFields,
+  saveArmsLicense,
+  deleteArmsLicense,
+  fetchArmsLicenseList,
+  validateArmsLicenseRequired,
+  resolveArmsLicenseForVerify,
+} from "./arms-licenses.js";
+import {
+  bindArmsLicensePhotoInput,
+  renderArmsLicenseEditor,
+  renderArmsLicenseNotFound,
+  renderArmsLicensePreview,
+  renderArmsLicenseRegistry,
+} from "./arms-license-ui.js";
 import { bindDatePickers } from "./date-picker.js";
 
 const ECITIZEN_HOME = "https://ecitizen.kp.gov.pk/";
@@ -402,6 +424,10 @@ function iconRoutePermit() {
 
 function iconRtaPermit() {
   return iconSvg(`<path d="M3 10.5 12 4l9 6.5"/><path d="M5 10v9h14v-9"/><path d="M9 19v-6h6v6"/>`);
+}
+
+function iconArmsLicense() {
+  return iconSvg(`<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>`);
 }
 
 function iconSearch() {
@@ -641,6 +667,7 @@ function getAdminView() {
   if (view === "registry") return "registry";
   if (view === "permits") return "permits";
   if (view === "rta-permits") return "rta-permits";
+  if (view === "arms-licenses") return "arms-licenses";
   return "overview";
 }
 
@@ -681,6 +708,7 @@ function adminContextIcon(activeView) {
   if (activeView === "registry" || activeView === "certificates") return iconCertificate();
   if (activeView === "permits" || activeView === "permit-editor") return iconRoutePermit();
   if (activeView === "rta-permits" || activeView === "rta-permit-editor") return iconRtaPermit();
+  if (activeView === "arms-licenses" || activeView === "arms-license-editor") return iconArmsLicense();
   return iconDashboard();
 }
 
@@ -689,6 +717,7 @@ function adminRailNav(activeView) {
   const certsActive = activeView === "registry" || activeView === "analytics" || editorOpen;
   const permitsActive = activeView === "permits" || activeView === "permit-editor" || activeView === "permit-analytics";
   const rtaActive = activeView === "rta-permits" || activeView === "rta-permit-editor" || activeView === "rta-permit-analytics";
+  const armsActive = activeView === "arms-licenses" || activeView === "arms-license-editor";
   const railOpen = window.matchMedia("(max-width: 767px)").matches ? "" : " open";
 
   const link = (href, label, icon, active, tone = "") =>
@@ -737,6 +766,15 @@ function adminRailNav(activeView) {
             </button>
           </nav>
         </details>
+        <details class="admin-rail-menu admin-rail-service admin-rail-service-arms${armsActive ? " is-active" : ""}"${armsActive ? railOpen : ""}>
+          ${adminRailServiceSummary(iconArmsLicense(), "Arms licenses", "Weapon licenses")}
+          <nav class="admin-rail-subnav" aria-label="Arms license workspace">
+            ${link("/admin/dashboard?view=arms-licenses", "Registry", iconRegistry(), activeView === "arms-licenses" || activeView === "arms-license-editor")}
+            <button type="button" class="admin-rail-link admin-rail-sublink admin-rail-link-btn" data-action="admin-create-arms-license">
+              ${adminRailLinkContent(iconPlus(), "New license")}
+            </button>
+          </nav>
+        </details>
       </div>
     </div>
   `;
@@ -754,6 +792,8 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
             ? "PTA permits"
             : activeView === "rta-permits" || activeView === "rta-permit-editor"
               ? "RTA permits"
+              : activeView === "arms-licenses" || activeView === "arms-license-editor"
+                ? "Arms licenses"
             : "Dashboard";
   const editorOpen = activeView === "certificates" && isAdminEditorOpen();
   const pageLead =
@@ -773,6 +813,10 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
               ? "Issue and manage RTA permits separately from PTA and fitness records."
               : activeView === "rta-permit-editor"
                 ? "Edit RTA permit fields and save. Public preview uses /rtapermits."
+                : activeView === "arms-licenses"
+                  ? "Issue and manage arms licenses with eCitizen-style public preview."
+                  : activeView === "arms-license-editor"
+                    ? "Edit arms license fields and save. Public preview uses /armslicense."
             : editorOpen
               ? "Edit fields and save. Registry stays on its own screen."
               : "Overall, fitness, PTA, and RTA permit health plus recent public activity.";
@@ -821,6 +865,8 @@ function adminDashboardShell(mainHtml, activeView = "overview") {
                   ? `<button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-permit">${iconPlus()} New permit</button>`
                   : activeView === "rta-permits" || activeView === "rta-permit-editor"
                     ? `<button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-rta-permit">${iconPlus()} New permit</button>`
+                    : activeView === "arms-licenses" || activeView === "arms-license-editor"
+                      ? `<button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-arms-license">${iconPlus()} New license</button>`
                   : ""
             }
           </div>
@@ -1485,6 +1531,28 @@ function resolveRtaPermitByDocument(documentNumber) {
   return token ? getPublicRtaPermit(token) : null;
 }
 
+function applyEcitizenVerifyQuery(verifyForm) {
+  if (!verifyForm) return;
+  const params = new URLSearchParams(window.location.search);
+  const licenseType = params.get("license_type");
+  const shouldVerify = params.get("verify_license") === "1";
+  if (!licenseType && !shouldVerify) return;
+  const typeSel = verifyForm.querySelector('[name="licenseType"]');
+  if (licenseType && typeSel && [...typeSel.options].some((opt) => opt.value === licenseType)) {
+    typeSel.value = licenseType;
+  }
+  const tracking = params.get("tracking_id") || params.get("documentNumber") || "";
+  const docInput = verifyForm.querySelector('[name="documentNumber"]');
+  if (docInput && tracking) docInput.value = tracking;
+  const cnicInput = verifyForm.querySelector('[name="cnic"]');
+  const cnicRaw = params.get("cnic") || "";
+  if (cnicInput && cnicRaw) cnicInput.value = cnicRaw.replace(/\D/g, "").slice(0, 13);
+  typeSel?.dispatchEvent(new Event("change"));
+  if (shouldVerify && tracking && isValidCnic(normalizeCnic(cnicRaw))) {
+    void handleVerifyLicense(verifyForm);
+  }
+}
+
 async function handleVerifyLicense(form) {
   if (!guardPublicLookup(form)) return;
   const licenseType = form.querySelector('[name="licenseType"]')?.value ?? "";
@@ -1501,6 +1569,7 @@ async function handleVerifyLicense(form) {
   recordLookupAttempt();
   await hydratePublicPermit(documentNumber);
   await hydratePublicRtaPermit(documentNumber);
+  await hydratePublicArmsLicense(documentNumber);
   const permit = resolvePermitByDocument(documentNumber);
   if (permit) {
     recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
@@ -1523,6 +1592,26 @@ async function handleVerifyLicense(form) {
     navigate(publicRtaPermitPath(rtaPermit.token));
     return;
   }
+  if (licenseType === "arms_license") {
+    const arms = resolveArmsLicenseForVerify(documentNumber, cnic);
+    if (arms) {
+      recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
+        success: true,
+        licenseType,
+        token: arms.token,
+        kind: "arms",
+      });
+      navigate(publicArmsLicensePath(arms.token));
+      return;
+    }
+    recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
+      success: false,
+      licenseType,
+      kind: "arms",
+    });
+    showToast("No arms license found for this tracking ID / license number and CNIC");
+    return;
+  }
   if (licenseType === "routepermits") {
     recordAnalyticsEvent(EVENT_TYPES.VERIFY_LOOKUP, {
       success: false,
@@ -1542,7 +1631,7 @@ async function handleVerifyLicense(form) {
     return;
   }
   if (licenseType !== "vehicle_fitness") {
-    showToast("This demo supports Vehicle Fitness Certificate, Route Permit, and RTA Permit verification");
+    showToast("This demo supports Vehicle Fitness, Route Permit, RTA Permit, and Arms License verification");
     return;
   }
   const token = resolveVehicleFitnessByDocument(documentNumber);
@@ -2182,6 +2271,7 @@ function isAdminEditorOpen() {
     view === "permit-analytics" ||
     view === "rta-permits" ||
     view === "rta-permit-analytics" ||
+    view === "arms-licenses" ||
     view === "analytics"
   )
     return false;
@@ -2205,6 +2295,16 @@ function isRtaPermitSectionOpen() {
 
 function isRtaPermitEditorOpen() {
   if (!isRtaPermitSectionOpen()) return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get("create") === "1" || Boolean(params.get("token")?.trim());
+}
+
+function isArmsLicenseSectionOpen() {
+  return new URLSearchParams(window.location.search).get("view") === "arms-licenses";
+}
+
+function isArmsLicenseEditorOpen() {
+  if (!isArmsLicenseSectionOpen()) return false;
   const params = new URLSearchParams(window.location.search);
   return params.get("create") === "1" || Boolean(params.get("token")?.trim());
 }
@@ -2925,6 +3025,16 @@ function adminDashboardPage() {
     }
     return adminDashboardShell(renderRtaPermitRegistry(listRtaPermitRegistryCache), "rta-permits");
   }
+  if (view === "arms-licenses") {
+    if (isArmsLicenseEditorOpen()) {
+      const params = new URLSearchParams(window.location.search);
+      const isCreate = params.get("create") === "1";
+      const token = isCreate ? generateArmsLinkId() : params.get("token")?.trim();
+      const data = isCreate ? newArmsLicenseTemplate() : getArmsLicenseForEdit(token);
+      return adminDashboardShell(renderArmsLicenseEditor(token, data, isCreate), "arms-license-editor");
+    }
+    return adminDashboardShell(renderArmsLicenseRegistry(listArmsLicenseRegistryCache), "arms-licenses");
+  }
   if (view === "permits") {
     if (isPermitEditorOpen()) {
       const params = new URLSearchParams(window.location.search);
@@ -3149,6 +3259,39 @@ async function savePermitFromEditor() {
   } catch (err) {
     console.error("Permit save failed", err);
     showToast("Could not save route permit");
+    hideSaveProgress();
+  } finally {
+    setSaveFormBusy(false);
+    saveInFlight = false;
+  }
+}
+
+async function saveArmsLicenseFromEditor() {
+  const form = document.getElementById("arms-license-editor");
+  if (!form || saveInFlight) return;
+  const token = form.querySelector('[name="linkToken"]')?.value?.trim();
+  if (!token) {
+    showToast("License link ID is required");
+    return;
+  }
+  const payload = readArmsLicenseFormValues(form);
+  const required = validateArmsLicenseRequired(payload.values);
+  if (!required.ok) {
+    showToast(`Required: ${required.missing.join(", ")}`);
+    return;
+  }
+  saveInFlight = true;
+  setSaveFormBusy(true);
+  showAdminProgress("save", "Saving arms license…", 20);
+  try {
+    const result = await saveArmsLicense(token, payload);
+    showAdminProgress("save", result.publishedOnline ? "Published" : "Saved on this device", 100);
+    showToast(result.publishedOnline ? "Arms license saved" : "Saved locally — live publish when D1 is bound");
+    window.setTimeout(hideSaveProgress, 400);
+    navigate(`/admin/dashboard?view=arms-licenses&token=${encodeURIComponent(token)}`, { skipDirtyCheck: true });
+  } catch (err) {
+    console.error("Arms license save failed", err);
+    showToast("Could not save arms license");
     hideSaveProgress();
   } finally {
     setSaveFormBusy(false);
@@ -3633,6 +3776,7 @@ function navigate(path, { skipDirtyCheck = false } = {}) {
 
 let listPermitRegistryCache = [];
 let listRtaPermitRegistryCache = [];
+let listArmsLicenseRegistryCache = [];
 let dataActionClickBound = false;
 let adminPwUiBound = false;
 let adminRailMenuBound = false;
@@ -4014,6 +4158,10 @@ async function handleDataActionClick(el, event) {
     if (!confirmLeaveDirtyEditor()) return;
     navigate("/admin/dashboard?view=rta-permits&create=1");
   }
+  if (action === "admin-create-arms-license") {
+    if (!confirmLeaveDirtyEditor()) return;
+    navigate("/admin/dashboard?view=arms-licenses&create=1");
+  }
   if (action === "delete-permit") {
     const token = el.getAttribute("data-delete-token")?.trim();
     if (!token) return;
@@ -4043,6 +4191,21 @@ async function handleDataActionClick(el, event) {
     await deleteRtaPermit(token);
     showToast("RTA permit deleted");
     navigate("/admin/dashboard?view=rta-permits", { skipDirtyCheck: true });
+  }
+  if (action === "delete-arms-license") {
+    const token = el.getAttribute("data-delete-token")?.trim();
+    if (!token) return;
+    const snapshot = getArmsLicenseForEdit(token);
+    if (
+      !window.confirm(
+        `Delete arms license for ${snapshot.values.Name || token}?\nLicense no: ${snapshot.values["License No"] || "—"}\n\nThis cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    await deleteArmsLicense(token);
+    showToast("Arms license deleted");
+    navigate("/admin/dashboard?view=arms-licenses", { skipDirtyCheck: true });
   }
   if (action === "renew-cert" || action === "renew-cert-registry") {
     const sourceToken =
@@ -4256,6 +4419,7 @@ function bindActions() {
         action === "delete-cert" ||
         action === "delete-permit" ||
         action === "delete-rta-permit" ||
+        action === "delete-arms-license" ||
         action === "renew-cert" ||
         action === "renew-cert-registry" ||
         action === "download-pdf" ||
@@ -4290,10 +4454,13 @@ function bindActions() {
     const docInput = verifyForm.querySelector('[name="documentNumber"]');
     const syncVerifyPlaceholder = () => {
       if (!docInput) return;
-      docInput.placeholder =
-        typeSel?.value === "routepermits" || typeSel?.value === "rtapermits"
-          ? "Enter P.Pu.C / route permit number"
-          : t("documentPlaceholder");
+      if (typeSel?.value === "arms_license") {
+        docInput.placeholder = "Enter tracking ID or license number";
+      } else if (typeSel?.value === "routepermits" || typeSel?.value === "rtapermits") {
+        docInput.placeholder = "Enter P.Pu.C / route permit number";
+      } else {
+        docInput.placeholder = t("documentPlaceholder");
+      }
     };
     typeSel?.addEventListener("change", syncVerifyPlaceholder);
     syncVerifyPlaceholder();
@@ -4301,6 +4468,7 @@ function bindActions() {
       event.preventDefault();
       void handleVerifyLicense(verifyForm);
     });
+    applyEcitizenVerifyQuery(verifyForm);
   }
 
   const loginForm = document.getElementById("admin-login-form");
@@ -4352,6 +4520,20 @@ function bindActions() {
     rtaPermitForm.addEventListener("submit", (event) => {
       event.preventDefault();
       void saveRtaPermitFromEditor();
+    });
+  }
+
+  const armsLicenseForm = document.getElementById("arms-license-editor");
+  if (armsLicenseForm) {
+    bindArmsLicensePhotoInput();
+    fillArmsValidityFields(armsLicenseForm, { onlyIfEmpty: true });
+    armsLicenseForm.addEventListener("change", (event) => {
+      if (event.target.getAttribute("name") !== "Issue Date") return;
+      fillArmsValidityFields(armsLicenseForm);
+    });
+    armsLicenseForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void saveArmsLicenseFromEditor();
     });
   }
 
@@ -4636,6 +4818,27 @@ async function render() {
     return;
   }
 
+  const armsLicenseMatch = path.match(/^\/armslicense\/([^/]+)$/);
+  if (armsLicenseMatch) {
+    const licenseSlug = safePathSlug(armsLicenseMatch[1]);
+    await hydratePublicArmsLicense(licenseSlug);
+    const license = getPublicArmsLicense(licenseSlug);
+    recordAnalyticsEvent(EVENT_TYPES.PERMIT_VIEW, {
+      token: license?.token || licenseSlug,
+      success: !!license,
+      kind: "arms",
+      trackingId: license?.values?.["Tracking ID"] || license?.values?.["License No"],
+    });
+    app.innerHTML = license
+      ? renderArmsLicensePreview((html, options) => layout(html, options), license)
+      : renderArmsLicenseNotFound((html, options) => layout(html, options), licenseSlug);
+    bindActions();
+    syncThemeToggleUI();
+    applyDocumentLang();
+    scheduleHideAppLoader();
+    return;
+  }
+
   const permitMatch = path.match(/^\/routepermits\/([^/]+)$/);
   if (permitMatch) {
     const permitSlug = safePathSlug(permitMatch[1]);
@@ -4678,6 +4881,9 @@ async function render() {
     }
     if (isAdminLoggedIn() && isRtaPermitSectionOpen() && !isRtaPermitEditorOpen()) {
       listRtaPermitRegistryCache = await fetchRtaPermitList();
+    }
+    if (isAdminLoggedIn() && isArmsLicenseSectionOpen() && !isArmsLicenseEditorOpen()) {
+      listArmsLicenseRegistryCache = await fetchArmsLicenseList();
     }
     app.innerHTML = adminDashboardPage();
   } else if (path === "/admin") {

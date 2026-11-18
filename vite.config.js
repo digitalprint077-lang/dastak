@@ -38,6 +38,7 @@ function mergePublishedCertificatesPlugin() {
 
       const localPermits = new Map();
       const localRtaPermits = new Map();
+      const localArmsLicenses = new Map();
 
       const permitListPayload = (store) =>
         [...store.values()].map((row) => ({
@@ -178,6 +179,79 @@ function mergePublishedCertificatesPlugin() {
           }
           if (req.method === "DELETE") {
             localRtaPermits.delete(slug);
+            res.statusCode = 204;
+            res.end();
+            return;
+          }
+        }
+        if (url === "/api/arms-licenses" && req.method === "GET") {
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/json");
+          res.end(
+            JSON.stringify({
+              version: 1,
+              items: [...localArmsLicenses.values()].map((row) => ({
+                token: row.token,
+                status: row.status,
+                holder: row.values?.Name || "—",
+                licenseNo: row.values?.["License No"] || "—",
+                trackingId: row.values?.["Tracking ID"] || "",
+                district: row.values?.District || "",
+                issueDate: row.values?.["Issue Date"] || "",
+                expiryDate: row.values?.["Expiry Date"] || "",
+                updatedAt: new Date().toISOString(),
+              })),
+            })
+          );
+          return;
+        }
+        if (url.startsWith("/api/arms-license/")) {
+          const slug = decodeURIComponent(url.replace(/^\/api\/arms-license\//, "").split("?")[0]);
+          const findArms = (id) =>
+            localArmsLicenses.get(id) ||
+            [...localArmsLicenses.values()].find(
+              (row) =>
+                row.values?.["Tracking ID"] === id ||
+                row.values?.["License No"] === id ||
+                String(row.values?.CNIC ?? "").replace(/\D/g, "") === String(id).replace(/\D/g, "")
+            );
+          if (req.method === "GET") {
+            const hit = findArms(slug);
+            if (!hit) {
+              res.statusCode = 404;
+              res.setHeader("Content-Type", "application/json");
+              res.end(JSON.stringify({ error: "not_found" }));
+              return;
+            }
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(hit));
+            return;
+          }
+          if (req.method === "PUT") {
+            if (req.headers["x-admin-sync-key"] !== adminKey) {
+              res.statusCode = 401;
+              res.end("Unauthorized");
+              return;
+            }
+            try {
+              const incoming = JSON.parse(await readBody(req));
+              localArmsLicenses.set(slug, {
+                token: slug,
+                status: incoming.status || "Issued",
+                values: incoming.values || {},
+              });
+              res.statusCode = 204;
+              res.setHeader("X-Publish-Via", "local");
+              res.end();
+            } catch (err) {
+              res.statusCode = 500;
+              res.end(String(err?.message || err));
+            }
+            return;
+          }
+          if (req.method === "DELETE") {
+            localArmsLicenses.delete(slug);
             res.statusCode = 204;
             res.end();
             return;
