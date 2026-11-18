@@ -8,6 +8,7 @@ import {
   eventRecordKind,
   EVENT_TYPES,
   formatRelativeTime,
+  daysUntilExpiry,
 } from "./analytics.js";
 import { listSavedTokens, getCertificateForEdit, isCertificateSaved } from "./certificates.js";
 import { fetchAdminCertificateList } from "./admin-cert-api.js";
@@ -23,6 +24,7 @@ import {
   isPermitSaved as isRtaPermitSaved,
   fetchPermitList as fetchRtaPermitList,
 } from "./rta-permits.js";
+import { listArmsLicenseSummaries, fetchArmsLicenseList } from "./arms-licenses.js";
 
 function escapeHtml(text) {
   return String(text)
@@ -152,6 +154,7 @@ function quietEventLabel(event) {
     case EVENT_TYPES.ADMIN_SAVE:
       return "Fitness saved";
     case EVENT_TYPES.PERMIT_VIEW:
+      if (event.kind === "arms") return event.success === false ? "Arms not found" : "Arms preview";
       return event.success === false ? "PTA not found" : "PTA preview";
     case EVENT_TYPES.PERMIT_PRINT:
       return "PTA print";
@@ -190,6 +193,21 @@ export function buildLocalPermitOverviewRows() {
 
 export function buildLocalRtaPermitOverviewRows() {
   return buildPermitTrackingRows(listSavedRtaPermitTokens(), getRtaPermitForEdit, isRtaPermitSaved, "rta");
+}
+
+export function buildLocalArmsOverviewRows() {
+  return listArmsLicenseSummaries().map((item) => ({
+    token: item.token,
+    trackingId: item.trackingId || item.licenseNo || "—",
+    applicant: item.holder || "—",
+    district: item.district || "—",
+    issue: item.issueDate || "",
+    expiry: item.expiryDate || "",
+    daysLeft: daysUntilExpiry(item.expiryDate),
+    saved: true,
+    kind: "arms",
+    certStatus: item.status || "Issued",
+  }));
 }
 
 export function computeRegistryPublishCounts(rows) {
@@ -251,6 +269,7 @@ function renderActivityChartOverview(buckets) {
 }
 
 function editorHref(row) {
+  if (row.kind === "arms") return `/admin/dashboard?view=arms-licenses&token=${encodeURIComponent(row.token)}`;
   if (row.kind === "rta") return `/admin/dashboard?view=rta-permits&token=${encodeURIComponent(row.token)}`;
   return row.kind === "permit"
     ? `/admin/dashboard?view=permits&token=${encodeURIComponent(row.token)}`
@@ -258,6 +277,7 @@ function editorHref(row) {
 }
 
 function overviewKindLabel(kind) {
+  if (kind === "arms") return "Arms";
   if (kind === "rta") return "RTA";
   if (kind === "permit") return "PTA";
   return "Fitness";
@@ -272,17 +292,20 @@ function attentionBanner(copy, href, goLabel) {
       </a>`;
 }
 
-export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = []) {
+export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = [], armsRows = []) {
   const fitnessRows = rows;
   const permitList = permitRows;
   const rtaList = rtaPermitRows;
-  const overallRows = [...fitnessRows, ...permitList, ...rtaList];
+  const armsList = armsRows;
+  const overallRows = [...fitnessRows, ...permitList, ...rtaList, ...armsList];
   const publish = computeRegistryPublishCounts(fitnessRows);
   const permitPublish = computeRegistryPublishCounts(permitList);
   const rtaPublish = computeRegistryPublishCounts(rtaList);
+  const armsPublish = computeRegistryPublishCounts(armsList);
   const fitness = countByFitness(fitnessRows);
   const permits = countByFitness(permitList);
   const rtaPermits = countByFitness(rtaList);
+  const arms = countByFitness(armsList);
   const buckets = dailyActivityBuckets(7);
   const recent = getAnalyticsEvents(8);
 
@@ -316,6 +339,9 @@ export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = [
   const rtaBits = [];
   if (rtaPermits.expiring) rtaBits.push(`${rtaPermits.expiring} expiring within 30 days`);
   if (rtaPermits.expired) rtaBits.push(`${rtaPermits.expired} already expired`);
+  const armsBits = [];
+  if (arms.expiring) armsBits.push(`${arms.expiring} expiring within 30 days`);
+  if (arms.expired) armsBits.push(`${arms.expired} already expired`);
   const attentionItems = [
     fitnessBits.length
       ? attentionBanner(
@@ -335,6 +361,13 @@ export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = [
       ? attentionBanner(
           `<strong>RTA permits need attention.</strong> ${escapeHtml(rtaBits.join(" · "))}.`,
           "/admin/dashboard?view=rta-permits",
+          "Review"
+        )
+      : "",
+    armsBits.length
+      ? attentionBanner(
+          `<strong>Arms licenses need attention.</strong> ${escapeHtml(armsBits.join(" · "))}.`,
+          "/admin/dashboard?view=arms-licenses",
           "Review"
         )
       : "",
@@ -411,6 +444,16 @@ export function renderAdminOverviewPage(rows, permitRows = [], rtaPermitRows = [
           ${summaryPills(rtaPublish.live, rtaPermits.expiring, rtaPermits.expired)}
           <span class="admin-ov-summary-open">Open RTA</span>
         </a>
+        <a class="admin-ov-summary-card admin-ov-card-teal" href="/admin/dashboard?view=arms-licenses">
+          <div class="admin-ov-summary-top">
+            <span class="admin-ov-summary-icon" aria-hidden="true">${ovIcon(`<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>`)}</span>
+            <p class="admin-ov-summary-label">Arms licenses</p>
+          </div>
+          <p class="admin-ov-summary-value">${armsList.length}</p>
+          <p class="admin-ov-summary-sub">${arms.active + arms.renewal} valid · ${armsPublish.live} live · ${armsPublish.local} local</p>
+          ${summaryPills(armsPublish.live, arms.expiring, arms.expired)}
+          <span class="admin-ov-summary-open">Open registry</span>
+        </a>
       </div>
 
       <section class="admin-ov-panel admin-ov-chart-panel">
@@ -474,9 +517,11 @@ export async function fetchOverviewRowsMerged() {
   const localRows = buildLocalOverviewRows();
   const localPermits = buildLocalPermitOverviewRows();
   const localRtaPermits = buildLocalRtaPermitOverviewRows();
+  const localArms = buildLocalArmsOverviewRows();
   let rows = localRows;
   let permitRows = localPermits;
   let rtaPermitRows = localRtaPermits;
+  let armsLicenseRows = localArms;
   let listItems = [];
   try {
     const data = await fetchAdminCertificateList({ page: 1, limit: 100, filters: {} });
@@ -497,5 +542,28 @@ export async function fetchOverviewRowsMerged() {
   } catch {
     /* offline / no API */
   }
-  return { rows, permitRows, rtaPermitRows, listItems };
+  try {
+    const items = await fetchArmsLicenseList();
+    const byToken = new Map(localArms.map((row) => [row.token, row]));
+    items.forEach((item) => {
+      if (!item?.token || byToken.has(item.token)) return;
+      byToken.set(item.token, {
+        token: item.token,
+        trackingId: item.trackingId || item.licenseNo || "—",
+        applicant: item.holder || "—",
+        district: item.district || "—",
+        issue: item.issueDate || "",
+        expiry: item.expiryDate || "",
+        daysLeft: daysUntilExpiry(item.expiryDate),
+        saved: false,
+        fromServer: true,
+        kind: "arms",
+        certStatus: item.status || "Issued",
+      });
+    });
+    armsLicenseRows = [...byToken.values()];
+  } catch {
+    /* offline / no API */
+  }
+  return { rows, permitRows, rtaPermitRows, armsLicenseRows, listItems };
 }

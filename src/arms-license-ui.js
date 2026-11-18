@@ -163,46 +163,200 @@ function fieldInput(label, value) {
   `;
 }
 
-export function renderArmsLicenseRegistry(items) {
-  const rows = (items || [])
-    .map(
-      (item) => `
-      <div class="cert-list-item-row">
-        <a class="cert-list-item" href="/admin/dashboard?view=arms-licenses&token=${encodeURIComponent(item.token)}">
-          <span class="cert-list-avatar">${escapeHtml(String(item.holder || "?").slice(0, 1).toUpperCase())}</span>
-          <span class="cert-list-body">
-            <strong>${escapeHtml(item.holder || "Untitled license")}</strong>
-            <span class="cert-list-meta">${escapeHtml(item.licenseNo || "—")} · Tracking ${escapeHtml(item.trackingId || "—")}</span>
-            <span class="cert-list-district">${escapeHtml(item.district || "")} · ${escapeHtml(item.status || "Issued")}</span>
+function daysUntil(iso) {
+  const raw = String(iso ?? "").trim();
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+  const expiry = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((expiry.getTime() - today.getTime()) / 86400000);
+}
+
+function formatListDate(iso) {
+  const match = String(iso ?? "").trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return "";
+  return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
+function expiryPill(daysLeft) {
+  if (daysLeft == null || daysLeft > 60) return "";
+  if (daysLeft < 0) return `<span class="cert-expiry-pill cert-expiry-pill-danger">Expired</span>`;
+  if (daysLeft <= 30) return `<span class="cert-expiry-pill cert-expiry-pill-warn">${daysLeft}d left</span>`;
+  return `<span class="cert-expiry-pill cert-expiry-pill-info">${daysLeft}d left</span>`;
+}
+
+function armsRegistryRow(item, index) {
+  const holder = String(item.holder || "Untitled license");
+  const daysLeft = daysUntil(item.expiryDate);
+  const district = String(item.district || "").trim();
+  const issueLabel = formatListDate(item.issueDate);
+  const status = String(item.status || "Issued");
+  const search = [holder, item.licenseNo, item.trackingId, item.district, item.token, status]
+    .map((part) => String(part || "").toLowerCase())
+    .join(" ");
+  return `
+    <div
+      class="cert-list-item-row"
+      data-arms-row
+      data-search="${escapeHtml(search)}"
+      data-status="${escapeHtml(status)}"
+      data-district="${escapeHtml(district)}"
+      data-days="${daysLeft == null ? "" : String(daysLeft)}"
+      data-order="${index}"
+    >
+      <a class="cert-list-item" href="/admin/dashboard?view=arms-licenses&token=${encodeURIComponent(item.token)}">
+        <span class="cert-list-avatar" aria-hidden="true">${escapeHtml(holder.slice(0, 1).toUpperCase())}</span>
+        <span class="cert-list-body">
+          <span class="cert-list-top">
+            <strong class="cert-list-name">${escapeHtml(holder)}</strong>
+            <span class="cert-list-badges">
+              ${expiryPill(daysLeft)}
+              <span class="cert-badge cert-badge-default">${escapeHtml(status)}</span>
+            </span>
           </span>
-        </a>
-        <div class="cert-list-row-actions">
-          <a class="cert-list-action-btn" href="${publicArmsLicensePath(item.token)}" target="_blank" rel="noreferrer" title="Public preview">Preview</a>
-        </div>
+          <span class="cert-list-reg">${escapeHtml(item.licenseNo || "No license number")}</span>
+          <span class="cert-list-meta">
+            ${district ? `<span class="cert-list-district">${escapeHtml(district)}</span>` : ""}
+            ${issueLabel ? `<span class="cert-list-date">Issued ${escapeHtml(issueLabel)}</span>` : ""}
+            <span class="cert-list-id">${escapeHtml(item.trackingId || item.token)}</span>
+          </span>
+        </span>
+        <span class="cert-list-open">Open</span>
+      </a>
+      <div class="cert-list-row-actions">
+        <a class="cert-list-action-btn" href="${publicArmsLicensePath(item.token)}" target="_blank" rel="noreferrer" title="Public preview">Preview</a>
       </div>
-    `
-    )
+    </div>
+  `;
+}
+
+export function renderArmsLicenseRegistry(items) {
+  const list = items || [];
+  const districts = [...new Set(list.map((item) => String(item.district || "").trim()).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b)
+  );
+  const districtOptions = districts
+    .map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
     .join("");
+  const statusOptions = ARMS_STATUS_OPTIONS.map(
+    (name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`
+  ).join("");
+  const rows = list.map((item, index) => armsRegistryRow(item, index)).join("");
 
   return `
     <div class="admin-registry-page">
-      <section class="admin-list-panel admin-list-panel-full">
+      <section class="admin-list-panel admin-list-panel-full" id="arms-registry-panel">
         <div class="admin-list-panel-head">
           <div>
-            <h2 class="admin-list-panel-title"><span class="admin-title-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Arms license registry</h2>
-            <p class="admin-list-lead">Issue and edit arms licenses. Public verification uses tracking ID or license number plus CNIC.</p>
+            <h2 class="admin-list-panel-title"><span class="admin-title-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Arms licenses</h2>
+            <p class="admin-list-panel-count" id="arms-list-count">${list.length} license${list.length === 1 ? "" : "s"}</p>
           </div>
           <button class="btn btn-primary admin-context-cta" type="button" data-action="admin-create-arms-license">+ New license</button>
+        </div>
+        <div class="admin-registry-toolbar">
+          <div class="admin-list-search">
+            <input
+              id="arms-list-search"
+              class="form-control admin-list-search-input"
+              type="search"
+              placeholder="Search name, license number, or tracking ID…"
+              autocomplete="off"
+            />
+          </div>
+          <div class="admin-list-quick-filters" role="group" aria-label="Quick filters">
+            <button type="button" class="admin-filter-chip is-active" data-arms-quick="">All</button>
+            <button type="button" class="admin-filter-chip" data-arms-quick="issued">Issued</button>
+            <button type="button" class="admin-filter-chip" data-arms-quick="pending">Pending</button>
+            <button type="button" class="admin-filter-chip" data-arms-quick="expiring">Expiring ≤30d</button>
+            <button type="button" class="admin-filter-chip" data-arms-quick="expired">Expired</button>
+          </div>
+          <div class="admin-list-filters">
+            <select id="arms-list-district" class="form-control form-control-sm" aria-label="District filter">
+              <option value="">All districts</option>
+              ${districtOptions}
+            </select>
+            <select id="arms-list-status" class="form-control form-control-sm" aria-label="Status filter">
+              <option value="">Any status</option>
+              ${statusOptions}
+            </select>
+            <select id="arms-list-sort" class="form-control form-control-sm" aria-label="Sort order">
+              <option value="issue-desc">Newest first</option>
+              <option value="expiry-asc">Expiry soonest</option>
+              <option value="name-asc">Name A–Z</option>
+            </select>
+          </div>
         </div>
         <div class="cert-list" id="arms-license-list">
           ${
             rows ||
-            `<p class="muted admin-empty-copy">No arms licenses yet. Create one to issue a public /armslicense link.</p>`
+            `<p class="muted admin-empty-copy" data-arms-empty>No arms licenses yet. Create one to issue a public /armslicense link.</p>`
           }
         </div>
+        <p class="muted admin-empty-copy" id="arms-list-no-match" hidden>No licenses match these filters.</p>
       </section>
     </div>
   `;
+}
+
+export function bindArmsLicenseRegistry() {
+  const panel = document.getElementById("arms-registry-panel");
+  if (!panel || panel.dataset.bound === "1") return;
+  panel.dataset.bound = "1";
+  const search = document.getElementById("arms-list-search");
+  const district = document.getElementById("arms-list-district");
+  const status = document.getElementById("arms-list-status");
+  const sort = document.getElementById("arms-list-sort");
+  const count = document.getElementById("arms-list-count");
+  const noMatch = document.getElementById("arms-list-no-match");
+  let quick = "";
+
+  const apply = () => {
+    const q = search?.value.trim().toLowerCase() ?? "";
+    const districtValue = district?.value ?? "";
+    const statusValue = status?.value ?? "";
+    const rows = [...panel.querySelectorAll("[data-arms-row]")];
+    const visible = [];
+    rows.forEach((row) => {
+      const daysRaw = row.getAttribute("data-days");
+      const days = daysRaw === "" || daysRaw == null ? null : Number(daysRaw);
+      const rowStatus = row.getAttribute("data-status") || "";
+      let quickOk = true;
+      if (quick === "issued") quickOk = rowStatus === "Issued";
+      if (quick === "pending") quickOk = rowStatus === "Pending" || rowStatus === "Under Review";
+      if (quick === "expiring") quickOk = days != null && days >= 0 && days <= 30;
+      if (quick === "expired") quickOk = days != null && days < 0;
+      const searchOk = !q || (row.getAttribute("data-search") || "").includes(q);
+      const districtOk = !districtValue || row.getAttribute("data-district") === districtValue;
+      const statusOk = !statusValue || rowStatus === statusValue;
+      const show = quickOk && searchOk && districtOk && statusOk;
+      row.hidden = !show;
+      if (show) visible.push(row);
+    });
+    if (sort?.value === "name-asc") {
+      visible.sort((a, b) => (a.querySelector(".cert-list-name")?.textContent || "").localeCompare(b.querySelector(".cert-list-name")?.textContent || ""));
+    } else if (sort?.value === "expiry-asc") {
+      visible.sort((a, b) => Number(a.getAttribute("data-days") || 99999) - Number(b.getAttribute("data-days") || 99999));
+    } else {
+      visible.sort((a, b) => Number(a.getAttribute("data-order") || 0) - Number(b.getAttribute("data-order") || 0));
+    }
+    const list = document.getElementById("arms-license-list");
+    visible.forEach((row) => list?.appendChild(row));
+    if (count) count.textContent = `${visible.length} license${visible.length === 1 ? "" : "s"}`;
+    if (noMatch) noMatch.hidden = visible.length > 0 || !rows.length;
+  };
+
+  search?.addEventListener("input", apply);
+  district?.addEventListener("change", apply);
+  status?.addEventListener("change", apply);
+  sort?.addEventListener("change", apply);
+  panel.querySelectorAll("[data-arms-quick]").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      quick = chip.getAttribute("data-arms-quick") || "";
+      panel.querySelectorAll("[data-arms-quick]").forEach((node) => node.classList.toggle("is-active", node === chip));
+      apply();
+    });
+  });
 }
 
 export function renderArmsLicenseEditor(token, data, isCreate) {

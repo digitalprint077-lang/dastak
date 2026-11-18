@@ -105,6 +105,7 @@ import {
   buildLocalOverviewRows,
   buildLocalPermitOverviewRows,
   buildLocalRtaPermitOverviewRows,
+  buildLocalArmsOverviewRows,
   renderAdminOverviewPage,
   fetchOverviewRowsMerged,
   startAdminOverviewClock,
@@ -227,6 +228,7 @@ import {
 } from "./arms-licenses.js";
 import {
   bindArmsLicensePhotoInput,
+  bindArmsLicenseRegistry,
   renderArmsLicenseEditor,
   renderArmsLicenseNotFound,
   renderArmsLicensePreview,
@@ -3055,7 +3057,12 @@ function adminDashboardPage() {
     return adminDashboardShell(renderRegistryPage(), "registry");
   }
   return adminDashboardShell(
-    renderAdminOverviewPage(buildLocalOverviewRows(), buildLocalPermitOverviewRows(), buildLocalRtaPermitOverviewRows()),
+    renderAdminOverviewPage(
+      buildLocalOverviewRows(),
+      buildLocalPermitOverviewRows(),
+      buildLocalRtaPermitOverviewRows(),
+      buildLocalArmsOverviewRows()
+    ),
     "overview"
   );
 }
@@ -4523,6 +4530,8 @@ function bindActions() {
     });
   }
 
+  bindArmsLicenseRegistry();
+
   const armsLicenseForm = document.getElementById("arms-license-editor");
   if (armsLicenseForm) {
     bindArmsLicensePhotoInput();
@@ -4637,9 +4646,9 @@ function bindActions() {
   bindAdminOverviewLinks();
   if (document.getElementById("admin-overview-page")) {
     void (async () => {
-      const { rows, permitRows, rtaPermitRows } = await fetchOverviewRowsMerged();
+      const { rows, permitRows, rtaPermitRows, armsLicenseRows } = await fetchOverviewRowsMerged();
       const page = document.getElementById("admin-overview-page");
-      if (page) page.outerHTML = renderAdminOverviewPage(rows, permitRows, rtaPermitRows);
+      if (page) page.outerHTML = renderAdminOverviewPage(rows, permitRows, rtaPermitRows, armsLicenseRows);
       bindAdminOverviewLinks();
     })();
   }

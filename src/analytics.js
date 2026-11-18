@@ -32,7 +32,7 @@ function isLookupType(type) {
 }
 
 export function eventRecordKind(event) {
-  if (event?.kind === "permit" || event?.kind === "fitness" || event?.kind === "rta") return event.kind;
+  if (event?.kind === "permit" || event?.kind === "fitness" || event?.kind === "rta" || event?.kind === "arms") return event.kind;
   if (String(event?.type || "").startsWith("rta_")) return "rta";
   if (String(event?.type || "").startsWith("permit_")) return "permit";
   return "fitness";
